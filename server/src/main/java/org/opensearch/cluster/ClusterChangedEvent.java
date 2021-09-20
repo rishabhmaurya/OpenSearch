@@ -62,16 +62,16 @@ public class ClusterChangedEvent {
 
     private final ClusterState state;
 
-    private final DiscoveryNodes.Delta nodesDelta;
+    //private final DiscoveryNodes.Delta nodesDelta;
 
     public ClusterChangedEvent(String source, ClusterState state, ClusterState previousState) {
         Objects.requireNonNull(source, "source must not be null");
         Objects.requireNonNull(state, "state must not be null");
-        Objects.requireNonNull(previousState, "previousState must not be null");
+        //Objects.requireNonNull(previousState, "previousState must not be null");
         this.source = source;
         this.state = state;
         this.previousState = previousState;
-        this.nodesDelta = state.nodes().delta(previousState.nodes());
+        //this.nodesDelta = state.nodes().delta(previousState.nodes());
     }
 
     /**
@@ -220,21 +220,21 @@ public class ClusterChangedEvent {
      * the previous cluster state and the new cluster state.
      */
     public DiscoveryNodes.Delta nodesDelta() {
-        return this.nodesDelta;
+        return null;//this.nodesDelta;
     }
 
     /**
      * Returns <code>true</code> iff nodes have been removed from the cluster since the last cluster state.
      */
     public boolean nodesRemoved() {
-        return nodesDelta.removed();
+        return false;//nodesDelta.removed();
     }
 
     /**
      * Returns <code>true</code> iff nodes have been added from the cluster since the last cluster state.
      */
     public boolean nodesAdded() {
-        return nodesDelta.added();
+        return false;
     }
 
     /**

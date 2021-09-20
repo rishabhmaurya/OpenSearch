@@ -50,6 +50,8 @@ public class PluginPropertiesExtension {
     private String description;
 
     private String classname;
+    private String extensionclassname;
+
 
     /** Other plugins this plugin extends through SPI */
     private List<String> extendedPlugins = new ArrayList<>();
@@ -94,6 +96,12 @@ public class PluginPropertiesExtension {
 
     public String getDescription() {
         return description;
+    }
+    public String getExtensionclassname() {
+        return extensionclassname;
+    }
+    public void setExtensionclassname(String extensionclassname) {
+        this.extensionclassname = extensionclassname;
     }
 
     public void setDescription(String description) {

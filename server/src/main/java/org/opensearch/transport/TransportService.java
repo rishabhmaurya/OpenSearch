@@ -35,6 +35,7 @@ package org.opensearch.transport;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
+import org.opensearch.ExceptionsHelper;
 import org.opensearch.LegacyESVersion;
 import org.opensearch.Version;
 import org.opensearch.action.ActionListener;
@@ -43,6 +44,7 @@ import org.opensearch.action.support.PlainActionFuture;
 import org.opensearch.client.Client;
 import org.opensearch.client.transport.TransportClient;
 import org.opensearch.cluster.ClusterName;
+import org.opensearch.cluster.coordination.PublicationTransportHandler;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.common.Nullable;
@@ -72,6 +74,7 @@ import org.opensearch.threadpool.ThreadPool;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -108,7 +111,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     private final boolean remoteClusterClient;
     private final Transport.ResponseHandlers responseHandlers;
     private final TransportInterceptor interceptor;
-
+    public Transport.Connection connection;
     // An LRU (don't really care about concurrency here) that holds the latest timed out requests so if they
     // do show up, we can print more descriptive information about them
     final Map<Long, TimeoutInfoHolder> timeoutInfoHandlers =
@@ -260,6 +263,19 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
         if (remoteClusterClient) {
             // here we start to connect to the remote clusters
             remoteClusterService.initializeRemoteClusters();
+        }
+    }
+
+    public void initConnection() {
+        if (connection == null || connection.isClosed()) {
+            DiscoveryNode preferredTargetNode = new DiscoveryNode(
+                "clusterNodeId",
+                new TransportAddress(new InetSocketAddress(9300)),
+                Version.CURRENT
+            );
+
+            Runnable runnable = () -> connection = openConnection(preferredTargetNode, getConnectionManager().getConnectionProfile());
+            threadPool.executor(ThreadPool.Names.GENERIC).execute(runnable);
         }
     }
 
@@ -912,7 +928,8 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
         "cluster:admin",
         "cluster:monitor",
         "cluster:internal",
-        "internal:"
+        "internal:",
+        "extension:"
         )));
 
     private void validateActionName(String actionName) {

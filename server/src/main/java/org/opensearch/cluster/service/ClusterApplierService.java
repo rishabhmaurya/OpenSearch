@@ -41,9 +41,12 @@ import org.opensearch.cluster.ClusterStateApplier;
 import org.opensearch.cluster.ClusterStateListener;
 import org.opensearch.cluster.ClusterStateObserver;
 import org.opensearch.cluster.ClusterStateTaskConfig;
+import org.opensearch.cluster.Diff;
 import org.opensearch.cluster.LocalNodeMasterListener;
 import org.opensearch.cluster.NodeConnectionsService;
 import org.opensearch.cluster.TimeoutClusterStateListener;
+import org.opensearch.cluster.metadata.IndexMetadata;
+import org.opensearch.cluster.metadata.Metadata;
 import org.opensearch.cluster.metadata.ProcessClusterEventTimeoutException;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.common.Nullable;
@@ -61,6 +64,7 @@ import org.opensearch.common.util.concurrent.PrioritizedOpenSearchThreadPoolExec
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.threadpool.Scheduler;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.BytesTransportRequest;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -76,6 +80,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static org.opensearch.cluster.coordination.PublicationTransportHandler.PUBLISH_STATE_ACTION_NAME;
 import static org.opensearch.common.util.concurrent.OpenSearchExecutors.daemonThreadFactory;
 
 public class ClusterApplierService extends AbstractLifecycleComponent implements ClusterApplier {
@@ -108,12 +113,12 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
 
     private final String nodeName;
 
-    private NodeConnectionsService nodeConnectionsService;
+    //private NodeConnectionsService nodeConnectionsService;
 
     public ClusterApplierService(String nodeName, Settings settings, ClusterSettings clusterSettings, ThreadPool threadPool) {
         this.clusterSettings = clusterSettings;
         this.threadPool = threadPool;
-        this.state = new AtomicReference<>();
+        this.state = new AtomicReference<>(ClusterState.EMPTY_STATE); //new AtomicReference<>();
         this.nodeName = nodeName;
 
         this.slowTaskLoggingThreshold = CLUSTER_SERVICE_SLOW_TASK_LOGGING_THRESHOLD_SETTING.get(settings);
@@ -126,8 +131,8 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
     }
 
     public synchronized void setNodeConnectionsService(NodeConnectionsService nodeConnectionsService) {
-        assert this.nodeConnectionsService == null : "nodeConnectionsService is already set";
-        this.nodeConnectionsService = nodeConnectionsService;
+        //assert this.nodeConnectionsService == null : "nodeConnectionsService is already set";
+        //this.nodeConnectionsService = nodeConnectionsService;
     }
 
     @Override
@@ -141,7 +146,7 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
 
     @Override
     protected synchronized void doStart() {
-        Objects.requireNonNull(nodeConnectionsService, "please set the node connection service before starting");
+        //Objects.requireNonNull(nodeConnectionsService, "please set the node connection service before starting");
         Objects.requireNonNull(state.get(), "please set initial state before starting");
         threadPoolExecutor = createThreadPoolExecutor();
     }
@@ -178,6 +183,7 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
 
     @Override
     protected synchronized void doStop() {
+
         for (Map.Entry<TimeoutClusterStateListener, NotifyTimeout> onGoingTimeout : timeoutClusterStateListeners.entrySet()) {
             try {
                 onGoingTimeout.getValue().cancel();
@@ -455,8 +461,9 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
     }
 
     private void applyChanges(UpdateTask task, ClusterState previousClusterState, ClusterState newClusterState, StopWatch stopWatch) {
-        ClusterChangedEvent clusterChangedEvent = new ClusterChangedEvent(task.source, newClusterState, previousClusterState);
+      ClusterChangedEvent clusterChangedEvent = new ClusterChangedEvent(task.source, newClusterState, previousClusterState);
         // new cluster state, notify all listeners
+        /*
         final DiscoveryNodes.Delta nodesDelta = clusterChangedEvent.nodesDelta();
         if (nodesDelta.hasChanges() && logger.isInfoEnabled()) {
             String summary = nodesDelta.shortSummary();
@@ -464,12 +471,12 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
                 logger.info("{}, term: {}, version: {}, reason: {}",
                     summary, newClusterState.term(), newClusterState.version(), task.source);
             }
-        }
+        }*/
 
-        logger.trace("connecting to nodes of cluster state with version {}", newClusterState.version());
-        try (Releasable ignored = stopWatch.timing("connecting to new nodes")) {
-            connectToNodesAndWait(newClusterState);
-        }
+//        logger.trace("connecting to nodes of cluster state with version {}", newClusterState.version());
+//        try (Releasable ignored = stopWatch.timing("connecting to new nodes")) {
+//            connectToNodesAndWait(newClusterState);
+//        }
 
         // nothing to do until we actually recover from the gateway or any other block indicates we need to disable persistency
         if (clusterChangedEvent.state().blocks().disableStatePersistence() == false && clusterChangedEvent.metadataChanged()) {
@@ -483,7 +490,7 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
         logger.debug("apply cluster state with version {}", newClusterState.version());
         callClusterStateAppliers(clusterChangedEvent, stopWatch);
 
-        nodeConnectionsService.disconnectFromNodesExcept(newClusterState.nodes());
+        //nodeConnectionsService.disconnectFromNodesExcept(newClusterState.nodes());
 
         assert newClusterState.coordinationMetadata().getLastAcceptedConfiguration()
             .equals(newClusterState.coordinationMetadata().getLastCommittedConfiguration())
@@ -497,17 +504,22 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
         callClusterStateListeners(clusterChangedEvent, stopWatch);
     }
 
+    public void setState(ClusterState newClusterState) {
+        state.set(newClusterState);
+    }
+
+    /*
     protected void connectToNodesAndWait(ClusterState newClusterState) {
         // can't wait for an ActionFuture on the cluster applier thread, but we do want to block the thread here, so use a CountDownLatch.
         final CountDownLatch countDownLatch = new CountDownLatch(1);
-        nodeConnectionsService.connectToNodes(newClusterState.nodes(), countDownLatch::countDown);
+        //nodeConnectionsService.connectToNodes(newClusterState.nodes(), countDownLatch::countDown);
         try {
             countDownLatch.await();
         } catch (InterruptedException e) {
             logger.debug("interrupted while connecting to nodes, continuing", e);
             Thread.currentThread().interrupt();
         }
-    }
+    }*/
 
     private void callClusterStateAppliers(ClusterChangedEvent clusterChangedEvent, StopWatch stopWatch) {
         callClusterStateAppliers(clusterChangedEvent, stopWatch, highPriorityStateAppliers);

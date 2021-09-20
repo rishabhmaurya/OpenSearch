@@ -69,6 +69,7 @@ public class PluginInfo implements Writeable, ToXContentObject {
     private final Version opensearchVersion;
     private final String javaVersion;
     private final String classname;
+    private final String extensionClassName;
     private final List<String> extendedPlugins;
     private final boolean hasNativeController;
 
@@ -92,6 +93,21 @@ public class PluginInfo implements Writeable, ToXContentObject {
         this.opensearchVersion = opensearchVersion;
         this.javaVersion = javaVersion;
         this.classname = classname;
+        this.extensionClassName = null;
+        this.extendedPlugins = Collections.unmodifiableList(extendedPlugins);
+        this.hasNativeController = hasNativeController;
+    }
+
+
+    public PluginInfo(String name, String description, String version, Version opensearchVersion, String javaVersion,
+                      String classname, List<String> extendedPlugins, boolean hasNativeController, String extensionClassName) {
+        this.name = name;
+        this.description = description;
+        this.version = version;
+        this.opensearchVersion = opensearchVersion;
+        this.javaVersion = javaVersion;
+        this.classname = classname;
+        this.extensionClassName = extensionClassName;
         this.extendedPlugins = Collections.unmodifiableList(extendedPlugins);
         this.hasNativeController = hasNativeController;
     }
@@ -116,6 +132,8 @@ public class PluginInfo implements Writeable, ToXContentObject {
             javaVersion = "1.8";
         }
         this.classname = in.readString();
+        this.extensionClassName = in.readString();
+
         if (in.getVersion().onOrAfter(LegacyESVersion.V_6_2_0)) {
             extendedPlugins = in.readStringList();
         } else {
@@ -141,6 +159,7 @@ public class PluginInfo implements Writeable, ToXContentObject {
             out.writeString(javaVersion);
         }
         out.writeString(classname);
+        out.writeString(extensionClassName);
         if (out.getVersion().onOrAfter(LegacyESVersion.V_6_2_0)) {
             out.writeStringCollection(extendedPlugins);
         }
@@ -207,6 +226,8 @@ public class PluginInfo implements Writeable, ToXContentObject {
                     "property [classname] is missing for plugin [" + name + "]");
         }
 
+        final String extensionClassName = propsMap.remove("extensionclassname");
+
         final String extendedString = propsMap.remove("extended.plugins");
         final List<String> extendedPlugins;
         if (extendedString == null) {
@@ -248,7 +269,7 @@ public class PluginInfo implements Writeable, ToXContentObject {
         }
 
         return new PluginInfo(name, description, version, esVersion, javaVersionString,
-                              classname, extendedPlugins, hasNativeController);
+                              classname, extendedPlugins, hasNativeController, extensionClassName);
     }
 
     /**
@@ -278,6 +299,9 @@ public class PluginInfo implements Writeable, ToXContentObject {
         return classname;
     }
 
+    public String getExtensionClassName() {
+        return extensionClassName;
+    }
     /**
      * Other plugins this plugin extends through SPI.
      *

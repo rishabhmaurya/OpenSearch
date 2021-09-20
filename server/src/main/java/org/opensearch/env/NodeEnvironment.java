@@ -451,7 +451,7 @@ public final class NodeEnvironment  implements Closeable {
 
     public static String generateNodeId(Settings settings) {
         Random random = Randomness.get(settings, NODE_ID_SEED_SETTING);
-        return UUIDs.randomBase64UUID(random);
+        return "extensionID";
     }
 
     @SuppressForbidden(reason = "System.out.*")

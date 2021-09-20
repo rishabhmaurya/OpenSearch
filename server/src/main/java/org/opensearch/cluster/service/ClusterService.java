@@ -79,15 +79,14 @@ public class ClusterService extends AbstractLifecycleComponent {
     private RerouteService rerouteService;
 
     public ClusterService(Settings settings, ClusterSettings clusterSettings, ThreadPool threadPool) {
-        this(settings, clusterSettings, new MasterService(settings, clusterSettings, threadPool),
-            new ClusterApplierService(Node.NODE_NAME_SETTING.get(settings), settings, clusterSettings, threadPool));
+        this(settings, clusterSettings, new ClusterApplierService(Node.NODE_NAME_SETTING.get(settings),
+            settings, clusterSettings, threadPool) );
     }
 
-    public ClusterService(Settings settings, ClusterSettings clusterSettings, MasterService masterService,
-                          ClusterApplierService clusterApplierService) {
+    public ClusterService(Settings settings, ClusterSettings clusterSettings, ClusterApplierService clusterApplierService) {
         this.settings = settings;
         this.nodeName = Node.NODE_NAME_SETTING.get(settings);
-        this.masterService = masterService;
+        this.masterService = null;
         this.operationRouting = new OperationRouting(settings, clusterSettings);
         this.clusterSettings = clusterSettings;
         this.clusterName = ClusterName.CLUSTER_NAME_SETTING.get(settings);
@@ -95,6 +94,7 @@ public class ClusterService extends AbstractLifecycleComponent {
         this.clusterSettings.addAffixUpdateConsumer(USER_DEFINED_METADATA, (first, second) -> {}, (first, second) -> {});
         this.clusterApplierService = clusterApplierService;
     }
+
 
     public synchronized void setNodeConnectionsService(NodeConnectionsService nodeConnectionsService) {
         clusterApplierService.setNodeConnectionsService(nodeConnectionsService);
@@ -112,18 +112,18 @@ public class ClusterService extends AbstractLifecycleComponent {
     @Override
     protected synchronized void doStart() {
         clusterApplierService.start();
-        masterService.start();
+        //masterService.start();
     }
-
+//
     @Override
     protected synchronized void doStop() {
-        masterService.stop();
+        //masterService.stop();
         clusterApplierService.stop();
     }
-
+//
     @Override
     protected synchronized void doClose() {
-        masterService.close();
+        //masterService.close();
         clusterApplierService.close();
     }
 
@@ -221,10 +221,10 @@ public class ClusterService extends AbstractLifecycleComponent {
     public ClusterSettings getClusterSettings() {
         return clusterSettings;
     }
-
-    /**
-     * The node's settings.
-     */
+//
+//    /**
+//     * The node's settings.
+//     */
     public Settings getSettings() {
         return settings;
     }
@@ -294,4 +294,5 @@ public class ClusterService extends AbstractLifecycleComponent {
                                            final ClusterStateTaskExecutor<T> executor) {
         masterService.submitStateUpdateTasks(source, tasks, config, executor);
     }
+
 }

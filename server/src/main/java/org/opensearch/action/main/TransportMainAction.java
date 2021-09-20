@@ -36,17 +36,25 @@ import org.opensearch.Build;
 import org.opensearch.LegacyESVersion;
 import org.opensearch.Version;
 import org.opensearch.action.ActionListener;
+import org.opensearch.action.ActionListenerResponseHandler;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
+import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.ClusterState;
+import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.common.logging.DeprecationLogger;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.node.Node;
 import org.opensearch.tasks.Task;
+import org.opensearch.transport.Transport;
+import org.opensearch.transport.TransportRequestOptions;
 import org.opensearch.transport.TransportService;
+
+import java.net.InetSocketAddress;
 
 public class TransportMainAction extends HandledTransportAction<MainRequest, MainResponse> {
 
@@ -61,19 +69,19 @@ public class TransportMainAction extends HandledTransportAction<MainRequest, Mai
         " number will be removed in a future version";
 
     private final String nodeName;
-    private final ClusterService clusterService;
+    //private final ClusterService clusterService;
     private volatile String responseVersion;
 
     @Inject
     public TransportMainAction(Settings settings, TransportService transportService,
-                               ActionFilters actionFilters, ClusterService clusterService) {
+                               ActionFilters actionFilters) {
         super(MainAction.NAME, transportService, actionFilters, MainRequest::new);
         this.nodeName = Node.NODE_NAME_SETTING.get(settings);
-        this.clusterService = clusterService;
+        //this.clusterService = clusterService;
         setResponseVersion(OVERRIDE_MAIN_RESPONSE_VERSION.get(settings));
-
+        /*
         clusterService.getClusterSettings().addSettingsUpdateConsumer(OVERRIDE_MAIN_RESPONSE_VERSION,
-            this::setResponseVersion);
+            this::setResponseVersion);*/
     }
 
     private void setResponseVersion(boolean isResponseVersionOverrideEnabled) {
@@ -87,9 +95,9 @@ public class TransportMainAction extends HandledTransportAction<MainRequest, Mai
 
     @Override
     protected void doExecute(Task task, MainRequest request, ActionListener<MainResponse> listener) {
-        ClusterState clusterState = clusterService.state();
+        //ClusterState clusterState = clusterService.state();
         listener.onResponse(
-            new MainResponse(nodeName, Version.CURRENT, clusterState.getClusterName(),
-                    clusterState.metadata().clusterUUID(), Build.CURRENT, responseVersion));
+            new MainResponse(nodeName, Version.CURRENT, new ClusterName("extension"),
+                    "null_uuid", Build.CURRENT, responseVersion));
     }
 }

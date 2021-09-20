@@ -32,77 +32,51 @@
 
 package org.opensearch.node;
 
-import org.opensearch.index.IndexingPressure;
-import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.Build;
 import org.opensearch.Version;
 import org.opensearch.action.admin.cluster.node.info.NodeInfo;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
 import org.opensearch.action.admin.indices.stats.CommonStatsFlags;
-import org.opensearch.action.search.SearchTransportService;
-import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
-import org.opensearch.discovery.Discovery;
 import org.opensearch.http.HttpServerTransport;
-import org.opensearch.indices.IndicesService;
 import org.opensearch.indices.breaker.CircuitBreakerService;
-import org.opensearch.ingest.IngestService;
 import org.opensearch.monitor.MonitorService;
 import org.opensearch.plugins.PluginsService;
 import org.opensearch.script.ScriptService;
-import org.opensearch.search.aggregations.support.AggregationUsageService;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 public class NodeService implements Closeable {
     private final Settings settings;
     private final ThreadPool threadPool;
     private final MonitorService monitorService;
     private final TransportService transportService;
-    private final IndicesService indicesService;
     private final PluginsService pluginService;
     private final CircuitBreakerService circuitBreakerService;
-    private final IngestService ingestService;
     private final SettingsFilter settingsFilter;
     private final ScriptService scriptService;
     private final HttpServerTransport httpServerTransport;
-    private final ResponseCollectorService responseCollectorService;
-    private final SearchTransportService searchTransportService;
-    private final IndexingPressure indexingPressure;
-    private final AggregationUsageService aggregationUsageService;
 
-    private final Discovery discovery;
 
-    NodeService(Settings settings, ThreadPool threadPool, MonitorService monitorService, Discovery discovery,
-                TransportService transportService, IndicesService indicesService, PluginsService pluginService,
+    NodeService(Settings settings, ThreadPool threadPool, MonitorService monitorService,
+                TransportService transportService, PluginsService pluginService,
                 CircuitBreakerService circuitBreakerService, ScriptService scriptService,
-                @Nullable HttpServerTransport httpServerTransport, IngestService ingestService, ClusterService clusterService,
-                SettingsFilter settingsFilter, ResponseCollectorService responseCollectorService,
-                SearchTransportService searchTransportService, IndexingPressure indexingPressure,
-                AggregationUsageService aggregationUsageService) {
+                @Nullable HttpServerTransport httpServerTransport,
+                SettingsFilter settingsFilter) {
         this.settings = settings;
         this.threadPool = threadPool;
         this.monitorService = monitorService;
         this.transportService = transportService;
-        this.indicesService = indicesService;
-        this.discovery = discovery;
         this.pluginService = pluginService;
         this.circuitBreakerService = circuitBreakerService;
         this.httpServerTransport = httpServerTransport;
-        this.ingestService = ingestService;
         this.settingsFilter = settingsFilter;
         this.scriptService = scriptService;
-        this.responseCollectorService = responseCollectorService;
-        this.searchTransportService = searchTransportService;
-        this.indexingPressure = indexingPressure;
-        this.aggregationUsageService = aggregationUsageService;
-        clusterService.addStateApplier(ingestService);
     }
 
     public NodeInfo info(boolean settings, boolean os, boolean process, boolean jvm, boolean threadPool,
@@ -116,9 +90,9 @@ public class NodeService implements Closeable {
                 transport ? transportService.info() : null,
                 http ? (httpServerTransport == null ? null : httpServerTransport.info()) : null,
                 plugin ? (pluginService == null ? null : pluginService.info()) : null,
-                ingest ? (ingestService == null ? null : ingestService.info()) : null,
-                aggs ? (aggregationUsageService == null ? null : aggregationUsageService.info()) : null,
-                indices ? indicesService.getTotalIndexingBufferBytes() : null
+                null,
+                null,
+                null
         );
     }
 
@@ -129,7 +103,7 @@ public class NodeService implements Closeable {
         // for indices stats we want to include previous allocated shards stats as well (it will
         // only be applied to the sensible ones to use, like refresh/merge/flush/indexing stats)
         return new NodeStats(transportService.getLocalNode(), System.currentTimeMillis(),
-                indices.anySet() ? indicesService.stats(indices) : null,
+                null,
                 os ? monitorService.osService().stats() : null,
                 process ? monitorService.processService().stats() : null,
                 jvm ? monitorService.jvmService().stats() : null,
@@ -139,33 +113,21 @@ public class NodeService implements Closeable {
                 http ? (httpServerTransport == null ? null : httpServerTransport.stats()) : null,
                 circuitBreaker ? circuitBreakerService.stats() : null,
                 script ? scriptService.stats() : null,
-                discoveryStats ? discovery.stats() : null,
-                ingest ? ingestService.stats() : null,
-                adaptiveSelection ? responseCollectorService.getAdaptiveStats(searchTransportService.getPendingSearchRequests()) : null,
+                null,
+                null,
+                null,
                 scriptCache ? scriptService.cacheStats() : null,
-                indexingPressure ? this.indexingPressure.stats() : null
+                 null
         );
-    }
-
-    public IngestService getIngestService() {
-        return ingestService;
     }
 
     public MonitorService getMonitorService() {
         return monitorService;
     }
 
+
     @Override
     public void close() throws IOException {
-        IOUtils.close(indicesService);
-    }
-
-    /**
-     * Wait for the node to be effectively closed.
-     * @see IndicesService#awaitClose(long, TimeUnit)
-     */
-    public boolean awaitClose(long timeout, TimeUnit timeUnit) throws InterruptedException {
-        return indicesService.awaitClose(timeout, timeUnit);
     }
 
 }

@@ -33,87 +33,24 @@
 package org.opensearch.action.search;
 
 import org.opensearch.action.ActionListener;
-import org.opensearch.action.OriginalIndices;
-import org.opensearch.action.admin.cluster.node.tasks.cancel.CancelTasksRequest;
-import org.opensearch.action.admin.cluster.shards.ClusterSearchShardsGroup;
-import org.opensearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
-import org.opensearch.action.admin.cluster.shards.ClusterSearchShardsResponse;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
-import org.opensearch.action.support.IndicesOptions;
-import org.opensearch.client.Client;
-import org.opensearch.client.OriginSettingClient;
-import org.opensearch.client.node.NodeClient;
-import org.opensearch.cluster.ClusterState;
-import org.opensearch.cluster.block.ClusterBlockException;
-import org.opensearch.cluster.block.ClusterBlockLevel;
-import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
-import org.opensearch.cluster.node.DiscoveryNode;
-import org.opensearch.cluster.node.DiscoveryNodes;
-import org.opensearch.cluster.routing.GroupShardsIterator;
-import org.opensearch.cluster.routing.OperationRouting;
-import org.opensearch.cluster.routing.ShardIterator;
-import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.Nullable;
-import org.opensearch.common.Strings;
-import org.opensearch.common.breaker.CircuitBreaker;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.Writeable;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Setting.Property;
-import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.concurrent.AtomicArray;
-import org.opensearch.common.util.concurrent.CountDown;
-import org.opensearch.index.Index;
-import org.opensearch.index.query.Rewriteable;
-import org.opensearch.index.shard.ShardId;
-import org.opensearch.indices.breaker.CircuitBreakerService;
-import org.opensearch.search.SearchPhaseResult;
-import org.opensearch.search.SearchService;
-import org.opensearch.search.SearchShardTarget;
-import org.opensearch.search.aggregations.InternalAggregation;
-import org.opensearch.search.aggregations.InternalAggregations;
-import org.opensearch.search.builder.SearchSourceBuilder;
-import org.opensearch.search.internal.AliasFilter;
-import org.opensearch.search.internal.InternalSearchResponse;
-import org.opensearch.search.internal.SearchContext;
-import org.opensearch.search.profile.ProfileShardResult;
-import org.opensearch.search.profile.SearchProfileShardResults;
 import org.opensearch.tasks.Task;
-import org.opensearch.tasks.TaskId;
 import org.opensearch.threadpool.ThreadPool;
-import org.opensearch.transport.RemoteClusterAware;
-import org.opensearch.transport.RemoteClusterService;
-import org.opensearch.transport.RemoteTransportException;
-import org.opensearch.transport.Transport;
+import org.opensearch.transport.TransportException;
+import org.opensearch.transport.TransportRequestOptions;
+import org.opensearch.transport.TransportResponseHandler;
 import org.opensearch.transport.TransportService;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 import java.util.function.LongSupplier;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-
-import static org.opensearch.action.admin.cluster.node.tasks.get.GetTaskAction.TASKS_ORIGIN;
-import static org.opensearch.action.search.SearchType.DFS_QUERY_THEN_FETCH;
-import static org.opensearch.action.search.SearchType.QUERY_THEN_FETCH;
-import static org.opensearch.search.sort.FieldSortBuilder.hasPrimaryFieldSort;
 
 public class TransportSearchAction extends HandledTransportAction<SearchRequest, SearchResponse> {
 
@@ -121,43 +58,19 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
     public static final Setting<Long> SHARD_COUNT_LIMIT_SETTING = Setting.longSetting(
             "action.search.shard_count.limit", Long.MAX_VALUE, 1L, Property.Dynamic, Property.NodeScope);
 
-    private final NodeClient client;
-    private final ThreadPool threadPool;
-    private final ClusterService clusterService;
-    private final SearchTransportService searchTransportService;
-    private final RemoteClusterService remoteClusterService;
-    private final SearchPhaseController searchPhaseController;
-    private final SearchService searchService;
-    private final IndexNameExpressionResolver indexNameExpressionResolver;
     private final NamedWriteableRegistry namedWriteableRegistry;
-    private final CircuitBreaker circuitBreaker;
+    private TransportService transportService;
 
     @Inject
-    public TransportSearchAction(NodeClient client,
-                                 ThreadPool threadPool,
-                                 CircuitBreakerService circuitBreakerService,
-                                 TransportService transportService,
-                                 SearchService searchService,
-                                 SearchTransportService searchTransportService,
-                                 SearchPhaseController searchPhaseController,
-                                 ClusterService clusterService,
+    public TransportSearchAction(TransportService transportService,
                                  ActionFilters actionFilters,
-                                 IndexNameExpressionResolver indexNameExpressionResolver,
                                  NamedWriteableRegistry namedWriteableRegistry) {
         super(SearchAction.NAME, transportService, actionFilters, (Writeable.Reader<SearchRequest>) SearchRequest::new);
-        this.client = client;
-        this.threadPool = threadPool;
-        this.circuitBreaker = circuitBreakerService.getBreaker(CircuitBreaker.REQUEST);
-        this.searchPhaseController = searchPhaseController;
-        this.searchTransportService = searchTransportService;
-        this.remoteClusterService = searchTransportService.getRemoteClusterService();
-        SearchTransportService.registerRequestHandler(transportService, searchService);
-        this.clusterService = clusterService;
-        this.searchService = searchService;
-        this.indexNameExpressionResolver = indexNameExpressionResolver;
         this.namedWriteableRegistry = namedWriteableRegistry;
-    }
+        this.transportService = transportService;
 
+    }
+    /*
     private Map<String, AliasFilter> buildPerIndexAliasFilter(SearchRequest request, ClusterState clusterState,
                                                               Index[] concreteIndices, Map<String, AliasFilter> remoteAliasMap) {
         final Map<String, AliasFilter> aliasFilterMap = new HashMap<>();
@@ -193,7 +106,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
         }
         return Collections.unmodifiableMap(concreteIndexBoosts);
     }
-
+    */
     /**
      * Search operations need two clocks. One clock is to fulfill real clock needs (e.g., resolving
      * "now" to an index name). Another clock is needed for measuring how long a search operation
@@ -202,6 +115,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
      * to moving backwards due to NTP and other such complexities, etc.). There are also issues with
      * using a relative clock for reporting real time. Thus, we simply separate these two uses.
      */
+
     static final class SearchTimeProvider {
 
         private final long absoluteStartMillis;
@@ -239,9 +153,38 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
 
     @Override
     protected void doExecute(Task task, SearchRequest searchRequest, ActionListener<SearchResponse> listener) {
-        executeRequest(task, searchRequest, this::searchAsyncAction, listener);
+
+        TransportResponseHandler<SearchResponse> handler = new TransportResponseHandler<SearchResponse>() {
+
+            @Override
+            public SearchResponse read(StreamInput in) throws IOException {
+                return new SearchResponse(in);
+            }
+
+            @Override
+            public void handleResponse(SearchResponse response) {
+                listener.onResponse(response);
+            }
+
+            @Override
+            public void handleException(TransportException exp) {
+                listener.onFailure(exp);
+            }
+
+            @Override
+            public String executor() {
+                return ThreadPool.Names.SEARCH;
+            }
+        };
+        transportService.initConnection();
+
+        transportService.sendRequest(transportService.connection, SearchAction.NAME, searchRequest, TransportRequestOptions.EMPTY,
+            handler);
+
+        //executeRequest(task, searchRequest, this::searchAsyncAction, listener);
     }
 
+    /*
     public interface SinglePhaseSearchAction {
         void executeOnShardTarget(SearchTask searchTask, SearchShardTarget target, Transport.Connection connection,
                                   ActionListener<SearchPhaseResult> listener);
@@ -955,4 +898,6 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
         }
         return iterators;
     }
+
+     */
 }

@@ -54,6 +54,7 @@ import org.opensearch.common.io.FileSystemUtils;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Setting.Property;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.extensions.Extension;
 import org.opensearch.index.IndexModule;
 import org.opensearch.node.ReportingService;
 import org.opensearch.threadpool.ExecutorBuilder;
@@ -98,17 +99,27 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
      * We keep around a list of plugins and modules
      */
     private final List<Tuple<PluginInfo, Plugin>> plugins;
+    public final List<Tuple<PluginInfo, Extension>> extensions;
+
     private final PluginsAndModules info;
 
     public static final Setting<List<String>> MANDATORY_SETTING =
         Setting.listSetting("plugin.mandatory", Collections.emptyList(), Function.identity(), Property.NodeScope);
 
     public List<Setting<?>> getPluginSettings() {
-        return plugins.stream().flatMap(p -> p.v2().getSettings().stream()).collect(Collectors.toList());
+         List<Setting<?>> pluginSettings = plugins.stream().flatMap(p -> p.v2().getSettings().stream()).collect(Collectors.toList());
+         if (!extensions.isEmpty()) {
+             pluginSettings.addAll(extensions.stream().flatMap(p -> p.v2().getSettings().stream()).collect(Collectors.toList()));
+         }
+         return pluginSettings;
     }
 
     public List<String> getPluginSettingsFilter() {
-        return plugins.stream().flatMap(p -> p.v2().getSettingsFilter().stream()).collect(Collectors.toList());
+        List<String> pluginSettingsFilter = plugins.stream().flatMap(p -> p.v2().getSettingsFilter().stream()).collect(Collectors.toList());
+        if (!extensions.isEmpty()) {
+            pluginSettingsFilter.addAll(plugins.stream().flatMap(p -> p.v2().getSettingsFilter().stream()).collect(Collectors.toList()));
+        }
+        return pluginSettingsFilter;
     }
 
     /**
@@ -177,12 +188,14 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
                 throw new IllegalStateException("Unable to initialize plugins", ex);
             }
         }
+        List<Tuple<PluginInfo, Extension>> extensions = new ArrayList<>();
 
-        List<Tuple<PluginInfo, Plugin>> loaded = loadBundles(seenBundles);
+        List<Tuple<PluginInfo, Plugin>> loaded = loadBundles(seenBundles, extensions);
         pluginsLoaded.addAll(loaded);
 
         this.info = new PluginsAndModules(pluginsList, modulesList);
         this.plugins = Collections.unmodifiableList(pluginsLoaded);
+        this.extensions = Collections.unmodifiableList(extensions);
 
         // Checking expected plugins
         List<String> mandatoryPlugins = MANDATORY_SETTING.get(settings);
@@ -481,18 +494,23 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
         sortedBundles.add(bundle);
     }
 
-    private List<Tuple<PluginInfo,Plugin>> loadBundles(Set<Bundle> bundles) {
+    private List<Tuple<PluginInfo,Plugin>> loadBundles(Set<Bundle> bundles,
+                                                       List<Tuple<PluginInfo, Extension>> extensions) {
         List<Tuple<PluginInfo, Plugin>> plugins = new ArrayList<>();
+
         Map<String, Plugin> loaded = new HashMap<>();
+        Map<String, Extension> loadedExtensions = new HashMap<>();
+
         Map<String, Set<URL>> transitiveUrls = new HashMap<>();
         List<Bundle> sortedBundles = sortBundles(bundles);
         for (Bundle bundle : sortedBundles) {
             checkBundleJarHell(JarHell.parseClassPath(), bundle, transitiveUrls);
-
-            final Plugin plugin = loadBundle(bundle, loaded);
+            final Plugin plugin = loadBundle(bundle, loaded, loadedExtensions);
             plugins.add(new Tuple<>(bundle.plugin, plugin));
+            if (!loadedExtensions.isEmpty()) {
+                extensions.add(new Tuple<>(bundle.plugin, loadedExtensions.get(bundle.plugin.getName())));
+            }
         }
-
         loadExtensions(plugins);
         return Collections.unmodifiableList(plugins);
     }
@@ -629,7 +647,7 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
         }
     }
 
-    private Plugin loadBundle(Bundle bundle, Map<String, Plugin> loaded) {
+    private Plugin loadBundle(Bundle bundle, Map<String, Plugin> loaded, Map<String, Extension> extensions) {
         String name = bundle.plugin.getName();
 
         verifyCompatibility(bundle.plugin);
@@ -669,6 +687,12 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
                     + "] (class loader [" + pluginClass.getClassLoader() + "])");
             }
             Plugin plugin = loadPlugin(pluginClass, settings, configPath);
+
+            if (bundle.plugin.getExtensionClassName() != null) {
+                Class<? extends Extension> extensionClass = loadExtensionClass(bundle.plugin.getExtensionClassName(), loader);
+                Extension extension = loadExtension(extensionClass, settings, configPath);
+                extensions.put(name, extension);
+            }
             loaded.put(name, plugin);
             return plugin;
         } finally {
@@ -705,6 +729,14 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
         }
     }
 
+    private Class<? extends Extension> loadExtensionClass(String className, ClassLoader loader) {
+        try {
+            return Class.forName(className, false, loader).asSubclass(Extension.class);
+        } catch (ClassNotFoundException e) {
+            throw new OpenSearchException("Could not find extension class [" + className + "]", e);
+        }
+    }
+
     private Plugin loadPlugin(Class<? extends Plugin> pluginClass, Settings settings, Path configPath) {
         final Constructor<?>[] constructors = pluginClass.getConstructors();
         if (constructors.length == 0) {
@@ -736,6 +768,37 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
         }
     }
 
+    private Extension loadExtension(Class<? extends Extension> extensionClass, Settings settings, Path configPath) {
+        final Constructor<?>[] constructors = extensionClass.getConstructors();
+        if (constructors.length == 0) {
+            throw new IllegalStateException("no public constructor for [" + extensionClass.getName() + "]");
+        }
+
+        if (constructors.length > 1) {
+            throw new IllegalStateException("no unique public constructor for [" + extensionClass.getName() + "]");
+        }
+
+        final Constructor<?> constructor = constructors[0];
+        if (constructor.getParameterCount() > 2) {
+            throw new IllegalStateException(signatureMessageExtension(extensionClass));
+        }
+
+        final Class[] parameterTypes = constructor.getParameterTypes();
+        try {
+            if (constructor.getParameterCount() == 2 && parameterTypes[0] == Settings.class && parameterTypes[1] == Path.class) {
+                return (Extension)constructor.newInstance(settings, configPath);
+            } else if (constructor.getParameterCount() == 1 && parameterTypes[0] == Settings.class) {
+                return (Extension)constructor.newInstance(settings);
+            } else if (constructor.getParameterCount() == 0) {
+                return (Extension)constructor.newInstance();
+            } else {
+                throw new IllegalStateException(signatureMessageExtension(extensionClass));
+            }
+        } catch (final ReflectiveOperationException e) {
+            throw new IllegalStateException("failed to load plugin class [" + extensionClass.getName() + "]", e);
+        }
+    }
+
     private String signatureMessage(final Class<? extends Plugin> clazz) {
         return String.format(
                 Locale.ROOT,
@@ -746,8 +809,20 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
                 "()");
     }
 
+    private String signatureMessageExtension(final Class<? extends Extension> clazz) {
+        return String.format(
+            Locale.ROOT,
+            "no public constructor of correct signature for [%s]; must be [%s], [%s], or [%s]",
+            clazz.getName(),
+            "(org.opensearch.common.settings.Settings,java.nio.file.Path)",
+            "(org.opensearch.common.settings.Settings)",
+            "()");
+    }
     public <T> List<T> filterPlugins(Class<T> type) {
-        return plugins.stream().filter(x -> type.isAssignableFrom(x.v2().getClass()))
+        List<T> filteredPlugins =  plugins.stream().filter(x -> type.isAssignableFrom(x.v2().getClass()))
             .map(p -> ((T)p.v2())).collect(Collectors.toList());
+        filteredPlugins.addAll(extensions.stream().filter(x -> type.isAssignableFrom(x.v2().getClass()))
+            .map(p -> ((T)p.v2())).collect(Collectors.toList()));
+        return filteredPlugins;
     }
 }

@@ -240,6 +240,7 @@ import org.opensearch.action.main.TransportMainAction;
 import org.opensearch.action.search.ClearScrollAction;
 import org.opensearch.action.search.MultiSearchAction;
 import org.opensearch.action.search.SearchAction;
+import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.search.SearchScrollAction;
 import org.opensearch.action.search.TransportClearScrollAction;
 import org.opensearch.action.search.TransportMultiSearchAction;
@@ -263,10 +264,17 @@ import org.opensearch.common.NamedRegistry;
 import org.opensearch.common.inject.AbstractModule;
 import org.opensearch.common.inject.TypeLiteral;
 import org.opensearch.common.inject.multibindings.MapBinder;
+import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.IndexScopedSettings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
+import org.opensearch.extensions.Extension;
+import org.opensearch.extensions.ExtensionTransportAction;
+import org.opensearch.extensions.settingupdater.RemoteSettingApplier;
+import org.opensearch.extensions.settingupdater.SettingUpdateAction;
+import org.opensearch.extensions.stateupdater.ClusterStateUpdateAction;
+import org.opensearch.extensions.stateupdater.ClusterStateUpdateTransportAction;
 import org.opensearch.index.seqno.RetentionLeaseActions;
 import org.opensearch.indices.SystemIndices;
 import org.opensearch.indices.breaker.CircuitBreakerService;
@@ -407,9 +415,14 @@ import org.opensearch.rest.action.search.RestMultiSearchAction;
 import org.opensearch.rest.action.search.RestSearchAction;
 import org.opensearch.rest.action.search.RestSearchScrollAction;
 import org.opensearch.tasks.Task;
+import org.opensearch.tasks.TaskManager;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.TransportException;
+import org.opensearch.transport.TransportRequestOptions;
+import org.opensearch.transport.TransportResponseHandler;
 import org.opensearch.usage.UsageService;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -437,6 +450,8 @@ public class ActionModule extends AbstractModule {
     private final ClusterSettings clusterSettings;
     private final SettingsFilter settingsFilter;
     private final List<ActionPlugin> actionPlugins;
+    private final List<Extension> extensions;
+
     private final Map<String, ActionHandler<?, ?>> actions;
     private final ActionFilters actionFilters;
     private final AutoCreateIndex autoCreateIndex;
@@ -449,7 +464,8 @@ public class ActionModule extends AbstractModule {
     public ActionModule(boolean transportClient, Settings settings, IndexNameExpressionResolver indexNameExpressionResolver,
                         IndexScopedSettings indexScopedSettings, ClusterSettings clusterSettings, SettingsFilter settingsFilter,
                         ThreadPool threadPool, List<ActionPlugin> actionPlugins, NodeClient nodeClient,
-                        CircuitBreakerService circuitBreakerService, UsageService usageService, SystemIndices systemIndices) {
+                        CircuitBreakerService circuitBreakerService, UsageService usageService, SystemIndices systemIndices,
+                        List<Extension> extensions) {
         this.transportClient = transportClient;
         this.settings = settings;
         this.indexNameExpressionResolver = indexNameExpressionResolver;
@@ -458,7 +474,8 @@ public class ActionModule extends AbstractModule {
         this.settingsFilter = settingsFilter;
         this.actionPlugins = actionPlugins;
         this.threadPool = threadPool;
-        actions = setupActions(actionPlugins);
+        this.extensions = extensions;
+        actions = setupActions(actionPlugins, extensions);
         actionFilters = setupActionFilters(actionPlugins);
         autoCreateIndex = transportClient
             ? null
@@ -487,7 +504,7 @@ public class ActionModule extends AbstractModule {
         if (transportClient) {
             restController = null;
         } else {
-            restController = new RestController(headers, restWrapper, nodeClient, circuitBreakerService, usageService);
+            restController = null;//new RestController(headers, restWrapper, nodeClient, circuitBreakerService, usageService);
         }
     }
 
@@ -496,7 +513,7 @@ public class ActionModule extends AbstractModule {
         return actions;
     }
 
-    static Map<String, ActionHandler<?, ?>> setupActions(List<ActionPlugin> actionPlugins) {
+    static Map<String, ActionHandler<?, ?>> setupActions(List<ActionPlugin> actionPlugins, List<Extension> extensions) {
         // Subclass NamedRegistry for easy registration
         class ActionRegistry extends NamedRegistry<ActionHandler<?, ?>> {
             ActionRegistry() {
@@ -516,15 +533,22 @@ public class ActionModule extends AbstractModule {
         ActionRegistry actions = new ActionRegistry();
 
         actions.register(MainAction.INSTANCE, TransportMainAction.class);
-        actions.register(NodesInfoAction.INSTANCE, TransportNodesInfoAction.class);
-        actions.register(RemoteInfoAction.INSTANCE, TransportRemoteInfoAction.class);
-        actions.register(NodesStatsAction.INSTANCE, TransportNodesStatsAction.class);
-        actions.register(NodesUsageAction.INSTANCE, TransportNodesUsageAction.class);
-        actions.register(NodesHotThreadsAction.INSTANCE, TransportNodesHotThreadsAction.class);
-        actions.register(ListTasksAction.INSTANCE, TransportListTasksAction.class);
-        actions.register(GetTaskAction.INSTANCE, TransportGetTaskAction.class);
-        actions.register(CancelTasksAction.INSTANCE, TransportCancelTasksAction.class);
+        actions.register(SearchAction.INSTANCE, TransportSearchAction.class);
+        actions.register(ClusterStateUpdateAction.INSTANCE, ClusterStateUpdateTransportAction.class);
 
+        actions.register(SettingUpdateAction.INSTANCE, RemoteSettingApplier.class);
+
+        extensions.stream().flatMap(p -> p.getActions().stream()).forEach(actions::register);
+
+        //actions.register(NodesInfoAction.INSTANCE, TransportNodesInfoAction.class);
+        //actions.register(RemoteInfoAction.INSTANCE, TransportRemoteInfoAction.class);
+        //actions.register(NodesStatsAction.INSTANCE, TransportNodesStatsAction.class);
+        //actions.register(NodesUsageAction.INSTANCE, TransportNodesUsageAction.class);
+        //actions.register(NodesHotThreadsAction.INSTANCE, TransportNodesHotThreadsAction.class);
+        //actions.register(ListTasksAction.INSTANCE, TransportListTasksAction.class);
+        //actions.register(GetTaskAction.INSTANCE, TransportGetTaskAction.class);
+        //actions.register(CancelTasksAction.INSTANCE, TransportCancelTasksAction.class);
+        /*
         actions.register(AddVotingConfigExclusionsAction.INSTANCE, TransportAddVotingConfigExclusionsAction.class);
         actions.register(ClearVotingConfigExclusionsAction.INSTANCE, TransportClearVotingConfigExclusionsAction.class);
         actions.register(ClusterAllocationExplainAction.INSTANCE, TransportClusterAllocationExplainAction.class);
@@ -626,9 +650,10 @@ public class ActionModule extends AbstractModule {
         actions.register(GetPipelineAction.INSTANCE, GetPipelineTransportAction.class);
         actions.register(DeletePipelineAction.INSTANCE, DeletePipelineTransportAction.class);
         actions.register(SimulatePipelineAction.INSTANCE, SimulatePipelineTransportAction.class);
+        */
 
-        actionPlugins.stream().flatMap(p -> p.getActions().stream()).forEach(actions::register);
 
+        /*
         // Data streams:
         actions.register(CreateDataStreamAction.INSTANCE, CreateDataStreamAction.TransportAction.class);
         actions.register(DeleteDataStreamAction.INSTANCE, DeleteDataStreamAction.TransportAction.class);
@@ -652,7 +677,7 @@ public class ActionModule extends AbstractModule {
         actions.register(ImportDanglingIndexAction.INSTANCE, TransportImportDanglingIndexAction.class);
         actions.register(DeleteDanglingIndexAction.INSTANCE, TransportDeleteDanglingIndexAction.class);
         actions.register(FindDanglingIndexAction.INSTANCE, TransportFindDanglingIndexAction.class);
-
+        */
         return unmodifiableMap(actions.getRegistry());
     }
 
@@ -661,7 +686,8 @@ public class ActionModule extends AbstractModule {
             Collections.unmodifiableSet(actionPlugins.stream().flatMap(p -> p.getActionFilters().stream()).collect(Collectors.toSet())));
     }
 
-    public void initRestHandlers(Supplier<DiscoveryNodes> nodesInCluster) {
+    public void initRestHandlers() {
+        /*
         List<AbstractCatAction> catActions = new ArrayList<>();
         Consumer<RestHandler> registerHandler = handler -> {
             if (handler instanceof AbstractCatAction) {
@@ -669,9 +695,12 @@ public class ActionModule extends AbstractModule {
             }
             restController.registerHandler(handler);
         };
+        registerHandler.accept(new RestMainAction());
+        registerHandler.accept(new RestSearchAction());
+
+
         registerHandler.accept(new RestAddVotingConfigExclusionAction());
         registerHandler.accept(new RestClearVotingConfigExclusionsAction());
-        registerHandler.accept(new RestMainAction());
         registerHandler.accept(new RestNodesInfoAction(settingsFilter));
         registerHandler.accept(new RestRemoteClusterInfoAction());
         registerHandler.accept(new RestNodesStatsAction());
@@ -823,13 +852,15 @@ public class ActionModule extends AbstractModule {
         registerHandler.accept(new RestRepositoriesAction());
         registerHandler.accept(new RestSnapshotAction());
         registerHandler.accept(new RestTemplatesAction());
-        for (ActionPlugin plugin : actionPlugins) {
-            for (RestHandler handler : plugin.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings,
-                    settingsFilter, indexNameExpressionResolver, nodesInCluster)) {
+        registerHandler.accept(new RestCatAction(catActions));
+
+        for (Extension extension : extensions) {
+            for (RestHandler handler : extension.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings,
+                    settingsFilter, indexNameExpressionResolver, null)) {
                 registerHandler.accept(handler);
             }
         }
-        registerHandler.accept(new RestCatAction(catActions));
+        */
     }
 
     @Override
@@ -842,7 +873,7 @@ public class ActionModule extends AbstractModule {
         if (false == transportClient) {
             // Supporting classes only used when not a transport client
             bind(AutoCreateIndex.class).toInstance(autoCreateIndex);
-            bind(TransportLivenessAction.class).asEagerSingleton();
+            //bind(TransportLivenessAction.class).asEagerSingleton();
 
             // register ActionType -> transportAction Map used by NodeClient
             @SuppressWarnings("rawtypes")

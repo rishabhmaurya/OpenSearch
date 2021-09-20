@@ -40,6 +40,7 @@ import org.apache.lucene.util.CollectionUtil;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.regex.Regex;
+import org.opensearch.extensions.settingupdater.SettingUpdaterService;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -79,17 +80,17 @@ public abstract class AbstractScopedSettings {
     private Settings lastSettingsApplied;
 
     protected AbstractScopedSettings(
-            final Settings settings,
-            final Set<Setting<?>> settingsSet,
-            final Set<SettingUpgrader<?>> settingUpgraders,
-            final Setting.Property scope) {
+        final Settings settings,
+        final Set<Setting<?>> settingsSet,
+        final Set<SettingUpgrader<?>> settingUpgraders,
+        final Setting.Property scope) {
         this.logger = LogManager.getLogger(this.getClass());
         this.settings = settings;
         this.lastSettingsApplied = Settings.EMPTY;
 
         this.settingUpgraders =
-                Collections.unmodifiableMap(
-                        settingUpgraders.stream().collect(Collectors.toMap(SettingUpgrader::getSetting, Function.identity())));
+            Collections.unmodifiableMap(
+                settingUpgraders.stream().collect(Collectors.toMap(SettingUpgrader::getSetting, Function.identity())));
 
 
         this.scope = scope;
@@ -226,7 +227,13 @@ public abstract class AbstractScopedSettings {
         }
         addSettingsUpdater(setting.newUpdater(consumer, logger, validator));
     }
-
+    public synchronized <T> void addSettingsUpdateConsumer(Setting<T> setting, Consumer<T> consumer, Consumer<T> validator,
+                                                           boolean extension) {
+        if (setting != get(setting.getKey())) {
+            throw new IllegalArgumentException("Setting is not registered for key [" + setting.getKey() + "]");
+        }
+        addSettingsUpdater(setting.newUpdater(consumer, logger, validator, extension));
+    }
     /**
      * Adds a settings consumer that is only executed if any setting in the supplied list of settings is changed. In that case all the
      * settings are specified in the argument are returned.
@@ -430,9 +437,12 @@ public abstract class AbstractScopedSettings {
      * </p>
      */
     public synchronized <T> void addSettingsUpdateConsumer(Setting<T> setting, Consumer<T> consumer) {
-       addSettingsUpdateConsumer(setting, consumer, (s) -> {});
+        addSettingsUpdateConsumer(setting, consumer, (s) -> {});
     }
 
+    public synchronized <T> void addSettingsUpdateConsumer(Setting<T> setting, boolean extension, Consumer<T> consumer) {
+        addSettingsUpdateConsumer(setting, consumer, (s) -> {}, extension);
+    }
     /**
      * Validates that all settings are registered and valid.
      *
@@ -466,10 +476,10 @@ public abstract class AbstractScopedSettings {
      * @see Setting#getSettingsDependencies(String)
      */
     public final void validate(
-            final Settings settings,
-            final boolean validateDependencies,
-            final boolean ignorePrivateSettings,
-            final boolean ignoreArchivedSettings) {
+        final Settings settings,
+        final boolean validateDependencies,
+        final boolean ignorePrivateSettings,
+        final boolean ignoreArchivedSettings) {
         validate(settings, validateDependencies, ignorePrivateSettings, ignoreArchivedSettings, false);
     }
 
@@ -484,11 +494,11 @@ public abstract class AbstractScopedSettings {
      * @see Setting#getSettingsDependencies(String)
      */
     public final void validate(
-            final Settings settings,
-            final boolean validateDependencies,
-            final boolean ignorePrivateSettings,
-            final boolean ignoreArchivedSettings,
-            final boolean validateInternalOrPrivateIndex) {
+        final Settings settings,
+        final boolean validateDependencies,
+        final boolean ignorePrivateSettings,
+        final boolean ignoreArchivedSettings,
+        final boolean validateInternalOrPrivateIndex) {
         final List<RuntimeException> exceptions = new ArrayList<>();
         for (final String key : settings.keySet()) { // settings iterate in deterministic fashion
             final Setting<?> setting = getRaw(key);
@@ -529,7 +539,7 @@ public abstract class AbstractScopedSettings {
      * @throws IllegalArgumentException if the setting is invalid
      */
     void validate(
-            final String key, final Settings settings, final boolean validateDependencies, final boolean validateInternalOrPrivateIndex) {
+        final String key, final Settings settings, final boolean validateDependencies, final boolean validateInternalOrPrivateIndex) {
         Setting setting = getRaw(key);
         if (setting == null) {
             LevenshteinDistance ld = new LevenshteinDistance();
@@ -566,10 +576,10 @@ public abstract class AbstractScopedSettings {
                     // validate the dependent setting is set
                     if (dependency.existsOrFallbackExists(settings) == false) {
                         final String message = String.format(
-                                Locale.ROOT,
-                                "missing required setting [%s] for setting [%s]",
-                                dependency.getKey(),
-                                setting.getKey());
+                            Locale.ROOT,
+                            "missing required setting [%s] for setting [%s]",
+                            dependency.getKey(),
+                            setting.getKey());
                         throw new IllegalArgumentException(message);
                     }
                     // validate the dependent setting value
@@ -580,10 +590,10 @@ public abstract class AbstractScopedSettings {
             if (validateInternalOrPrivateIndex) {
                 if (setting.isInternalIndex()) {
                     throw new IllegalArgumentException(
-                            "can not update internal setting [" + setting.getKey() + "]; this setting is managed via a dedicated API");
+                        "can not update internal setting [" + setting.getKey() + "]; this setting is managed via a dedicated API");
                 } else if (setting.isPrivateIndex()) {
                     throw new IllegalArgumentException(
-                            "can not update private setting [" + setting.getKey() + "]; this setting is managed by OpenSearch");
+                        "can not update private setting [" + setting.getKey() + "]; this setting is managed by OpenSearch");
                 }
             }
         }
@@ -640,6 +650,10 @@ public abstract class AbstractScopedSettings {
                 return () -> { apply(value, current, previous);};
             }
             return () -> {};
+        }
+
+        default boolean extension() {
+            return false;
         }
     }
 

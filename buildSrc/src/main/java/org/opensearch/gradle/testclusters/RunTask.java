@@ -113,8 +113,8 @@ public class RunTask extends DefaultTestClustersTask {
     @Override
     public void beforeStart() {
         int debugPort = 5005;
-        int httpPort = 9200;
-        int transportPort = 9300;
+        int httpPort = 9600;
+        int transportPort = 9700;
         Map<String, String> additionalSettings = System.getProperties()
             .entrySet()
             .stream()
