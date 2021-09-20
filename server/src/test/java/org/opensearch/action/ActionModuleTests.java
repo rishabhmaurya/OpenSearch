@@ -78,7 +78,7 @@ import static org.hamcrest.Matchers.startsWith;
 
 public class ActionModuleTests extends OpenSearchTestCase {
     public void testSetupActionsContainsKnownBuiltin() {
-        assertThat(ActionModule.setupActions(emptyList()),
+        assertThat(ActionModule.setupActions(emptyList(), null),
                 hasEntry(MainAction.INSTANCE.name(), new ActionHandler<>(MainAction.INSTANCE, TransportMainAction.class)));
     }
 
@@ -89,7 +89,7 @@ public class ActionModuleTests extends OpenSearchTestCase {
                 return singletonList(new ActionHandler<>(MainAction.INSTANCE, TransportMainAction.class));
             }
         };
-        Exception e = expectThrows(IllegalArgumentException.class, () -> ActionModule.setupActions(singletonList(dupsMainAction)));
+        Exception e = expectThrows(IllegalArgumentException.class, () -> ActionModule.setupActions(singletonList(dupsMainAction), null));
         assertEquals("action for name [" + MainAction.NAME + "] already registered", e.getMessage());
     }
 
@@ -121,7 +121,7 @@ public class ActionModuleTests extends OpenSearchTestCase {
                 return singletonList(new ActionHandler<>(action, FakeTransportAction.class));
             }
         };
-        assertThat(ActionModule.setupActions(singletonList(registersFakeAction)),
+        assertThat(ActionModule.setupActions(singletonList(registersFakeAction), null),
                 hasEntry("fake", new ActionHandler<>(action, FakeTransportAction.class)));
     }
 
@@ -131,7 +131,7 @@ public class ActionModuleTests extends OpenSearchTestCase {
         ActionModule actionModule = new ActionModule(false, settings.getSettings(),
             new IndexNameExpressionResolver(new ThreadContext(Settings.EMPTY)), settings.getIndexScopedSettings(),
             settings.getClusterSettings(), settings.getSettingsFilter(), null, emptyList(), null,
-            null, usageService, null);
+            null, usageService, null, null);
         actionModule.initRestHandlers(null);
         // At this point the easiest way to confirm that a handler is loaded is to try to register another one on top of it and to fail
         Exception e = expectThrows(IllegalArgumentException.class, () ->
@@ -171,7 +171,7 @@ public class ActionModuleTests extends OpenSearchTestCase {
             ActionModule actionModule = new ActionModule(false, settings.getSettings(),
                 new IndexNameExpressionResolver(threadPool.getThreadContext()), settings.getIndexScopedSettings(),
                 settings.getClusterSettings(), settings.getSettingsFilter(), threadPool, singletonList(dupsMainAction),
-                null, null, usageService, null);
+                null, null, usageService, null, null);
             Exception e = expectThrows(IllegalArgumentException.class, () -> actionModule.initRestHandlers(null));
             assertThat(e.getMessage(), startsWith("Cannot replace existing handler for [/] for method: GET"));
         } finally {
@@ -206,7 +206,7 @@ public class ActionModuleTests extends OpenSearchTestCase {
             ActionModule actionModule = new ActionModule(false, settings.getSettings(),
                 new IndexNameExpressionResolver(threadPool.getThreadContext()), settings.getIndexScopedSettings(),
                 settings.getClusterSettings(), settings.getSettingsFilter(), threadPool, singletonList(registersFakeHandler),
-                null, null, usageService, null);
+                null, null, usageService, null, emptyList());
             actionModule.initRestHandlers(null);
             // At this point the easiest way to confirm that a handler is loaded is to try to register another one on top of it and to fail
             Exception e = expectThrows(IllegalArgumentException.class, () ->

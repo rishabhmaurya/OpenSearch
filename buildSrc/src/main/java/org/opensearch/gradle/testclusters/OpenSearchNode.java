@@ -1231,6 +1231,8 @@ public class OpenSearchNode implements TestClusterConfiguration {
         baseConfig.put("path.shared_data", workingDir.resolve("sharedData").toString());
         baseConfig.put("node.attr.testattr", "test");
         baseConfig.put("node.portsfile", "true");
+        
+        baseConfig.put("network.host", "0.0.0.0");
         baseConfig.put("http.port", httpPort);
         if (getVersion().onOrAfter(Version.fromString("6.7.0"))) {
             baseConfig.put("transport.port", transportPort);

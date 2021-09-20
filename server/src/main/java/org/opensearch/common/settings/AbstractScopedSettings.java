@@ -40,6 +40,7 @@ import org.apache.lucene.util.CollectionUtil;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.regex.Regex;
+import org.opensearch.extensions.settingupdater.SettingUpdaterService;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -186,6 +187,10 @@ public abstract class AbstractScopedSettings {
      * @return the unmerged applied settings
     */
     public synchronized Settings applySettings(Settings newSettings) {
+        return applySettings(newSettings, null);
+    }
+
+    public synchronized Settings applySettings(Settings newSettings, SettingUpdaterService<?> settingUpdaterService) {
         if (lastSettingsApplied != null && newSettings.equals(lastSettingsApplied)) {
             // nothing changed in the settings, ignore
             return newSettings;
@@ -196,7 +201,11 @@ public abstract class AbstractScopedSettings {
             List<Runnable> applyRunnables = new ArrayList<>();
             for (SettingUpdater<?> settingUpdater : settingUpdaters) {
                 try {
-                    applyRunnables.add(settingUpdater.updater(current, previous));
+                    if (settingUpdater.extension()) {
+                        settingUpdaterService.updateSetting(current, previous);
+                    } else {
+                        applyRunnables.add(settingUpdater.updater(current, previous));
+                    }
                 } catch (Exception ex) {
                     logger.warn(() -> new ParameterizedMessage("failed to prepareCommit settings for [{}]", settingUpdater), ex);
                     throw ex;
@@ -226,7 +235,13 @@ public abstract class AbstractScopedSettings {
         }
         addSettingsUpdater(setting.newUpdater(consumer, logger, validator));
     }
-
+    public synchronized <T> void addSettingsUpdateConsumer(Setting<T> setting, Consumer<T> consumer, Consumer<T> validator,
+                                                           boolean extension) {
+        if (setting != get(setting.getKey())) {
+            throw new IllegalArgumentException("Setting is not registered for key [" + setting.getKey() + "]");
+        }
+        addSettingsUpdater(setting.newUpdater(consumer, logger, validator, extension));
+    }
     /**
      * Adds a settings consumer that is only executed if any setting in the supplied list of settings is changed. In that case all the
      * settings are specified in the argument are returned.
@@ -433,6 +448,9 @@ public abstract class AbstractScopedSettings {
        addSettingsUpdateConsumer(setting, consumer, (s) -> {});
     }
 
+    public synchronized <T> void addSettingsUpdateConsumer(Setting<T> setting, boolean extension, Consumer<T> consumer) {
+        addSettingsUpdateConsumer(setting, consumer, (s) -> {}, extension);
+    }
     /**
      * Validates that all settings are registered and valid.
      *
@@ -640,6 +658,10 @@ public abstract class AbstractScopedSettings {
                 return () -> { apply(value, current, previous);};
             }
             return () -> {};
+        }
+
+        default boolean extension() {
+            return false;
         }
     }
 

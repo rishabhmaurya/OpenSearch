@@ -60,7 +60,7 @@ public class MainResponse extends ActionResponse implements ToXContentObject {
 
     MainResponse() {}
 
-    MainResponse(StreamInput in) throws IOException {
+    public MainResponse(StreamInput in) throws IOException {
         super(in);
         nodeName = in.readString();
         version = Version.readVersion(in);

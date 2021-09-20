@@ -49,6 +49,7 @@ import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Setting.Property;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.extensions.settingupdater.SettingUpdaterService;
 import org.opensearch.node.Node;
 import org.opensearch.threadpool.ThreadPool;
 
@@ -83,6 +84,11 @@ public class ClusterService extends AbstractLifecycleComponent {
             new ClusterApplierService(Node.NODE_NAME_SETTING.get(settings), settings, clusterSettings, threadPool));
     }
 
+    public ClusterService(Settings settings, ClusterSettings clusterSettings, ThreadPool threadPool,
+                          SettingUpdaterService<?> settingUpdaterService) {
+        this(settings, clusterSettings, new MasterService(settings, clusterSettings, threadPool),
+            new ClusterApplierService(Node.NODE_NAME_SETTING.get(settings), settings, clusterSettings, threadPool, settingUpdaterService));
+    }
     public ClusterService(Settings settings, ClusterSettings clusterSettings, MasterService masterService,
                           ClusterApplierService clusterApplierService) {
         this.settings = settings;

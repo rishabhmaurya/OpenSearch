@@ -52,6 +52,7 @@ import org.opensearch.common.settings.Setting.Property;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.discovery.zen.ZenDiscovery;
+import org.opensearch.extensions.stateupdater.ExtensionStateUpdaterService;
 import org.opensearch.gateway.GatewayMetaState;
 import org.opensearch.monitor.NodeHealthService;
 import org.opensearch.plugins.DiscoveryPlugin;
@@ -106,7 +107,7 @@ public class DiscoveryModule {
                            NamedWriteableRegistry namedWriteableRegistry, NetworkService networkService, MasterService masterService,
                            ClusterApplier clusterApplier, ClusterSettings clusterSettings, List<DiscoveryPlugin> plugins,
                            AllocationService allocationService, Path configFile, GatewayMetaState gatewayMetaState,
-                           RerouteService rerouteService, NodeHealthService nodeHealthService) {
+                           RerouteService rerouteService, NodeHealthService nodeHealthService, ExtensionStateUpdaterService extensionStateUpdaterService) {
         final Collection<BiConsumer<DiscoveryNode, ClusterState>> joinValidators = new ArrayList<>();
         final Map<String, Supplier<SeedHostsProvider>> hostProviders = new HashMap<>();
         hostProviders.put("settings", () -> new SettingsBasedSeedHostsProvider(settings, transportService));
@@ -168,7 +169,7 @@ public class DiscoveryModule {
                 settings, clusterSettings,
                 transportService, namedWriteableRegistry, allocationService, masterService, gatewayMetaState::getPersistedState,
                 seedHostsProvider, clusterApplier, joinValidators, new Random(Randomness.get().nextLong()), rerouteService,
-                electionStrategy, nodeHealthService);
+                electionStrategy, nodeHealthService, extensionStateUpdaterService);
         } else if (Assertions.ENABLED && ZEN_DISCOVERY_TYPE.equals(discoveryType)) {
             discovery = new ZenDiscovery(settings, threadPool, transportService, namedWriteableRegistry, masterService, clusterApplier,
                 clusterSettings, seedHostsProvider, allocationService, joinValidators, rerouteService);

@@ -36,6 +36,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.Constants;
 import org.apache.lucene.util.SetOnce;
+import org.opensearch.common.collect.Tuple;
+import org.opensearch.extensions.Extension;
+import org.opensearch.extensions.ExtensionService;
+import org.opensearch.extensions.settingupdater.SettingUpdaterService;
+import org.opensearch.extensions.stateupdater.ExtensionStateUpdaterService;
 import org.opensearch.watcher.ResourceWatcherService;
 import org.opensearch.Assertions;
 import org.opensearch.Build;
@@ -421,7 +426,11 @@ public class Node implements Closeable {
                 getCustomNameResolvers(pluginsService.filterPlugins(DiscoveryPlugin.class)));
 
             List<ClusterPlugin> clusterPlugins = pluginsService.filterPlugins(ClusterPlugin.class);
-            final ClusterService clusterService = new ClusterService(settings, settingsModule.getClusterSettings(), threadPool);
+            SettingUpdaterService<?> settingUpdaterService = new SettingUpdaterService<>(client);
+            ExtensionService extensionService = new ExtensionService(true);
+
+            final ClusterService clusterService = new ClusterService(settings, settingsModule.getClusterSettings(),
+                threadPool, settingUpdaterService);
             clusterService.addStateApplier(scriptService);
             resourcesToClose.add(clusterService);
             final Set<Setting<?>> consistentSettings = settingsModule.getConsistentSettings();
@@ -488,6 +497,8 @@ public class Node implements Closeable {
                 searchModule.getNamedXContents().stream(),
                 pluginsService.filterPlugins(Plugin.class).stream()
                     .flatMap(p -> p.getNamedXContent().stream()),
+                pluginsService.extensions.stream()
+                    .flatMap(p -> p.v2().getNamedXContent().stream()),
                 ClusterModule.getNamedXWriteables().stream())
                 .flatMap(Function.identity()).collect(toList()));
             final MetaStateService metaStateService = new MetaStateService(nodeEnvironment, xContentRegistry);
@@ -567,10 +578,21 @@ public class Node implements Closeable {
                                                  repositoriesServiceReference::get).stream())
                 .collect(Collectors.toList());
 
+            Collection<Object> extensionComponent = pluginsService.extensions.stream()
+                .flatMap(p -> p.v2().createComponents(client, clusterService, threadPool,
+                    scriptService, xContentRegistry, environment, nodeEnvironment,
+                    namedWriteableRegistry).stream())
+                .collect(Collectors.toList());
+
             ActionModule actionModule = new ActionModule(false, settings, clusterModule.getIndexNameExpressionResolver(),
                 settingsModule.getIndexScopedSettings(), settingsModule.getClusterSettings(), settingsModule.getSettingsFilter(),
-                threadPool, pluginsService.filterPlugins(ActionPlugin.class), client, circuitBreakerService, usageService, systemIndices);
+                threadPool, pluginsService.filterPlugins(ActionPlugin.class), client, circuitBreakerService, usageService, systemIndices,
+                pluginsService.extensions.stream().map(Tuple::v2).collect(Collectors.toList()));
+
             modules.add(actionModule);
+            Set<String> subscribedIndex = pluginsService.extensions.stream()
+                .flatMap(p -> p.v2().getSubscribedIndex().stream()).collect(Collectors.toSet());
+            ExtensionStateUpdaterService extensionStateUpdaterService = new ExtensionStateUpdaterService(client, subscribedIndex);
 
             final RestController restController = actionModule.getRestController();
             final NetworkModule networkModule = new NetworkModule(settings, false, pluginsService.filterPlugins(NetworkPlugin.class),
@@ -624,7 +646,7 @@ public class Node implements Closeable {
                 networkService, clusterService.getMasterService(), clusterService.getClusterApplierService(),
                 clusterService.getClusterSettings(), pluginsService.filterPlugins(DiscoveryPlugin.class),
                 clusterModule.getAllocationService(), environment.configFile(), gatewayMetaState, rerouteService,
-                fsHealthService);
+                fsHealthService, extensionStateUpdaterService);
             this.nodeService = new NodeService(settings, threadPool, monitorService, discoveryModule.getDiscovery(),
                 transportService, indicesService, pluginsService, circuitBreakerService, scriptService,
                 httpServerTransport, ingestService, clusterService, settingsModule.getSettingsFilter(), responseCollectorService,
@@ -649,6 +671,7 @@ public class Node implements Closeable {
 
             modules.add(b -> {
                     b.bind(Node.class).toInstance(this);
+                    b.bind(ExtensionService.class).toInstance(extensionService);
                     b.bind(NodeService.class).toInstance(nodeService);
                     b.bind(NamedXContentRegistry.class).toInstance(xContentRegistry);
                     b.bind(PluginsService.class).toInstance(pluginsService);
@@ -697,6 +720,8 @@ public class Node implements Closeable {
                     }
                     b.bind(HttpServerTransport.class).toInstance(httpServerTransport);
                     pluginComponents.stream().forEach(p -> b.bind((Class) p.getClass()).toInstance(p));
+                    extensionComponent.stream().forEach(p -> b.bind((Class) p.getClass()).toInstance(p));
+
                     b.bind(PersistentTasksService.class).toInstance(persistentTasksService);
                     b.bind(PersistentTasksClusterService.class).toInstance(persistentTasksClusterService);
                     b.bind(PersistentTasksExecutorRegistry.class).toInstance(registry);

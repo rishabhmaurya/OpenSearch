@@ -59,6 +59,7 @@ import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.common.util.concurrent.OpenSearchRejectedExecutionException;
 import org.opensearch.common.util.concurrent.PrioritizedOpenSearchThreadPoolExecutor;
 import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.extensions.settingupdater.SettingUpdaterService;
 import org.opensearch.threadpool.Scheduler;
 import org.opensearch.threadpool.ThreadPool;
 
@@ -110,6 +111,8 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
 
     private NodeConnectionsService nodeConnectionsService;
 
+    private SettingUpdaterService<?> settingUpdaterService;
+
     public ClusterApplierService(String nodeName, Settings settings, ClusterSettings clusterSettings, ThreadPool threadPool) {
         this.clusterSettings = clusterSettings;
         this.threadPool = threadPool;
@@ -119,6 +122,19 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
         this.slowTaskLoggingThreshold = CLUSTER_SERVICE_SLOW_TASK_LOGGING_THRESHOLD_SETTING.get(settings);
         this.clusterSettings.addSettingsUpdateConsumer(CLUSTER_SERVICE_SLOW_TASK_LOGGING_THRESHOLD_SETTING,
             this::setSlowTaskLoggingThreshold);
+    }
+
+    public ClusterApplierService(String nodeName, Settings settings, ClusterSettings clusterSettings, ThreadPool threadPool,
+                                 SettingUpdaterService<?> settingUpdaterService) {
+        this.clusterSettings = clusterSettings;
+        this.threadPool = threadPool;
+        this.state = new AtomicReference<>();
+        this.nodeName = nodeName;
+
+        this.slowTaskLoggingThreshold = CLUSTER_SERVICE_SLOW_TASK_LOGGING_THRESHOLD_SETTING.get(settings);
+        this.clusterSettings.addSettingsUpdateConsumer(CLUSTER_SERVICE_SLOW_TASK_LOGGING_THRESHOLD_SETTING,
+            this::setSlowTaskLoggingThreshold);
+        this.settingUpdaterService = settingUpdaterService;
     }
 
     private void setSlowTaskLoggingThreshold(TimeValue slowTaskLoggingThreshold) {
@@ -476,7 +492,7 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
             logger.debug("applying settings from cluster state with version {}", newClusterState.version());
             final Settings incomingSettings = clusterChangedEvent.state().metadata().settings();
             try (Releasable ignored = stopWatch.timing("applying settings")) {
-                clusterSettings.applySettings(incomingSettings);
+                clusterSettings.applySettings(incomingSettings, settingUpdaterService);
             }
         }
 

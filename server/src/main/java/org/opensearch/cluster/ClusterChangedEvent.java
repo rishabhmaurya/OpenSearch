@@ -320,4 +320,8 @@ public class ClusterChangedEvent {
         return tombstones.stream().map(IndexGraveyard.Tombstone::getIndex).collect(Collectors.toList());
     }
 
+    public boolean extensionStateChanged() {
+        return previousState.getExtensionStateVersion() != state.getExtensionStateVersion();
+    }
+
 }

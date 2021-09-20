@@ -99,16 +99,19 @@ class PluginBuildPlugin implements Plugin<Project> {
             }
 
             Map<String, String> properties = [
-                    'name'                : extension1.name,
-                    'description'         : extension1.description,
-                    'version'             : extension1.version,
-                    'opensearchVersion'   : Version.fromString(VersionProperties.getOpenSearch()).toString(),
-                    'javaVersion'         : project.targetCompatibility as String,
-                    'classname'           : extension1.classname,
-                    'extendedPlugins'     : extension1.extendedPlugins.join(','),
-                    'hasNativeController' : extension1.hasNativeController,
-                    'requiresKeystore'    : extension1.requiresKeystore
+                'name'               : extension1.name,
+                'description'        : extension1.description,
+                'version'            : extension1.version,
+                'opensearchVersion'  : Version.fromString(VersionProperties.getOpenSearch()).toString(),
+                'javaVersion'        : project.targetCompatibility as String,
+                'classname'          : extension1.classname,
+                'extendedPlugins'    : extension1.extendedPlugins.join(','),
+                'hasNativeController': extension1.hasNativeController,
+                'requiresKeystore'   : extension1.requiresKeystore
             ]
+            if (extension1.extensionclassname != null) {
+                properties.put('extensionclassname', extension1.extensionclassname)
+            }
             project.tasks.named('pluginProperties').configure {
                 expand(properties)
                 inputs.properties(properties)
@@ -132,7 +135,7 @@ class PluginBuildPlugin implements Plugin<Project> {
             }
         }
         project.configurations.getByName('default')
-                .extendsFrom(project.configurations.getByName('runtimeClasspath'))
+            .extendsFrom(project.configurations.getByName('runtimeClasspath'))
         // allow running ES with this plugin in the foreground of a build
         project.tasks.register('run', RunTask) {
             dependsOn(project.tasks.bundlePlugin)
@@ -217,7 +220,7 @@ class PluginBuildPlugin implements Plugin<Project> {
              */
             from { project.plugins.hasPlugin(ShadowPlugin) ? project.shadowJar : project.jar }
             from project.configurations.runtimeClasspath - project.configurations.getByName(
-                    CompileOnlyResolvePlugin.RESOLVEABLE_COMPILE_ONLY_CONFIGURATION_NAME
+                CompileOnlyResolvePlugin.RESOLVEABLE_COMPILE_ONLY_CONFIGURATION_NAME
             )
             // extra files for the plugin to go into the zip
             from('src/main/packaging') // TODO: move all config/bin/_size/etc into packaging

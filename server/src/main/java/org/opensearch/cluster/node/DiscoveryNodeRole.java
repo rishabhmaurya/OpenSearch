@@ -214,6 +214,20 @@ public abstract class DiscoveryNodeRole implements Comparable<DiscoveryNodeRole>
 
     };
 
+    public static final DiscoveryNodeRole EXTENSION_ROLE = new DiscoveryNodeRole("extension", "ext") {
+
+        @Override
+        public Setting<Boolean> legacySetting() {
+            // copy the setting here so we can mark it private in org.opensearch.node.Node
+            return Setting.boolSetting(
+                "node.extension",
+                false,
+                Property.Deprecated,
+                Property.NodeScope
+            );
+        }
+
+    };
     /**
      * The built-in node roles.
      */

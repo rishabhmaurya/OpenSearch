@@ -83,6 +83,7 @@ import org.opensearch.discovery.PeerFinder;
 import org.opensearch.discovery.SeedHostsProvider;
 import org.opensearch.discovery.SeedHostsResolver;
 import org.opensearch.discovery.zen.PendingClusterStateStats;
+import org.opensearch.extensions.stateupdater.ExtensionStateUpdaterService;
 import org.opensearch.monitor.NodeHealthService;
 import org.opensearch.monitor.StatusInfo;
 import org.opensearch.threadpool.Scheduler;
@@ -170,7 +171,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
     private JoinHelper.JoinAccumulator joinAccumulator;
     private Optional<CoordinatorPublication> currentPublication = Optional.empty();
     private final NodeHealthService nodeHealthService;
-
+    private final ExtensionStateUpdaterService extensionStateUpdaterService;
     /**
      * @param nodeName The name of the node, used to name the {@link java.util.concurrent.ExecutorService} of the {@link SeedHostsResolver}.
      * @param onJoinValidators A collection of join validators to restrict which nodes may join the cluster.
@@ -179,7 +180,8 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                        NamedWriteableRegistry namedWriteableRegistry, AllocationService allocationService, MasterService masterService,
                        Supplier<CoordinationState.PersistedState> persistedStateSupplier, SeedHostsProvider seedHostsProvider,
                        ClusterApplier clusterApplier, Collection<BiConsumer<DiscoveryNode, ClusterState>> onJoinValidators, Random random,
-                       RerouteService rerouteService, ElectionStrategy electionStrategy, NodeHealthService nodeHealthService) {
+                       RerouteService rerouteService, ElectionStrategy electionStrategy, NodeHealthService nodeHealthService,
+                       ExtensionStateUpdaterService extensionStateUpdaterService) {
         this.settings = settings;
         this.transportService = transportService;
         this.masterService = masterService;
@@ -222,6 +224,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         this.clusterFormationFailureHelper = new ClusterFormationFailureHelper(settings, this::getClusterFormationState,
             transportService.getThreadPool(), joinHelper::logLastFailedJoinAttempt);
         this.nodeHealthService = nodeHealthService;
+        this.extensionStateUpdaterService = extensionStateUpdaterService;
     }
 
     private ClusterFormationState getClusterFormationState() {
@@ -1108,14 +1111,17 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                 }
 
                 assert assertPreviousStateConsistency(clusterChangedEvent);
-
-                final ClusterState clusterState = clusterChangedEvent.state();
+                ClusterState clusterState = clusterChangedEvent.state();
+                if (extensionStateUpdaterService.hasExtensionStateChanged(clusterChangedEvent)) {
+                    clusterState = ClusterState.builder(clusterChangedEvent.state()).incrementExtensionVersion().build();
+                }
 
                 assert getLocalNode().equals(clusterState.getNodes().get(getLocalNode().getId())) :
                     getLocalNode() + " should be in published " + clusterState;
 
                 final PublicationTransportHandler.PublicationContext publicationContext =
-                    publicationHandler.newPublicationContext(clusterChangedEvent);
+                    publicationHandler.newPublicationContext(new ClusterChangedEvent(clusterChangedEvent.source(), clusterState,
+                        clusterChangedEvent.previousState()));
 
                 final PublishRequest publishRequest = coordinationState.get().handleClientValue(clusterState);
                 final CoordinatorPublication publication = new CoordinatorPublication(publishRequest, publicationContext,
@@ -1127,6 +1133,10 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                 followersChecker.setCurrentNodes(publishNodes);
                 lagDetector.setTrackedNodes(publishNodes);
                 publication.start(followersChecker.getFaultyNodes());
+                if (extensionStateUpdaterService.hasExtensionStateChanged(clusterChangedEvent)) {
+                    extensionStateUpdaterService.publishExtensionState(new ClusterChangedEvent(clusterChangedEvent.source(), clusterState,
+                        clusterChangedEvent.previousState()));
+                }
             }
         } catch (Exception e) {
             logger.debug(() -> new ParameterizedMessage("[{}] publishing failed", clusterChangedEvent.source()), e);
@@ -1336,6 +1346,8 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                                     localNodeAckEvent.onFailure(e);
                                 }
                             }
+                        } else if(node.equals(transportService.connection.getNode())) {
+
                         } else {
                             ackListener.onNodeAck(node, e);
                             if (e == null) {
@@ -1344,7 +1356,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                         }
                     }
                 },
-                transportService.getThreadPool()::relativeTimeInMillis);
+                transportService.getThreadPool()::relativeTimeInMillis, Collections.singletonList(transportService.connection.getNode()));
             this.publishRequest = publishRequest;
             this.publicationContext = publicationContext;
             this.localNodeAckEvent = localNodeAckEvent;

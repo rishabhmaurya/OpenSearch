@@ -35,6 +35,7 @@ package org.opensearch.transport;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
+import org.opensearch.ExceptionsHelper;
 import org.opensearch.LegacyESVersion;
 import org.opensearch.Version;
 import org.opensearch.action.ActionListener;
@@ -72,6 +73,7 @@ import org.opensearch.threadpool.ThreadPool;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -108,7 +110,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     private final boolean remoteClusterClient;
     private final Transport.ResponseHandlers responseHandlers;
     private final TransportInterceptor interceptor;
-
+    public Transport.Connection connection;
     // An LRU (don't really care about concurrency here) that holds the latest timed out requests so if they
     // do show up, we can print more descriptive information about them
     final Map<Long, TimeoutInfoHolder> timeoutInfoHandlers =
@@ -164,7 +166,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
      * Build the service.
      *
      * @param clusterSettings if non null, the {@linkplain TransportService} will register with the {@link ClusterSettings} for settings
- *   *    updates for {@link TransportSettings#TRACE_LOG_EXCLUDE_SETTING} and {@link TransportSettings#TRACE_LOG_INCLUDE_SETTING}.
+     *   *    updates for {@link TransportSettings#TRACE_LOG_EXCLUDE_SETTING} and {@link TransportSettings#TRACE_LOG_INCLUDE_SETTING}.
      */
     public TransportService(Settings settings, Transport transport, ThreadPool threadPool, TransportInterceptor transportInterceptor,
                             Function<BoundTransportAddress, DiscoveryNode> localNodeFactory, @Nullable ClusterSettings clusterSettings,
@@ -256,10 +258,32 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
             }
         }
         localNode = localNodeFactory.apply(transport.boundAddress());
-
+        threadPool.generic().execute(() -> {
+            try {
+                initConnection();
+            } catch (Exception e) {
+                logger.error("unexpected error while connecting to extension node, trying again", e);
+                // Because we catch any exception here, we want to know in
+                // tests if an uncaught exception got to this point and the test infra uncaught exception
+                // leak detection can catch this. In practise no uncaught exception should leak
+                assert ExceptionsHelper.reThrowIfNotNull(e);
+            }
+        });
         if (remoteClusterClient) {
             // here we start to connect to the remote clusters
             remoteClusterService.initializeRemoteClusters();
+        }
+    }
+
+    public void initConnection() {
+        if (connection == null || connection.isClosed()) {
+            DiscoveryNode preferredTargetNode = new DiscoveryNode(
+                "extensionID",
+                new TransportAddress(new InetSocketAddress(9700)),
+                Version.CURRENT
+            );
+            connection = openConnection(preferredTargetNode, getConnectionManager().getConnectionProfile());
+            //threadPool.executor(ThreadPool.Names.GENERIC).execute(runnable);
         }
     }
 
@@ -604,8 +628,8 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     }
 
     public <T extends TransportResponse> void sendRequest(final DiscoveryNode node, final String action,
-                                                                final TransportRequest request,
-                                                                final TransportResponseHandler<T> handler) {
+                                                          final TransportRequest request,
+                                                          final TransportResponseHandler<T> handler) {
         final Transport.Connection connection;
         try {
             connection = getConnection(node);
@@ -702,7 +726,9 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     public Transport.Connection getConnection(DiscoveryNode node) {
         if (isLocalNode(node)) {
             return localNodeConnection;
-        } else {
+        } else if(node.getId().equals(connection.getNode().getId())) {
+            return connection;
+        } {
             return connectionManager.getConnection(node);
         }
     }
@@ -857,7 +883,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
                         } catch (Exception inner) {
                             inner.addSuppressed(e);
                             logger.warn(() -> new ParameterizedMessage(
-                                    "failed to notify channel of error message for action [{}]", action), inner);
+                                "failed to notify channel of error message for action [{}]", action), inner);
                         }
                     }
 
@@ -912,8 +938,9 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
         "cluster:admin",
         "cluster:monitor",
         "cluster:internal",
-        "internal:"
-        )));
+        "internal:",
+        "extension:"
+    )));
 
     private void validateActionName(String actionName) {
         // TODO we should makes this a hard validation and throw an exception but we need a good way to add backwards layer

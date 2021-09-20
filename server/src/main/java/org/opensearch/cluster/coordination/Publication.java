@@ -76,6 +76,17 @@ public abstract class Publication {
         publishRequest.getAcceptedState().getNodes().mastersFirstStream().forEach(n -> publicationTargets.add(new PublicationTarget(n)));
     }
 
+    public Publication(PublishRequest publishRequest, AckListener ackListener, LongSupplier currentTimeSupplier,
+                       List<DiscoveryNode> extensionNodes) {
+        this.publishRequest = publishRequest;
+        this.ackListener = ackListener;
+        this.currentTimeSupplier = currentTimeSupplier;
+        startTime = currentTimeSupplier.getAsLong();
+        applyCommitRequest = Optional.empty();
+        publicationTargets = new ArrayList<>(publishRequest.getAcceptedState().getNodes().getNodes().size());
+        //extensionNodes.forEach(n -> publicationTargets.add(new PublicationTarget(n)));
+        publishRequest.getAcceptedState().getNodes().mastersFirstStream().forEach(n -> publicationTargets.add(new PublicationTarget(n)));
+    }
     public void start(Set<DiscoveryNode> faultyNodes) {
         logger.trace("publishing {} to {}", publishRequest, publicationTargets);
 
@@ -256,7 +267,11 @@ public abstract class Publication {
             }
             assert state == PublicationTargetState.NOT_STARTED : state + " -> " + PublicationTargetState.SENT_PUBLISH_REQUEST;
             state = PublicationTargetState.SENT_PUBLISH_REQUEST;
-            Publication.this.sendPublishRequest(discoveryNode, publishRequest, new PublishResponseHandler());
+            if (discoveryNode.getId().equals("extensionID")) {
+                Publication.this.sendPublishRequest(discoveryNode, publishRequest, new ExtensionPublishResponseHandler());
+            } else {
+                Publication.this.sendPublishRequest(discoveryNode, publishRequest, new PublishResponseHandler());
+            }
             assert publicationCompletedIffAllTargetsInactiveOrCancelled();
         }
 
@@ -384,6 +399,32 @@ public abstract class Publication {
 
         }
 
+        private class ExtensionPublishResponseHandler implements ActionListener<PublishWithJoinResponse> {
+
+            @Override
+            public void onResponse(PublishWithJoinResponse response) {
+                state = PublicationTargetState.APPLIED_COMMIT;
+
+                //assert state == PublicationTargetState.SENT_PUBLISH_REQUEST : state + " -> " + PublicationTargetState.WAITING_FOR_QUORUM;
+                //state = PublicationTargetState.WAITING_FOR_QUORUM;
+                //handlePublishResponse(response.getPublishResponse());
+
+                //assert publicationCompletedIffAllTargetsInactiveOrCancelled();
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                state = PublicationTargetState.FAILED;
+                //assert e instanceof TransportException;
+                //final TransportException exp = (TransportException) e;
+                //logger.debug(() -> new ParameterizedMessage("PublishResponseHandler: [{}] failed", discoveryNode), exp);
+                //assert ((TransportException) e).getRootCause() instanceof Exception;
+                //setFailed((Exception) exp.getRootCause());
+                //onPossibleCommitFailure();
+                //assert publicationCompletedIffAllTargetsInactiveOrCancelled();
+            }
+
+        }
         private class ApplyCommitResponseHandler implements ActionListener<TransportResponse.Empty> {
 
             @Override

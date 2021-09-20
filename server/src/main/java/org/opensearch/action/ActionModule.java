@@ -267,6 +267,13 @@ import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.IndexScopedSettings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
+import org.opensearch.extensions.Extension;
+import org.opensearch.extensions.ExtensionTransportAction;
+import org.opensearch.extensions.TestExtensionTransportAction;
+import org.opensearch.extensions.settingupdater.RemoteSettingUpdater;
+import org.opensearch.extensions.settingupdater.SettingUpdateAction;
+import org.opensearch.extensions.stateupdater.ClusterStateUpdateAction;
+import org.opensearch.extensions.stateupdater.ClusterStateUpdateTransportAction;
 import org.opensearch.index.seqno.RetentionLeaseActions;
 import org.opensearch.indices.SystemIndices;
 import org.opensearch.indices.breaker.CircuitBreakerService;
@@ -445,11 +452,13 @@ public class ActionModule extends AbstractModule {
     private final RequestValidators<PutMappingRequest> mappingRequestValidators;
     private final RequestValidators<IndicesAliasesRequest> indicesAliasesRequestRequestValidators;
     private final ThreadPool threadPool;
+    private final List<Extension> extensions;
 
     public ActionModule(boolean transportClient, Settings settings, IndexNameExpressionResolver indexNameExpressionResolver,
                         IndexScopedSettings indexScopedSettings, ClusterSettings clusterSettings, SettingsFilter settingsFilter,
                         ThreadPool threadPool, List<ActionPlugin> actionPlugins, NodeClient nodeClient,
-                        CircuitBreakerService circuitBreakerService, UsageService usageService, SystemIndices systemIndices) {
+                        CircuitBreakerService circuitBreakerService, UsageService usageService, SystemIndices systemIndices,
+                        List<Extension> extensions) {
         this.transportClient = transportClient;
         this.settings = settings;
         this.indexNameExpressionResolver = indexNameExpressionResolver;
@@ -458,7 +467,9 @@ public class ActionModule extends AbstractModule {
         this.settingsFilter = settingsFilter;
         this.actionPlugins = actionPlugins;
         this.threadPool = threadPool;
-        actions = setupActions(actionPlugins);
+        this.extensions = extensions;
+
+        actions = setupActions(actionPlugins, extensions);
         actionFilters = setupActionFilters(actionPlugins);
         autoCreateIndex = transportClient
             ? null
@@ -496,7 +507,7 @@ public class ActionModule extends AbstractModule {
         return actions;
     }
 
-    static Map<String, ActionHandler<?, ?>> setupActions(List<ActionPlugin> actionPlugins) {
+    static Map<String, ActionHandler<?, ?>> setupActions(List<ActionPlugin> actionPlugins, List<Extension> extensions) {
         // Subclass NamedRegistry for easy registration
         class ActionRegistry extends NamedRegistry<ActionHandler<?, ?>> {
             ActionRegistry() {
@@ -515,7 +526,10 @@ public class ActionModule extends AbstractModule {
         }
         ActionRegistry actions = new ActionRegistry();
 
-        actions.register(MainAction.INSTANCE, TransportMainAction.class);
+        actions.register(MainAction.INSTANCE, TestExtensionTransportAction.class);
+        actions.register(SettingUpdateAction.INSTANCE, RemoteSettingUpdater.class);
+        actions.register(ClusterStateUpdateAction.INSTANCE, ClusterStateUpdateTransportAction.class);
+
         actions.register(NodesInfoAction.INSTANCE, TransportNodesInfoAction.class);
         actions.register(RemoteInfoAction.INSTANCE, TransportRemoteInfoAction.class);
         actions.register(NodesStatsAction.INSTANCE, TransportNodesStatsAction.class);
@@ -571,7 +585,7 @@ public class ActionModule extends AbstractModule {
         actions.register(PutIndexTemplateAction.INSTANCE, TransportPutIndexTemplateAction.class);
         actions.register(GetIndexTemplatesAction.INSTANCE, TransportGetIndexTemplatesAction.class);
         actions.register(DeleteIndexTemplateAction.INSTANCE, TransportDeleteIndexTemplateAction.class);
-        actions.register(PutComponentTemplateAction.INSTANCE, TransportPutComponentTemplateAction.class);
+        actions.register(PutComponentTemplateAction.INSTANCE, TransportPutComponentTemplateAction.class)    ;
         actions.register(GetComponentTemplateAction.INSTANCE, TransportGetComponentTemplateAction.class);
         actions.register(DeleteComponentTemplateAction.INSTANCE, TransportDeleteComponentTemplateAction.class);
         actions.register(PutComposableIndexTemplateAction.INSTANCE, TransportPutComposableIndexTemplateAction.class);
@@ -652,6 +666,7 @@ public class ActionModule extends AbstractModule {
         actions.register(ImportDanglingIndexAction.INSTANCE, TransportImportDanglingIndexAction.class);
         actions.register(DeleteDanglingIndexAction.INSTANCE, TransportDeleteDanglingIndexAction.class);
         actions.register(FindDanglingIndexAction.INSTANCE, TransportFindDanglingIndexAction.class);
+        extensions.stream().flatMap(p -> p.getActions().stream()).forEach(actions::register);
 
         return unmodifiableMap(actions.getRegistry());
     }
@@ -826,6 +841,13 @@ public class ActionModule extends AbstractModule {
         for (ActionPlugin plugin : actionPlugins) {
             for (RestHandler handler : plugin.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings,
                     settingsFilter, indexNameExpressionResolver, nodesInCluster)) {
+                registerHandler.accept(handler);
+            }
+        }
+
+        for (ActionPlugin plugin : extensions) {
+            for (RestHandler handler : plugin.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings,
+                settingsFilter, indexNameExpressionResolver, nodesInCluster)) {
                 registerHandler.accept(handler);
             }
         }

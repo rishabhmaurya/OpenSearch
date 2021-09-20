@@ -59,6 +59,7 @@ import org.opensearch.common.util.BigArrays;
 import org.opensearch.common.util.PageCacheRecycler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.core.internal.io.IOUtils;
+import org.opensearch.extensions.Extension;
 import org.opensearch.indices.IndicesModule;
 import org.opensearch.indices.SystemIndices;
 import org.opensearch.indices.breaker.CircuitBreakerService;
@@ -194,7 +195,8 @@ public abstract class TransportClient extends AbstractClient {
             modules.add(b -> b.bind(ThreadPool.class).toInstance(threadPool));
             ActionModule actionModule = new ActionModule(true, settings, null, settingsModule.getIndexScopedSettings(),
                     settingsModule.getClusterSettings(), settingsModule.getSettingsFilter(), threadPool,
-                    pluginsService.filterPlugins(ActionPlugin.class), null, null, null, new SystemIndices(emptyMap()));
+                    pluginsService.filterPlugins(ActionPlugin.class), null, null, null, new SystemIndices(emptyMap()),
+                pluginsService.filterPlugins(Extension.class));
             modules.add(actionModule);
 
             CircuitBreakerService circuitBreakerService = Node.createCircuitBreakerService(settingsModule.getSettings(),
