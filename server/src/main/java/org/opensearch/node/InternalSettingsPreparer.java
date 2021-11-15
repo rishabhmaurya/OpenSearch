@@ -42,12 +42,11 @@ import java.util.Map;
 import java.util.function.Supplier;
 import java.util.function.Function;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.ClusterName;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.settings.SettingsException;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.settings.SettingsException;
 import org.opensearch.env.Environment;
-import org.opensearch.node.Node;
 
 public class InternalSettingsPreparer {
 

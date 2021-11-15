@@ -32,7 +32,7 @@
 package org.opensearch.cluster.coordination;
 
 import joptsimple.OptionSet;
-import org.opensearch.cli.Terminal;
+import org.opensearch.mod.cli.Terminal;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.Metadata;
 import org.opensearch.env.Environment;

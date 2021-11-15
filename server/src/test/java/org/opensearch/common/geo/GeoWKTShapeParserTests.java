@@ -32,9 +32,9 @@
 package org.opensearch.common.geo;
 
 import org.apache.lucene.geo.GeoTestUtil;
-import org.opensearch.LegacyESVersion;
+import org.opensearch.mod.LegacyESVersion;
 import org.opensearch.OpenSearchException;
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.OpenSearchParseException;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.common.UUIDs;
 import org.opensearch.common.geo.builders.CoordinatesBuilder;
@@ -49,7 +49,7 @@ import org.opensearch.common.geo.builders.PolygonBuilder;
 import org.opensearch.common.geo.builders.ShapeBuilder;
 import org.opensearch.common.geo.parsers.GeoWKTParser;
 import org.opensearch.common.geo.parsers.ShapeParser;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentParser;
@@ -63,6 +63,7 @@ import org.opensearch.index.mapper.GeoShapeFieldMapper;
 import org.opensearch.index.mapper.GeoShapeIndexer;
 import org.opensearch.index.mapper.LegacyGeoShapeFieldMapper;
 import org.opensearch.index.mapper.Mapper;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.test.geo.RandomShapeGenerator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.LineString;

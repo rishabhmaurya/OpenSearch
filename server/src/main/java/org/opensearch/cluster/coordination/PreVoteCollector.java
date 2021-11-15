@@ -40,8 +40,8 @@ import org.opensearch.cluster.coordination.CoordinationState.VoteCollection;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.lease.Releasable;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.lease.Releasable;
 import org.opensearch.monitor.NodeHealthService;
 import org.opensearch.monitor.StatusInfo;
 import org.opensearch.threadpool.ThreadPool.Names;
@@ -55,7 +55,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.LongConsumer;
 import java.util.stream.StreamSupport;
 
-import static org.opensearch.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
+import static org.opensearch.mod.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
 import static org.opensearch.monitor.StatusInfo.Status.UNHEALTHY;
 
 public class PreVoteCollector {

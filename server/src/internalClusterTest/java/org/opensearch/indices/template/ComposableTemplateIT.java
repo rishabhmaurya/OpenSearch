@@ -37,7 +37,7 @@ import org.opensearch.action.admin.indices.template.put.PutComposableIndexTempla
 import org.opensearch.cluster.metadata.ComponentTemplate;
 import org.opensearch.cluster.metadata.ComposableIndexTemplate;
 import org.opensearch.cluster.metadata.Template;
-import org.opensearch.common.compress.CompressedXContent;
+import org.opensearch.mod.common.compress.CompressedXContent;
 import org.opensearch.test.OpenSearchIntegTestCase;
 
 import java.util.Collections;

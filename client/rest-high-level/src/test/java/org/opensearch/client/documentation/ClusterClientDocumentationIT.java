@@ -61,13 +61,13 @@ import org.opensearch.cluster.metadata.ComponentTemplate;
 import org.opensearch.cluster.metadata.Template;
 import org.opensearch.cluster.routing.allocation.decider.EnableAllocationDecider;
 import org.opensearch.common.Priority;
-import org.opensearch.common.compress.CompressedXContent;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.compress.CompressedXContent;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.indices.recovery.RecoverySettings;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 
 import java.io.IOException;
 import java.util.HashMap;

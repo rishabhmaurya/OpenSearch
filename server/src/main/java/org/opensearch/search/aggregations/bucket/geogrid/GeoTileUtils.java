@@ -33,8 +33,8 @@ package org.opensearch.search.aggregations.bucket.geogrid;
 
 import org.apache.lucene.geo.GeoEncodingUtils;
 import org.apache.lucene.util.SloppyMath;
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.common.util.OpenSearchSloppyMath;
 import org.opensearch.common.xcontent.ObjectParser.ValueType;
 import org.opensearch.common.xcontent.XContentParser;

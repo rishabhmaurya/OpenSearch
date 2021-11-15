@@ -32,13 +32,13 @@
 
 package org.opensearch.action.support;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
 import org.opensearch.action.support.IndicesOptions.Option;
 import org.opensearch.action.support.IndicesOptions.WildcardStates;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.ToXContent.MapParams;
 import org.opensearch.common.xcontent.XContentBuilder;

@@ -31,7 +31,7 @@
 
 package org.opensearch.cluster.routing.allocation;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.OpenSearchAllocationTestCase;
 import org.opensearch.cluster.metadata.IndexMetadata;
@@ -39,7 +39,7 @@ import org.opensearch.cluster.metadata.Metadata;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.routing.RoutingTable;
 import org.opensearch.cluster.routing.allocation.decider.ThrottlingAllocationDecider;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 
 import java.util.List;
 import java.util.stream.Collectors;

@@ -52,7 +52,7 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.NumericUtils;
 import org.opensearch.common.CheckedConsumer;
 import org.opensearch.common.TriConsumer;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.index.mapper.NumberFieldMapper;
 import org.opensearch.index.mapper.NumberFieldMapper.NumberType;

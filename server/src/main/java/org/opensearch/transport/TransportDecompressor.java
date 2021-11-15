@@ -34,12 +34,12 @@ package org.opensearch.transport;
 
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefIterator;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.bytes.ReleasableBytesReference;
-import org.opensearch.common.compress.CompressorFactory;
-import org.opensearch.common.recycler.Recycler;
-import org.opensearch.common.util.PageCacheRecycler;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.ReleasableBytesReference;
+import org.opensearch.mod.common.compress.CompressorFactory;
+import org.opensearch.mod.common.recycler.Recycler;
+import org.opensearch.mod.common.util.PageCacheRecycler;
 
 import java.io.Closeable;
 import java.io.IOException;

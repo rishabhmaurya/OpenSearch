@@ -9,13 +9,13 @@
 package org.opensearch.script;
 
 import org.opensearch.OpenSearchException;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.index.MockEngineFactoryPlugin;
 import org.opensearch.index.mapper.MockFieldFilterPlugin;
 import org.opensearch.node.NodeMocksPlugin;
 import org.opensearch.plugins.Plugin;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 import org.opensearch.search.MockSearchService;
 import org.opensearch.test.MockHttpTransport;
 import org.opensearch.test.OpenSearchIntegTestCase;

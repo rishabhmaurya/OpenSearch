@@ -38,7 +38,7 @@ import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestChannel;
 import org.opensearch.rest.RestResponse;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 
 /**
  * A REST based action listener that assumes the response is of type {@link ToXContent} and automatically

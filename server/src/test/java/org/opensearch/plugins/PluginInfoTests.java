@@ -32,12 +32,11 @@
 
 package org.opensearch.plugins;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.admin.cluster.node.info.PluginsAndModules;
-import org.opensearch.common.io.stream.ByteBufferStreamInput;
-import org.opensearch.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.ByteBufferStreamInput;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.plugins.PluginTestUtil;
 
 import java.nio.ByteBuffer;
 import java.nio.file.Path;

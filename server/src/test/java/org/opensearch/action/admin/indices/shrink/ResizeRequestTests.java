@@ -35,15 +35,14 @@ package org.opensearch.action.admin.indices.shrink;
 import org.opensearch.action.admin.indices.alias.Alias;
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
 import org.opensearch.action.admin.indices.create.CreateIndexRequestTests;
-import org.opensearch.common.Strings;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.RandomCreateIndexGenerator;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.hamcrest.OpenSearchAssertions;
-import org.opensearch.action.admin.indices.shrink.ResizeRequest;
 
 import java.io.IOException;
 import java.util.function.Consumer;

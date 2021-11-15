@@ -41,13 +41,13 @@ import com.sun.net.httpserver.HttpHandler;
 import fixture.azure.AzureHttpHandler;
 
 import org.opensearch.common.SuppressForbidden;
-import org.opensearch.common.regex.Regex;
+import org.opensearch.mod.common.regex.Regex;
 import org.opensearch.common.settings.MockSecureSettings;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.repositories.blobstore.OpenSearchMockAPIBasedRepositoryIntegTestCase;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

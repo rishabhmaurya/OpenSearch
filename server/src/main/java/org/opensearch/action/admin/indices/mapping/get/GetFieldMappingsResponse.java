@@ -34,16 +34,16 @@ package org.opensearch.action.admin.indices.mapping.get;
 
 import org.opensearch.action.ActionResponse;
 import org.opensearch.common.ParseField;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
 import org.opensearch.common.xcontent.ConstructingObjectParser;
 import org.opensearch.common.xcontent.ObjectParser;
 import org.opensearch.common.xcontent.ToXContentFragment;
 import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;
-import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.mod.common.xcontent.XContentHelper;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.mapper.Mapper;
@@ -59,7 +59,7 @@ import java.util.Objects;
 import static java.util.Collections.unmodifiableMap;
 import static org.opensearch.common.xcontent.ConstructingObjectParser.optionalConstructorArg;
 import static org.opensearch.common.xcontent.XContentFactory.jsonBuilder;
-import static org.opensearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
+import static org.opensearch.mod.common.xcontent.XContentParserUtils.ensureExpectedToken;
 import static org.opensearch.rest.BaseRestHandler.DEFAULT_INCLUDE_TYPE_NAME_POLICY;
 
 /**

@@ -32,9 +32,9 @@
 
 package org.opensearch.common.geo;
 
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.xcontent.LoggingDeprecationHandler;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.ToXContentObject;

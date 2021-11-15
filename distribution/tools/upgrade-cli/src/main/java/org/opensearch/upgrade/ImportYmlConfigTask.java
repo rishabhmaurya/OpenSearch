@@ -8,10 +8,10 @@
 
 package org.opensearch.upgrade;
 
-import org.opensearch.cli.Terminal;
+import org.opensearch.mod.cli.Terminal;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.settings.SettingsException;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.settings.SettingsException;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.yaml.YamlXContent;

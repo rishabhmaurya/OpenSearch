@@ -31,16 +31,15 @@
 
 package org.opensearch.action.admin.indices.datastream;
 
-import org.opensearch.action.admin.indices.datastream.GetDataStreamAction;
 import org.opensearch.action.admin.indices.datastream.GetDataStreamAction.Request;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.DataStream;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 import org.opensearch.index.IndexNotFoundException;
 import org.opensearch.test.AbstractWireSerializingTestCase;
 

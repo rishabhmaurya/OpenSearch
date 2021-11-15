@@ -33,9 +33,9 @@
 package org.opensearch.tasks;
 
 import org.opensearch.client.Requests;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.test.AbstractSerializingTestCase;

@@ -35,12 +35,11 @@ package org.opensearch.action.support;
 import org.opensearch.OpenSearchTimeoutException;
 import org.opensearch.action.ActionListener;
 import org.opensearch.cluster.coordination.DeterministicTaskQueue;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.threadpool.ThreadPool;
 import org.junit.Before;
-import org.opensearch.action.support.ListenerTimeouts;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;

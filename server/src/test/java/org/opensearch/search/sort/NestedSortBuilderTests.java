@@ -32,8 +32,8 @@
 
 package org.opensearch.search.sort;
 
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;

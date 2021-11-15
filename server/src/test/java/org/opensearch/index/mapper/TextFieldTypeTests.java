@@ -51,9 +51,8 @@ import org.opensearch.OpenSearchException;
 import org.opensearch.common.lucene.BytesRefs;
 import org.opensearch.common.lucene.Lucene;
 import org.opensearch.common.lucene.search.AutomatonQueries;
-import org.opensearch.common.unit.Fuzziness;
+import org.opensearch.mod.common.unit.Fuzziness;
 import org.opensearch.index.mapper.TextFieldMapper.TextFieldType;
-import org.opensearch.index.mapper.FieldTypeTestCase;
 
 import java.io.IOException;
 import java.util.ArrayList;

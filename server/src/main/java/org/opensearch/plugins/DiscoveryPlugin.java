@@ -36,7 +36,7 @@ import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.coordination.ElectionStrategy;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.network.NetworkService;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.discovery.SeedHostsProvider;
 import org.opensearch.transport.TransportService;
 

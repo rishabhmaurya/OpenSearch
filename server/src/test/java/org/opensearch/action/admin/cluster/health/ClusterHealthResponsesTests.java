@@ -32,8 +32,8 @@
 
 package org.opensearch.action.admin.cluster.health;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.health.ClusterHealthStatus;
@@ -43,17 +43,17 @@ import org.opensearch.cluster.health.ClusterStateHealth;
 import org.opensearch.cluster.metadata.Metadata;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodes;
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.DeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.json.JsonXContent;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 import org.opensearch.test.AbstractSerializingTestCase;
 import org.opensearch.test.OpenSearchTestCase;
 

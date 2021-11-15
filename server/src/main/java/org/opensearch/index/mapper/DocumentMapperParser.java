@@ -32,14 +32,14 @@
 
 package org.opensearch.index.mapper;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.compress.CompressedXContent;
-import org.opensearch.common.time.DateFormatter;
-import org.opensearch.common.xcontent.LoggingDeprecationHandler;
+import org.opensearch.mod.common.compress.CompressedXContent;
+import org.opensearch.mod.common.time.DateFormatter;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
-import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.mod.common.xcontent.XContentHelper;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.IndexSettings;

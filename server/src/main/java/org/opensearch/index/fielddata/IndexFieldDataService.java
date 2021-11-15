@@ -34,14 +34,14 @@ package org.opensearch.index.fielddata;
 
 import org.apache.lucene.util.Accountable;
 import org.opensearch.ExceptionsHelper;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
 import org.opensearch.index.AbstractIndexComponent;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.shard.ShardId;
-import org.opensearch.indices.breaker.CircuitBreakerService;
+import org.opensearch.mod.common.breaker.fromindices.breaker.CircuitBreakerService;
 import org.opensearch.indices.fielddata.cache.IndicesFieldDataCache;
 import org.opensearch.search.lookup.SearchLookup;
 

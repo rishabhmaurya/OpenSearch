@@ -32,10 +32,10 @@
 
 package org.opensearch.index.mapper;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
-import org.opensearch.common.logging.DeprecationLogger;
-import org.opensearch.common.regex.Regex;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.regex.Regex;
 import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;
 

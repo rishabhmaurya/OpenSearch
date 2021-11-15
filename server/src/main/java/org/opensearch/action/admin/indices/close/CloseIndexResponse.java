@@ -31,16 +31,16 @@
 
 package org.opensearch.action.admin.indices.close;
 
-import org.opensearch.LegacyESVersion;
+import org.opensearch.mod.LegacyESVersion;
 import org.opensearch.OpenSearchException;
 import org.opensearch.action.support.DefaultShardOperationFailedException;
 import org.opensearch.action.support.master.ShardsAcknowledgedResponse;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.util.CollectionUtils;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.util.CollectionUtils;
 import org.opensearch.common.xcontent.ToXContentFragment;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.index.Index;

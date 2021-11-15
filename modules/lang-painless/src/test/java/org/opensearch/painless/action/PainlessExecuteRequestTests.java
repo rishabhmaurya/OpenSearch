@@ -31,12 +31,12 @@
 
 package org.opensearch.painless.action;
 
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.xcontent.LoggingDeprecationHandler;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContent;
 import org.opensearch.common.xcontent.XContentBuilder;

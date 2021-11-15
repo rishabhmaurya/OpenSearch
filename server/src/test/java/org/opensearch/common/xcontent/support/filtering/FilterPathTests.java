@@ -32,7 +32,7 @@
 
 package org.opensearch.common.xcontent.support.filtering;
 
-import org.opensearch.common.util.set.Sets;
+import org.opensearch.mod.common.util.set.Sets;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.Set;

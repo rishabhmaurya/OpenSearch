@@ -32,8 +32,8 @@
 
 package org.opensearch.action.admin.indices.shrink;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionType;
 
 public class ResizeAction extends ActionType<ResizeResponse> {

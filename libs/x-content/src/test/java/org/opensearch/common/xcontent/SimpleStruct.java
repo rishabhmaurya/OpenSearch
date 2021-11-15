@@ -33,7 +33,7 @@
 package org.opensearch.common.xcontent;
 
 import org.opensearch.common.ParseField;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 
 import java.io.IOException;
 import java.util.Objects;

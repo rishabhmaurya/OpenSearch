@@ -33,11 +33,11 @@
 package org.opensearch.client.documentation;
 
 import org.apache.lucene.search.join.ScoreMode;
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.common.geo.ShapeRelation;
 import org.opensearch.common.geo.builders.CoordinatesBuilder;
 import org.opensearch.common.geo.builders.MultiPointBuilder;
-import org.opensearch.common.unit.DistanceUnit;
+import org.opensearch.mod.common.unit.DistanceUnit;
 import org.opensearch.index.query.GeoShapeQueryBuilder;
 import org.opensearch.index.query.functionscore.FunctionScoreQueryBuilder;
 import org.opensearch.index.query.functionscore.FunctionScoreQueryBuilder.FilterFunctionBuilder;

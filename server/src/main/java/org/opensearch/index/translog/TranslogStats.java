@@ -31,12 +31,12 @@
 
 package org.opensearch.index.translog;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.common.xcontent.ToXContentFragment;
 import org.opensearch.common.xcontent.XContentBuilder;
 

@@ -32,13 +32,12 @@
 
 package org.opensearch.action.admin.cluster.storedscripts;
 
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.script.Script;
 import org.opensearch.script.StoredScriptSource;
 import org.opensearch.test.AbstractSerializingTestCase;
-import org.opensearch.action.admin.cluster.storedscripts.GetStoredScriptResponse;
 
 import java.io.IOException;
 import java.util.Collections;

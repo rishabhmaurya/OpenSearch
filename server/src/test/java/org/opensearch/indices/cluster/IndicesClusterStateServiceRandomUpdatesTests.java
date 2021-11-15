@@ -33,7 +33,7 @@
 package org.opensearch.indices.cluster;
 
 import org.apache.logging.log4j.message.ParameterizedMessage;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.admin.cluster.reroute.ClusterRerouteRequest;
 import org.opensearch.action.admin.indices.close.CloseIndexRequest;
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
@@ -59,8 +59,8 @@ import org.opensearch.cluster.routing.ShardRoutingState;
 import org.opensearch.cluster.routing.allocation.FailedShard;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.UUIDs;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.set.Sets;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.set.Sets;
 import org.opensearch.index.Index;
 import org.opensearch.index.seqno.RetentionLeaseSyncer;
 import org.opensearch.index.shard.PrimaryReplicaSyncer;

@@ -41,9 +41,10 @@ import org.apache.lucene.spatial.prefix.tree.GeohashPrefixTree;
 import org.apache.lucene.spatial.prefix.tree.PackedQuadPrefixTree;
 import org.apache.lucene.spatial.prefix.tree.QuadPrefixTree;
 import org.apache.lucene.spatial.prefix.tree.SpatialPrefixTree;
-import org.opensearch.LegacyESVersion;
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.Version;
+import org.opensearch.VersionUtil;
 import org.opensearch.common.Explicit;
 import org.opensearch.common.ParseField;
 import org.opensearch.common.geo.GeoUtils;
@@ -54,10 +55,10 @@ import org.opensearch.common.geo.SpatialStrategy;
 import org.opensearch.common.geo.builders.ShapeBuilder;
 import org.opensearch.common.geo.builders.ShapeBuilder.Orientation;
 import org.opensearch.common.geo.parsers.ShapeParser;
-import org.opensearch.common.logging.DeprecationLogger;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.unit.DistanceUnit;
-import org.opensearch.common.xcontent.LoggingDeprecationHandler;
+import org.opensearch.mod.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.unit.DistanceUnit;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.support.XContentMapValues;
@@ -449,7 +450,7 @@ public class LegacyGeoShapeFieldMapper extends AbstractShapeGeometryFieldMapper<
                                      MultiFields multiFields, CopyTo copyTo) {
         super(simpleName, fieldType, mappedFieldType, ignoreMalformed, coerce, ignoreZValue, orientation,
             multiFields, copyTo);
-        this.indexCreatedVersion = Version.indexCreated(indexSettings);
+        this.indexCreatedVersion = VersionUtil.indexCreated(indexSettings);
     }
 
     @Override

@@ -42,13 +42,13 @@ import org.opensearch.client.Client;
 import org.opensearch.cluster.block.ClusterBlocks;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.MappingMetadata;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.indices.InvalidIndexNameException;
 import org.opensearch.repositories.RepositoriesService;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 
 import java.nio.file.Path;
 import java.util.Collections;

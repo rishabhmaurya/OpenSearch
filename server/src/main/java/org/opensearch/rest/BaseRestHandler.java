@@ -39,8 +39,8 @@ import org.apache.lucene.util.CollectionUtil;
 import org.opensearch.client.node.NodeClient;
 import org.opensearch.common.CheckedConsumer;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
 import org.opensearch.plugins.ActionPlugin;
 import org.opensearch.rest.action.admin.cluster.RestNodesUsageAction;
 

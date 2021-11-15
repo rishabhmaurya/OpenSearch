@@ -32,7 +32,7 @@
 package org.opensearch.search.aggregations;
 
 import org.opensearch.common.geo.GeoDistance;
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.search.aggregations.bucket.adjacency.AdjacencyMatrix;
 import org.opensearch.search.aggregations.bucket.adjacency.AdjacencyMatrixAggregationBuilder;

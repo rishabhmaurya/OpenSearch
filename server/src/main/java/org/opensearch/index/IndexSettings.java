@@ -34,16 +34,17 @@ package org.opensearch.index;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
 import org.apache.lucene.index.MergePolicy;
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
+import org.opensearch.VersionUtil;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.common.logging.Loggers;
 import org.opensearch.common.settings.IndexScopedSettings;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.unit.ByteSizeUnit;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.index.translog.Translog;
 import org.opensearch.ingest.IngestService;
@@ -721,7 +722,7 @@ public final class IndexSettings {
 
     /**
      * Returns the version the index was created on.
-     * @see Version#indexCreated(Settings)
+     * @see VersionUtil#indexCreated(Settings)
      */
     public Version getIndexVersionCreated() {
         return version;
@@ -767,9 +768,9 @@ public final class IndexSettings {
      */
     public synchronized boolean updateIndexMetadata(IndexMetadata indexMetadata) {
         final Settings newSettings = indexMetadata.getSettings();
-        if (version.equals(Version.indexCreated(newSettings)) == false) {
+        if (version.equals(VersionUtil.indexCreated(newSettings)) == false) {
             throw new IllegalArgumentException("version mismatch on settings update expected: " + version + " but was: " +
-                Version.indexCreated(newSettings));
+                VersionUtil.indexCreated(newSettings));
         }
         final String newUUID = newSettings.get(IndexMetadata.SETTING_INDEX_UUID, IndexMetadata.INDEX_UUID_NA_VALUE);
         if (newUUID.equals(getUUID()) == false) {

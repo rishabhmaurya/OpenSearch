@@ -9,7 +9,7 @@
 package org.opensearch.backwards;
 
 import org.apache.http.util.EntityUtils;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.client.Node;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;

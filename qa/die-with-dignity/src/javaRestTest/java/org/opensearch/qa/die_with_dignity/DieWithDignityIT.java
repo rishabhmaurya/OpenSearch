@@ -34,7 +34,7 @@ package org.opensearch.qa.die_with_dignity;
 
 import org.opensearch.client.Request;
 import org.opensearch.common.io.PathUtils;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.rest.OpenSearchRestTestCase;
 
 import java.io.BufferedReader;

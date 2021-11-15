@@ -33,7 +33,7 @@ package org.opensearch.transport;
 
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 
 import java.util.ArrayList;

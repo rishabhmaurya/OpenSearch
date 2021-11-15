@@ -36,11 +36,11 @@ import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.common.geo.GeoUtils;
-import org.opensearch.common.time.DateUtils;
+import org.opensearch.mod.common.time.DateUtils;
 import org.opensearch.geometry.utils.Geohash;
-import org.opensearch.script.JodaCompatibleZonedDateTime;
+import org.opensearch.mod.common.time.JodaCompatibleZonedDateTime;
 
 import java.io.IOException;
 import java.time.Instant;

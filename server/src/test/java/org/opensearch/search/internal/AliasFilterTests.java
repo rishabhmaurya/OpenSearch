@@ -32,7 +32,7 @@
 
 package org.opensearch.search.internal;
 
-import org.opensearch.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.index.query.TermQueryBuilder;

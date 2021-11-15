@@ -33,8 +33,8 @@ package org.opensearch.watcher;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.common.io.FileSystemUtils;
-import org.opensearch.common.util.CollectionUtils;
+import org.opensearch.mod.common.io.FileSystemUtils;
+import org.opensearch.mod.common.util.CollectionUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;

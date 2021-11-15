@@ -35,7 +35,7 @@ package org.opensearch.search.aggregations.bucket.composite;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.opensearch.common.CheckedFunction;
-import org.opensearch.common.util.BigArrays;
+import org.opensearch.mod.common.util.BigArrays;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.search.DocValueFormat;
 import org.opensearch.search.aggregations.bucket.geogrid.GeoTileUtils;

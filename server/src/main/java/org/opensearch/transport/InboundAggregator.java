@@ -32,14 +32,14 @@
 
 package org.opensearch.transport;
 
-import org.opensearch.common.breaker.CircuitBreaker;
-import org.opensearch.common.breaker.CircuitBreakingException;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.bytes.CompositeBytesReference;
-import org.opensearch.common.bytes.ReleasableBytesReference;
-import org.opensearch.common.lease.Releasable;
-import org.opensearch.common.lease.Releasables;
+import org.opensearch.mod.common.breaker.CircuitBreaker;
+import org.opensearch.mod.common.breaker.CircuitBreakingException;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.CompositeBytesReference;
+import org.opensearch.mod.common.bytes.ReleasableBytesReference;
+import org.opensearch.mod.common.lease.Releasable;
+import org.opensearch.mod.common.lease.Releasables;
 
 import java.io.IOException;
 import java.util.ArrayList;

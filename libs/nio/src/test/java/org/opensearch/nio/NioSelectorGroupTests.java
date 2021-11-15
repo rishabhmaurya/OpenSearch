@@ -33,7 +33,7 @@
 package org.opensearch.nio;
 
 import org.opensearch.common.CheckedRunnable;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;

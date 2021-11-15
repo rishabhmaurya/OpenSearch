@@ -32,7 +32,7 @@
 
 package org.opensearch.search.internal;
 
-import org.opensearch.LegacyESVersion;
+import org.opensearch.mod.LegacyESVersion;
 import org.opensearch.action.IndicesRequest;
 import org.opensearch.action.OriginalIndices;
 import org.opensearch.action.search.SearchRequest;
@@ -43,12 +43,12 @@ import org.opensearch.cluster.metadata.AliasMetadata;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.common.CheckedFunction;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.Strings;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.collect.ImmutableOpenMap;
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.collect.ImmutableOpenMap;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.index.Index;
 import org.opensearch.index.query.BoolQueryBuilder;

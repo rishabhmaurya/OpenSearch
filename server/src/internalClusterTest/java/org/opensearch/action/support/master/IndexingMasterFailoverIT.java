@@ -34,7 +34,7 @@ package org.opensearch.action.support.master;
 
 import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.index.IndexResponse;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.test.disruption.NetworkDisruption;

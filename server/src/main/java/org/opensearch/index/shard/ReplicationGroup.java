@@ -34,7 +34,7 @@ package org.opensearch.index.shard;
 
 import org.opensearch.cluster.routing.IndexShardRoutingTable;
 import org.opensearch.cluster.routing.ShardRouting;
-import org.opensearch.common.util.set.Sets;
+import org.opensearch.mod.common.util.set.Sets;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -56,11 +56,11 @@ import org.opensearch.cluster.routing.allocation.decider.Decision;
 import org.opensearch.cluster.routing.allocation.decider.Decision.Type;
 import org.opensearch.cluster.routing.allocation.decider.DiskThresholdDecider;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.inject.Inject;
+import org.opensearch.mod.common.inject.Inject;
 import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.gateway.PriorityComparator;
 
 import java.util.ArrayList;

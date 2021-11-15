@@ -32,7 +32,7 @@
 package org.opensearch;
 
 import org.opensearch.common.network.NetworkModule;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.transport.nio.NioTransportPlugin;

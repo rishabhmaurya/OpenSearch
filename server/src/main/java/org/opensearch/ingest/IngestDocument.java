@@ -32,7 +32,7 @@
 
 package org.opensearch.ingest;
 
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.index.VersionType;
 import org.opensearch.index.mapper.IdFieldMapper;
 import org.opensearch.index.mapper.IndexFieldMapper;

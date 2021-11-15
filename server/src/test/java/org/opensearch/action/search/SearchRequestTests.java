@@ -32,14 +32,14 @@
 
 package org.opensearch.action.search;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.support.IndicesOptions;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.ArrayUtils;
+import org.opensearch.mod.common.util.ArrayUtils;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.search.AbstractSearchTestCase;
 import org.opensearch.search.Scroll;

@@ -34,7 +34,9 @@ package org.opensearch;
 
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.common.lucene.Lucene;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.VersionUtils;
 import org.hamcrest.Matchers;
@@ -49,9 +51,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-import static org.opensearch.LegacyESVersion.V_6_3_0;
-import static org.opensearch.LegacyESVersion.V_7_0_0;
-import static org.opensearch.Version.MASK;
+import static org.opensearch.mod.LegacyESVersion.V_6_3_0;
+import static org.opensearch.mod.LegacyESVersion.V_7_0_0;
+import static org.opensearch.mod.Version.MASK;
 import static org.opensearch.test.VersionUtils.allVersions;
 import static org.opensearch.test.VersionUtils.randomVersion;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -173,14 +175,14 @@ public class VersionTests extends OpenSearchTestCase {
     }
 
     public void testVersionNoPresentInSettings() {
-        Exception e = expectThrows(IllegalStateException.class, () -> Version.indexCreated(Settings.builder().build()));
+        Exception e = expectThrows(IllegalStateException.class, () -> VersionUtil.indexCreated(Settings.builder().build()));
         assertThat(e.getMessage(), containsString("[index.version.created] is not present"));
     }
 
     public void testIndexCreatedVersion() {
         // an actual index has a IndexMetadata.SETTING_INDEX_UUID
         final LegacyESVersion version = LegacyESVersion.V_6_0_0_beta1;
-        assertEquals(version, Version.indexCreated(
+        assertEquals(version, VersionUtil.indexCreated(
             Settings.builder()
                 .put(IndexMetadata.SETTING_INDEX_UUID, "foo")
                 .put(IndexMetadata.SETTING_VERSION_CREATED, version)
@@ -274,12 +276,12 @@ public class VersionTests extends OpenSearchTestCase {
         for (int i = 0 ; i < 25; i++) {
             assertEquals(LegacyESVersion.fromString("5.0.0-rc" + i).id, LegacyESVersion.fromId(5000000 + i + 50).id);
             assertEquals("5.0.0-rc" + i, LegacyESVersion.fromId(5000000 + i + 50).toString());
-            
+
             assertEquals(Version.fromString("1.0.0-rc" + i).id, Version.fromId(135217728 + i + 50).id);
             assertEquals("1.0.0-rc" + i, Version.fromId(135217728 + i + 50).toString());
         }
     }
-    
+
     public void testIsBeta() {
         assertTrue(LegacyESVersion.fromString("2.0.0-beta1").isBeta());
         assertTrue(LegacyESVersion.fromString("1.0.0.Beta1").isBeta());
@@ -290,7 +292,7 @@ public class VersionTests extends OpenSearchTestCase {
         for (int i = 0 ; i < 25; i++) {
             assertEquals(LegacyESVersion.fromString("5.0.0-beta" + i).id, LegacyESVersion.fromId(5000000 + i + 25).id);
             assertEquals("5.0.0-beta" + i, LegacyESVersion.fromId(5000000 + i + 25).toString());
-            
+
             assertEquals(Version.fromString("1.0.0-beta" + i).id, Version.fromId(135217728 + i + 25).id);
             assertEquals("1.0.0-beta" + i, Version.fromId(135217728 + i + 25).toString());
         }
@@ -303,14 +305,14 @@ public class VersionTests extends OpenSearchTestCase {
         assertTrue(LegacyESVersion.fromString("5.0.0-alpha14").isAlpha());
         assertEquals(5000014, LegacyESVersion.fromString("5.0.0-alpha14").id);
         assertTrue(LegacyESVersion.fromId(5000015).isAlpha());
-        
+
         assertEquals(135217742, Version.fromString("1.0.0-alpha14").id);
         assertTrue(Version.fromString("1.0.0-alpha14").isAlpha());
 
         for (int i = 0 ; i < 25; i++) {
             assertEquals(LegacyESVersion.fromString("5.0.0-alpha" + i).id, LegacyESVersion.fromId(5000000 + i).id);
             assertEquals("5.0.0-alpha" + i, LegacyESVersion.fromId(5000000 + i).toString());
-            
+
             assertEquals(Version.fromString("1.0.0-alpha" + i).id, Version.fromId(135217728 + i).id);
             assertEquals("1.0.0-alpha" + i, Version.fromId(135217728 + i).toString());
         }

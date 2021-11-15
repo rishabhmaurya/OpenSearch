@@ -37,7 +37,7 @@ import org.opensearch.common.util.concurrent.AbstractRefCounted;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 
-import org.opensearch.common.lease.Releasable;
+import org.opensearch.mod.common.lease.Releasable;
 
 /**
  * Handles the shutdown of the wrapped {@link AmazonS3Client} using reference

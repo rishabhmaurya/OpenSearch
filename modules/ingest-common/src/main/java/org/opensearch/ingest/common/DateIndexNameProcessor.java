@@ -33,7 +33,7 @@
 package org.opensearch.ingest.common;
 
 import org.opensearch.ExceptionsHelper;
-import org.opensearch.common.time.DateFormatter;
+import org.opensearch.mod.common.time.DateFormatter;
 import org.opensearch.ingest.AbstractProcessor;
 import org.opensearch.ingest.ConfigurationUtils;
 import org.opensearch.ingest.IngestDocument;

@@ -35,7 +35,7 @@ package org.opensearch.client.indices;
 import org.opensearch.cluster.metadata.MappingMetadata;
 import org.opensearch.common.ParseField;
 import org.opensearch.common.xcontent.XContentParser;
-import org.opensearch.common.xcontent.XContentParserUtils;
+import org.opensearch.mod.common.xcontent.XContentParserUtils;
 import org.opensearch.index.mapper.MapperService;
 
 import java.io.IOException;

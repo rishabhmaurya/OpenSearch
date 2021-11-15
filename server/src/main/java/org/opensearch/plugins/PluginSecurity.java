@@ -32,10 +32,10 @@
 
 package org.opensearch.plugins;
 
-import org.opensearch.cli.ExitCodes;
-import org.opensearch.cli.Terminal;
-import org.opensearch.cli.Terminal.Verbosity;
-import org.opensearch.cli.UserException;
+import org.opensearch.mod.cli.ExitCodes;
+import org.opensearch.mod.cli.Terminal;
+import org.opensearch.mod.cli.Terminal.Verbosity;
+import org.opensearch.mod.cli.UserException;
 import org.opensearch.core.internal.io.IOUtils;
 
 import java.io.IOException;

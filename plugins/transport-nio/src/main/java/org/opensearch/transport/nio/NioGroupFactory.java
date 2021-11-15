@@ -34,7 +34,7 @@ package org.opensearch.transport.nio;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.util.concurrent.AbstractRefCounted;
 import org.opensearch.http.HttpServerTransport;
 import org.opensearch.nio.ChannelFactory;

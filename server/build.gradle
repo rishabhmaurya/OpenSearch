@@ -62,12 +62,38 @@ if (!isEclipse) {
   dependencies {
     java11Implementation sourceSets.main.output
   }
-
+  configurations {
+    modulePath {
+      transitive false
+    }
+  }
+  dependencies {
+    modulePath project(':libs:opensearch-opensearch-common')
+    modulePath project(':libs:opensearch-opensearch-plugins')
+    modulePath 'net.sf.jopt-simple:jopt-simple:5.0.2'
+  }
   compileJava11Java {
     sourceCompatibility = 11
     targetCompatibility = 11
+    options.compilerArgs += [
+      '-Xmaxerrs', '10',
+      '-Xmaxwarns', '1',
+      //'-cp', project.configurations.compileClasspath.asPath,
+      '--add-modules', 'ALL-SYSTEM',
+      '--module-path', configurations.modulePath.asPath,
+      //'--patch-module',"opensearch.common=opensearch-x-content-2.0.0-SNAPSHOT.jar",
+      //'--add-reads', "opensearch.common=ALL-UNNAMED"
+    ]
   }
-
+  compileJava.options.compilerArgs += [
+      //'-Xmaxerrs', '10',
+      //'-Xmaxwarns', '1',
+      //'-cp', project.configurations.compileClasspath.asPath,
+      '--add-modules', 'ALL-SYSTEM,jopt.simple',
+      '--module-path', configurations.modulePath.asPath,
+      //'--patch-module',"opensearch.common=opensearch-x-content-2.0.0-SNAPSHOT.jar",
+      //'--add-reads', "opensearch.common=ALL-UNNAMED"
+  ]
   tasks.named('forbiddenApisJava11').configure {
     doFirst {
       if (BuildParams.runtimeJavaVersion < JavaVersion.VERSION_11) {
@@ -91,6 +117,9 @@ dependencies {
   api project(':libs:opensearch-secure-sm')
   api project(':libs:opensearch-x-content')
   api project(":libs:opensearch-geo")
+  api project(":libs:opensearch-opensearch-common")
+  api project(":libs:opensearch-opensearch-plugins")
+  api project(":libs:opensearch-example-module")
 
   compileOnly project(':libs:opensearch-plugin-classloader')
   testRuntimeOnly project(':libs:opensearch-plugin-classloader')

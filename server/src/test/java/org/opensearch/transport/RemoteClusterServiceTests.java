@@ -31,17 +31,17 @@
 
 package org.opensearch.transport;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.OriginalIndices;
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.action.support.PlainActionFuture;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodeRole;
-import org.opensearch.common.Strings;
-import org.opensearch.common.settings.AbstractScopedSettings;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.settings.AbstractScopedSettings;
 import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.test.OpenSearchTestCase;

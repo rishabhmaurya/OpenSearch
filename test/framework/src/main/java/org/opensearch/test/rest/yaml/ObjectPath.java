@@ -33,8 +33,8 @@ package org.opensearch.test.rest.yaml;
 
 import org.apache.http.util.EntityUtils;
 import org.opensearch.client.Response;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.DeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContent;

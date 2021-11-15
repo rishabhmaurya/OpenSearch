@@ -34,10 +34,10 @@ package org.opensearch.index.mapper;
 
 import org.opensearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.Strings;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.compress.CompressedXContent;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.compress.CompressedXContent;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.index.IndexService;

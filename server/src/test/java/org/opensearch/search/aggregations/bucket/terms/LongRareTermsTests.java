@@ -32,8 +32,8 @@
 
 package org.opensearch.search.aggregations.bucket.terms;
 
-import org.opensearch.common.Randomness;
-import org.opensearch.common.util.SetBackedScalingCuckooFilter;
+import org.opensearch.mod.common.Randomness;
+import org.opensearch.mod.common.util.SetBackedScalingCuckooFilter;
 import org.opensearch.search.DocValueFormat;
 import org.opensearch.search.aggregations.BucketOrder;
 import org.opensearch.search.aggregations.InternalAggregations;

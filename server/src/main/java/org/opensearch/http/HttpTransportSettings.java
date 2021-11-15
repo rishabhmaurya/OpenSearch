@@ -34,11 +34,11 @@ package org.opensearch.http;
 
 import org.opensearch.common.Booleans;
 import org.opensearch.common.network.NetworkService;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
 import org.opensearch.common.transport.PortsRange;
-import org.opensearch.common.unit.ByteSizeUnit;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.common.unit.TimeValue;
 
 import java.util.Collections;
@@ -46,9 +46,9 @@ import java.util.List;
 import java.util.function.Function;
 
 import static java.util.Collections.emptyList;
-import static org.opensearch.common.settings.Setting.boolSetting;
-import static org.opensearch.common.settings.Setting.intSetting;
-import static org.opensearch.common.settings.Setting.listSetting;
+import static org.opensearch.mod.common.settings.Setting.boolSetting;
+import static org.opensearch.mod.common.settings.Setting.intSetting;
+import static org.opensearch.mod.common.settings.Setting.listSetting;
 
 public final class HttpTransportSettings {
 

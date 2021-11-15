@@ -41,7 +41,7 @@ import org.opensearch.action.admin.indices.segments.IndicesSegmentsRequest;
 import org.opensearch.action.admin.indices.segments.ShardSegments;
 import org.opensearch.client.node.NodeClient;
 import org.opensearch.cluster.node.DiscoveryNodes;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.Table;
 import org.opensearch.index.engine.Segment;
 import org.opensearch.rest.RestRequest;

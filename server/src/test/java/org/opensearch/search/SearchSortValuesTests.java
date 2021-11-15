@@ -33,8 +33,8 @@
 package org.opensearch.search;
 
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.common.lucene.LuceneTests;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;

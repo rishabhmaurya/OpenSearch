@@ -33,7 +33,7 @@
 package org.opensearch.index.fielddata;
 
 import org.opensearch.index.fielddata.ScriptDocValues.GeoPoints;
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.common.geo.GeoUtils;
 import org.opensearch.test.OpenSearchTestCase;
 

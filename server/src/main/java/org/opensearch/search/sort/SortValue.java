@@ -32,10 +32,10 @@
 
 package org.opensearch.search.sort;
 
-import org.opensearch.common.io.stream.NamedWriteable;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.NamedWriteable;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.search.DocValueFormat;
 

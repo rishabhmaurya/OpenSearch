@@ -36,8 +36,8 @@ import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.action.support.IndicesOptions.Option;
 import org.opensearch.action.support.IndicesOptions.WildcardStates;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.ToXContent.MapParams;
 import org.opensearch.common.xcontent.XContentBuilder;
@@ -45,7 +45,6 @@ import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest;
 
 import java.io.IOException;
 import java.util.ArrayList;

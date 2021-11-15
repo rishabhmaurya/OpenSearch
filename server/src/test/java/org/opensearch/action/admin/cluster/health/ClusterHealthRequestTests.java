@@ -32,13 +32,13 @@
 
 package org.opensearch.action.admin.cluster.health;
 
-import org.opensearch.LegacyESVersion;
+import org.opensearch.mod.LegacyESVersion;
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.cluster.health.ClusterHealthStatus;
 import org.opensearch.common.Priority;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.Locale;

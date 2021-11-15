@@ -35,7 +35,7 @@ package org.opensearch.index.store.smbsimplefs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.LockFactory;
 import org.apache.lucene.store.SimpleFSDirectory;
-import org.opensearch.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.logging.DeprecationLogger;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.store.FsDirectoryFactory;

@@ -32,7 +32,7 @@
 package org.opensearch.index.shard;
 
 import org.opensearch.cluster.routing.AllocationId;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;
 import org.opensearch.index.Index;

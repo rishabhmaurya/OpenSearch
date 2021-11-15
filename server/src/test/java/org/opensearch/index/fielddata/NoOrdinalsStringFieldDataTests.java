@@ -35,7 +35,7 @@ package org.opensearch.index.fielddata;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.SortField;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.util.BigArrays;
+import org.opensearch.mod.common.util.BigArrays;
 import org.opensearch.index.fielddata.IndexFieldData.XFieldComparatorSource.Nested;
 import org.opensearch.index.fielddata.fieldcomparator.BytesRefFieldComparatorSource;
 import org.opensearch.search.DocValueFormat;

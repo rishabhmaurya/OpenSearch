@@ -15,8 +15,8 @@ import org.opensearch.cluster.DiskUsage;
 import org.opensearch.cluster.OpenSearchAllocationWithConstraintsTestCase;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.routing.ShardRouting;
-import org.opensearch.common.collect.ImmutableOpenMap;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.collect.ImmutableOpenMap;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.test.VersionUtils;
 

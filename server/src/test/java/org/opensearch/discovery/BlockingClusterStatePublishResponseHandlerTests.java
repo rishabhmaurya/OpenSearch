@@ -32,10 +32,10 @@
 package org.opensearch.discovery;
 
 import org.apache.logging.log4j.Logger;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.concurrent.AbstractRunnable;
+import org.opensearch.mod.common.util.concurrent.AbstractRunnable;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.Arrays;

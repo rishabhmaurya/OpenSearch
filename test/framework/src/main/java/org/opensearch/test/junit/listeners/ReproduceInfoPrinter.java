@@ -36,7 +36,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.Constants;
 import org.opensearch.bootstrap.JavaVersion;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.SuppressForbidden;
 import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.test.OpenSearchTestCase;

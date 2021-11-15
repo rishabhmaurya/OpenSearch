@@ -32,7 +32,7 @@
 
 package org.opensearch.systemd;
 
-import org.opensearch.Build;
+import org.opensearch.mod.Build;
 import org.opensearch.common.CheckedConsumer;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.test.OpenSearchTestCase;

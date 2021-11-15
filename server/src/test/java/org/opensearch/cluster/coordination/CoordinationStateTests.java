@@ -31,33 +31,22 @@
 
 package org.opensearch.cluster.coordination;
 
-import org.opensearch.Assertions;
-import org.opensearch.Version;
+import org.opensearch.mod.Assertions;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.ClusterState;
-import org.opensearch.cluster.coordination.ApplyCommitRequest;
-import org.opensearch.cluster.coordination.CoordinationMetadata;
 import org.opensearch.cluster.coordination.CoordinationMetadata.VotingConfiguration;
-import org.opensearch.cluster.coordination.CoordinationState;
 import org.opensearch.cluster.coordination.CoordinationState.PersistedState;
-import org.opensearch.cluster.coordination.CoordinationStateTestCluster;
 import org.opensearch.cluster.metadata.Metadata;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodeRole;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.common.UUIDs;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.EqualsHashCodeTestUtils;
 import org.junit.Before;
-import org.opensearch.cluster.coordination.CoordinationStateRejectedException;
-import org.opensearch.cluster.coordination.ElectionStrategy;
-import org.opensearch.cluster.coordination.InMemoryPersistedState;
-import org.opensearch.cluster.coordination.Join;
-import org.opensearch.cluster.coordination.PublishRequest;
-import org.opensearch.cluster.coordination.PublishResponse;
-import org.opensearch.cluster.coordination.StartJoinRequest;
 
 import java.util.Collections;
 import java.util.Optional;

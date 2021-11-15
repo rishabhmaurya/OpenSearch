@@ -37,6 +37,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.common.ExponentiallyWeightedMovingAverage;
 import org.opensearch.common.unit.TimeValue;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.util.concurrent.WrappedRunnable;
 
 import java.util.Locale;
 import java.util.concurrent.ThreadFactory;

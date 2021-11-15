@@ -41,21 +41,21 @@ import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.util.SPIClassIterator;
-import org.opensearch.Build;
+import org.opensearch.mod.Build;
 import org.opensearch.OpenSearchException;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.admin.cluster.node.info.PluginsAndModules;
 import org.opensearch.bootstrap.JarHell;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.component.LifecycleComponent;
-import org.opensearch.common.inject.Module;
-import org.opensearch.common.io.FileSystemUtils;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.component.LifecycleComponent;
+import org.opensearch.mod.common.inject.Module;
+import org.opensearch.mod.common.io.FileSystemUtils;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.IndexModule;
-import org.opensearch.node.ReportingService;
+import org.opensearch.mod.node.ReportingService;
 import org.opensearch.threadpool.ExecutorBuilder;
 import org.opensearch.transport.TransportSettings;
 
@@ -85,7 +85,7 @@ import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.opensearch.common.io.FileSystemUtils.isAccessibleDirectory;
+import static org.opensearch.mod.common.io.FileSystemUtils.isAccessibleDirectory;
 
 public class PluginsService implements ReportingService<PluginsAndModules> {
 
@@ -742,8 +742,8 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
                 Locale.ROOT,
                 "no public constructor of correct signature for [%s]; must be [%s], [%s], or [%s]",
                 clazz.getName(),
-                "(org.opensearch.common.settings.Settings,java.nio.file.Path)",
-                "(org.opensearch.common.settings.Settings)",
+                "(org.opensearch.mod.common.settings.Settings,java.nio.file.Path)",
+                "(org.opensearch.mod.common.settings.Settings)",
                 "()");
     }
 

@@ -31,10 +31,11 @@
 
 package org.opensearch.common.unit;
 
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;
+import org.opensearch.mod.common.unit.Fuzziness;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;

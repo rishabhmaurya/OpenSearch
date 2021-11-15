@@ -33,11 +33,11 @@ package org.opensearch.indices;
 
 import org.apache.lucene.search.ReferenceManager;
 import org.apache.lucene.util.SetOnce;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.node.DiscoveryNode;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.unit.ByteSizeUnit;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.codec.CodecService;
 import org.opensearch.index.engine.EngineConfig;

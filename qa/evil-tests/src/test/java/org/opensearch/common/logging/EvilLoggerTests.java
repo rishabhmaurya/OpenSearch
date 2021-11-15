@@ -42,14 +42,17 @@ import org.apache.logging.log4j.core.appender.CountingNoOpAppender;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.lucene.util.Constants;
-import org.opensearch.cli.UserException;
+import org.opensearch.mod.cli.UserException;
 import org.opensearch.cluster.ClusterName;
-import org.opensearch.common.Randomness;
+import org.opensearch.mod.common.Randomness;
 import org.opensearch.common.io.PathUtils;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 import org.opensearch.env.Environment;
+import org.opensearch.mod.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.logging.HeaderWarning;
+import org.opensearch.mod.common.logging.PrefixLogger;
 import org.opensearch.node.Node;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.hamcrest.RegexMatcher;
@@ -70,7 +73,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.opensearch.common.logging.DeprecationLogger.DEPRECATION;
+import static org.opensearch.mod.common.logging.DeprecationLogger.DEPRECATION;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -190,7 +193,7 @@ public class EvilLoggerTests extends OpenSearchTestCase {
             assertLogLine(
                     deprecationEvents.get(i),
                     DEPRECATION,
-                    "org.opensearch.common.logging.DeprecationLogger\\$DeprecationLoggerBuilder.withDeprecation",
+                    "org.opensearch.mod.common.logging.DeprecationLogger\\$DeprecationLoggerBuilder.withDeprecation",
                     "This is a maybe logged deprecation message" + i);
         }
 
@@ -223,7 +226,7 @@ public class EvilLoggerTests extends OpenSearchTestCase {
             assertLogLine(
                     deprecationEvents.get(0),
                     DEPRECATION,
-                    "org.opensearch.common.logging.DeprecationLogger\\$DeprecationLoggerBuilder.withDeprecation",
+                    "org.opensearch.mod.common.logging.DeprecationLogger\\$DeprecationLoggerBuilder.withDeprecation",
                     "\\[deprecated.foo\\] setting was deprecated in OpenSearch and will be removed in a future release! " +
                             "See the breaking changes documentation for the next major version.");
         }

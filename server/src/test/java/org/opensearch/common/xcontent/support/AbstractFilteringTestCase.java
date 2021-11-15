@@ -33,8 +33,8 @@
 package org.opensearch.common.xcontent.support;
 
 import org.opensearch.common.CheckedFunction;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.util.set.Sets;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.util.set.Sets;
 import org.opensearch.common.xcontent.XContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.test.OpenSearchTestCase;

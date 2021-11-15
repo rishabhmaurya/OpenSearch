@@ -32,7 +32,7 @@
 
 package org.opensearch.common.geo.builders;
 
-import org.opensearch.common.unit.DistanceUnit;
+import org.opensearch.mod.common.unit.DistanceUnit;
 import org.locationtech.jts.geom.Coordinate;
 
 import java.io.IOException;

@@ -34,6 +34,10 @@ package org.opensearch.cli;
 
 import joptsimple.OptionException;
 import joptsimple.OptionSet;
+import org.opensearch.mod.cli.Command;
+import org.opensearch.mod.cli.ExitCodes;
+import org.opensearch.mod.cli.Terminal;
+import org.opensearch.mod.cli.UserException;
 import org.opensearch.test.OpenSearchTestCase;
 
 public class CommandTests extends OpenSearchTestCase {

@@ -32,16 +32,16 @@
 
 package org.opensearch.action.admin.cluster.snapshots.restore;
 
-import org.opensearch.LegacyESVersion;
+import org.opensearch.mod.LegacyESVersion;
 import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.action.support.master.MasterNodeRequest;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.logging.DeprecationLogger;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentType;
@@ -54,9 +54,9 @@ import java.util.Map;
 import java.util.Objects;
 
 import static org.opensearch.action.ValidateActions.addValidationError;
-import static org.opensearch.common.settings.Settings.readSettingsFromStream;
-import static org.opensearch.common.settings.Settings.writeSettingsToStream;
-import static org.opensearch.common.settings.Settings.Builder.EMPTY_SETTINGS;
+import static org.opensearch.mod.common.settings.Settings.readSettingsFromStream;
+import static org.opensearch.mod.common.settings.Settings.writeSettingsToStream;
+import static org.opensearch.mod.common.settings.Settings.Builder.EMPTY_SETTINGS;
 import static org.opensearch.common.xcontent.support.XContentMapValues.nodeBooleanValue;
 
 /**

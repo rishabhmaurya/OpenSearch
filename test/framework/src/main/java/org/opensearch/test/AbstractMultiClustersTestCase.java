@@ -36,7 +36,7 @@ import org.opensearch.action.admin.cluster.remote.RemoteInfoAction;
 import org.opensearch.action.admin.cluster.remote.RemoteInfoRequest;
 import org.opensearch.client.Client;
 import org.opensearch.common.network.NetworkModule;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.test.transport.MockTransportService;

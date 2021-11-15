@@ -32,14 +32,14 @@
 
 package org.opensearch.search.sort;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.common.geo.GeoDistance;
-import org.opensearch.common.geo.GeoPoint;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.unit.DistanceUnit;
+import org.opensearch.mod.common.geo.GeoPoint;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.unit.DistanceUnit;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.index.query.GeoValidationMethod;
 import org.opensearch.search.builder.SearchSourceBuilder;

@@ -32,7 +32,7 @@
 
 package org.opensearch.plugins;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 
 /**
  * An extension point for {@link Plugin}s that can be reloaded. There is no

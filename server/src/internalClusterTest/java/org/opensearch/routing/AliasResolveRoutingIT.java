@@ -44,7 +44,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
-import static org.opensearch.common.util.set.Sets.newHashSet;
+import static org.opensearch.mod.common.util.set.Sets.newHashSet;
 import static org.opensearch.index.query.QueryBuilders.queryStringQuery;
 import static org.opensearch.test.hamcrest.OpenSearchAssertions.assertHitCount;
 import static org.hamcrest.Matchers.equalTo;

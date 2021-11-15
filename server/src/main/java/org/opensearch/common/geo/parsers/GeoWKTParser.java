@@ -32,9 +32,9 @@
 package org.opensearch.common.geo.parsers;
 
 import org.locationtech.jts.geom.Coordinate;
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.OpenSearchParseException;
 import org.opensearch.common.Explicit;
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.common.geo.GeoShapeType;
 import org.opensearch.common.geo.builders.CoordinatesBuilder;
 import org.opensearch.common.geo.builders.EnvelopeBuilder;

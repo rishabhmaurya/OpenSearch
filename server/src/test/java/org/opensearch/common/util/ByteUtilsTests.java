@@ -34,6 +34,7 @@ package org.opensearch.common.util;
 
 import org.apache.lucene.store.ByteArrayDataInput;
 import org.apache.lucene.store.ByteArrayDataOutput;
+import org.opensearch.mod.common.util.ByteUtils;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;

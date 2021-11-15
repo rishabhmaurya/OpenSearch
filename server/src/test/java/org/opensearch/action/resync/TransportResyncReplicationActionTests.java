@@ -31,7 +31,7 @@
 
 package org.opensearch.action.resync;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionListener;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.IndexingPressure;
@@ -46,11 +46,11 @@ import org.opensearch.cluster.routing.IndexShardRoutingTable;
 import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.cluster.routing.ShardRoutingState;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
-import org.opensearch.common.lease.Releasable;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.lease.Releasable;
 import org.opensearch.common.network.NetworkService;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.PageCacheRecycler;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.PageCacheRecycler;
 import org.opensearch.index.Index;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.shard.IndexShard;
@@ -59,7 +59,7 @@ import org.opensearch.index.shard.ShardId;
 import org.opensearch.index.translog.Translog;
 import org.opensearch.indices.IndicesService;
 import org.opensearch.indices.SystemIndices;
-import org.opensearch.indices.breaker.NoneCircuitBreakerService;
+import org.opensearch.mod.common.breaker.fromindices.breaker.NoneCircuitBreakerService;
 import org.opensearch.tasks.Task;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.transport.MockTransportService;

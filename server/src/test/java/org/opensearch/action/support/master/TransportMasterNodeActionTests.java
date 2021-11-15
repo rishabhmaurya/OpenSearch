@@ -32,7 +32,7 @@
 package org.opensearch.action.support.master;
 
 import org.opensearch.OpenSearchException;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionFuture;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.ActionRequestValidationException;
@@ -53,14 +53,14 @@ import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodeRole;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 import org.opensearch.discovery.MasterNotDiscoveredException;
 import org.opensearch.node.NodeClosedException;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 import org.opensearch.tasks.Task;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.transport.CapturingTransport;

@@ -31,20 +31,20 @@
 
 package org.opensearch.action.index;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.DocWriteRequest;
 import org.opensearch.action.support.ActiveShardCount;
 import org.opensearch.action.support.replication.ReplicationResponse;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.VersionType;
 import org.opensearch.index.seqno.SequenceNumbers;
 import org.opensearch.index.shard.ShardId;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;

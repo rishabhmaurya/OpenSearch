@@ -32,8 +32,8 @@
 
 package org.opensearch.ingest.useragent;
 
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.test.OpenSearchTestCase;
 import org.junit.BeforeClass;
 

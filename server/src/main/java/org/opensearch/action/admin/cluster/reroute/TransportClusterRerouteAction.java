@@ -56,11 +56,11 @@ import org.opensearch.cluster.routing.allocation.command.AllocateStalePrimaryAll
 import org.opensearch.cluster.routing.allocation.command.AllocationCommand;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.Priority;
-import org.opensearch.common.Strings;
-import org.opensearch.common.collect.ImmutableOpenIntMap;
-import org.opensearch.common.collect.ImmutableOpenMap;
-import org.opensearch.common.inject.Inject;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.collect.ImmutableOpenIntMap;
+import org.opensearch.mod.common.collect.ImmutableOpenMap;
+import org.opensearch.mod.common.inject.Inject;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
 

@@ -35,7 +35,7 @@ package org.opensearch.common;
 import org.opensearch.bootstrap.JavaVersion;
 import org.opensearch.common.LocalTimeOffset.Gap;
 import org.opensearch.common.LocalTimeOffset.Overlap;
-import org.opensearch.common.time.DateFormatter;
+import org.opensearch.mod.common.time.DateFormatter;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.time.Instant;

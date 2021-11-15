@@ -33,7 +33,7 @@
 
 package org.opensearch.script;
 
-import org.opensearch.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.logging.DeprecationLogger;
 
 import java.util.Map;
 import java.util.function.Function;

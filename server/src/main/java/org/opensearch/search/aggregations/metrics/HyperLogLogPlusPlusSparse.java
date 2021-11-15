@@ -32,10 +32,10 @@
 
 package org.opensearch.search.aggregations.metrics;
 
-import org.opensearch.common.lease.Releasable;
-import org.opensearch.common.lease.Releasables;
-import org.opensearch.common.util.BigArrays;
-import org.opensearch.common.util.IntArray;
+import org.opensearch.mod.common.lease.Releasable;
+import org.opensearch.mod.common.lease.Releasables;
+import org.opensearch.mod.common.util.BigArrays;
+import org.opensearch.mod.common.util.IntArray;
 
 /**
  * AbstractHyperLogLogPlusPlus instance that only supports linear counting. The maximum number of hashes supported

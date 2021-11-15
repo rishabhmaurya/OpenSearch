@@ -33,21 +33,21 @@
 package org.opensearch.discovery;
 
 import org.apache.logging.log4j.Logger;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.support.PlainActionFuture;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.common.network.NetworkAddress;
 import org.opensearch.common.network.NetworkService;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.transport.BoundTransportAddress;
 import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.CancellableThreads;
-import org.opensearch.common.util.PageCacheRecycler;
+import org.opensearch.mod.common.util.CancellableThreads;
+import org.opensearch.mod.common.util.PageCacheRecycler;
 import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.common.util.concurrent.FutureUtils;
 import org.opensearch.core.internal.io.IOUtils;
-import org.opensearch.indices.breaker.NoneCircuitBreakerService;
+import org.opensearch.mod.common.breaker.fromindices.breaker.NoneCircuitBreakerService;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.threadpool.TestThreadPool;
 import org.opensearch.threadpool.ThreadPool;

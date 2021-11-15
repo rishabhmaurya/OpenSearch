@@ -40,12 +40,12 @@ import com.microsoft.azure.storage.RetryPolicyFactory;
 import com.microsoft.azure.storage.RetryExponentialRetry;
 import com.microsoft.azure.storage.blob.BlobRequestOptions;
 import com.microsoft.azure.storage.blob.CloudBlobClient;
-import org.opensearch.common.collect.MapBuilder;
+import org.opensearch.mod.common.collect.MapBuilder;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.settings.SettingsException;
-import org.opensearch.common.unit.ByteSizeUnit;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.settings.SettingsException;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 
 import java.net.URI;
 import java.net.URISyntaxException;

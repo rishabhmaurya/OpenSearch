@@ -32,7 +32,7 @@
 
 package org.opensearch.ingest;
 
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.OpenSearchParseException;
 import org.opensearch.script.ScriptService;
 import org.opensearch.test.OpenSearchTestCase;
 

@@ -60,10 +60,10 @@ import org.opensearch.common.blobstore.BlobPath;
 import org.opensearch.common.blobstore.BlobStore;
 import org.opensearch.common.blobstore.DeleteResult;
 import org.opensearch.common.blobstore.support.PlainBlobMetadata;
-import org.opensearch.common.collect.MapBuilder;
+import org.opensearch.mod.common.collect.MapBuilder;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.unit.ByteSizeUnit;
-import org.opensearch.common.util.concurrent.AbstractRunnable;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.util.concurrent.AbstractRunnable;
 import org.opensearch.repositories.azure.AzureRepository.Repository;
 import org.opensearch.threadpool.ThreadPool;
 

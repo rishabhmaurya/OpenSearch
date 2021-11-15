@@ -31,7 +31,7 @@
 
 package org.opensearch.cluster.serialization;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.OpenSearchAllocationTestCase;
@@ -42,8 +42,8 @@ import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.routing.RoutingTable;
 import org.opensearch.cluster.routing.allocation.AllocationService;
-import org.opensearch.common.Strings;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.settings.Settings;
 
 import java.util.Arrays;
 

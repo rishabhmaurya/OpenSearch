@@ -32,8 +32,10 @@
 
 package org.opensearch.common.unit;
 
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.common.io.stream.Writeable.Reader;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.io.stream.Writeable.Reader;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.test.AbstractWireSerializingTestCase;
 import org.hamcrest.MatcherAssert;
 

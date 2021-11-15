@@ -40,7 +40,7 @@ import org.opensearch.client.RequestOptions;
 import org.opensearch.client.cluster.RemoteConnectionInfo;
 import org.opensearch.client.cluster.RemoteInfoRequest;
 import org.opensearch.client.indices.CreateIndexRequest;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.junit.After;
 import org.junit.Before;

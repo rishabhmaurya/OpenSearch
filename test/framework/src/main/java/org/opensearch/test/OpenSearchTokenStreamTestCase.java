@@ -38,10 +38,10 @@ import com.carrotsearch.randomizedtesting.annotations.TimeoutSuite;
 import org.apache.lucene.analysis.BaseTokenStreamTestCase;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.TimeUnits;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.bootstrap.BootstrapForTesting;
 import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.junit.listeners.ReproduceInfoPrinter;
 
 @Listeners({

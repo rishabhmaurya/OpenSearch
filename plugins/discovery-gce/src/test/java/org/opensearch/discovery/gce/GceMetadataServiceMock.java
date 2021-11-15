@@ -34,7 +34,7 @@ package org.opensearch.discovery.gce;
 
 import com.google.api.client.http.HttpTransport;
 import org.opensearch.cloud.gce.GceMetadataService;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;

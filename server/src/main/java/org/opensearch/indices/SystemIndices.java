@@ -39,7 +39,7 @@ import org.apache.lucene.util.automaton.MinimizationOperations;
 import org.apache.lucene.util.automaton.Operations;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.regex.Regex;
+import org.opensearch.mod.common.regex.Regex;
 import org.opensearch.index.Index;
 import org.opensearch.tasks.TaskResultsService;
 

@@ -33,7 +33,7 @@ package org.opensearch.index.query;
 
 import org.opensearch.action.ActionListener;
 import org.opensearch.client.Client;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.common.util.concurrent.CountDown;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentParser;

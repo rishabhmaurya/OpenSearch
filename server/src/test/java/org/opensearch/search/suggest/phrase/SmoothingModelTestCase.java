@@ -43,7 +43,7 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.MultiTerms;
 import org.apache.lucene.store.ByteBuffersDirectory;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.common.lucene.BytesRefs;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;

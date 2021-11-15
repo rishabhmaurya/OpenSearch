@@ -38,8 +38,8 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 
 import org.apache.lucene.analysis.TokenStream;
-import org.opensearch.common.io.Streams;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.io.Streams;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 import org.opensearch.index.IndexSettings;
 

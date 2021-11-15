@@ -33,7 +33,7 @@
 package org.opensearch.index.analysis;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.mapper.TextFieldMapper;
 

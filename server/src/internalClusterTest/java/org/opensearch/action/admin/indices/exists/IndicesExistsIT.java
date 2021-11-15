@@ -32,7 +32,7 @@
 
 package org.opensearch.action.admin.indices.exists;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.discovery.MasterNotDiscoveredException;
 import org.opensearch.gateway.GatewayService;

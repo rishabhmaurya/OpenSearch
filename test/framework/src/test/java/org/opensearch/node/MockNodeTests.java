@@ -32,8 +32,8 @@
 
 package org.opensearch.node;
 
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.BigArrays;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.BigArrays;
 import org.opensearch.common.util.MockBigArrays;
 import org.opensearch.env.Environment;
 import org.opensearch.plugins.Plugin;

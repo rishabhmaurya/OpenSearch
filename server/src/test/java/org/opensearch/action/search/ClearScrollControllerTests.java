@@ -31,7 +31,7 @@
 
 package org.opensearch.action.search;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.LatchedActionListener;
 import org.opensearch.cluster.node.DiscoveryNode;

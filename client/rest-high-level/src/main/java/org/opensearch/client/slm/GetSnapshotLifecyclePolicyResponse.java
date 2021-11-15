@@ -41,7 +41,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import static org.opensearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
+import static org.opensearch.mod.common.xcontent.XContentParserUtils.ensureExpectedToken;
 
 public class GetSnapshotLifecyclePolicyResponse implements ToXContentObject {
 

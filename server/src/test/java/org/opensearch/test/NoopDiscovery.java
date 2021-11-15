@@ -33,8 +33,8 @@ package org.opensearch.test;
 
 import org.opensearch.action.ActionListener;
 import org.opensearch.cluster.ClusterChangedEvent;
-import org.opensearch.common.component.Lifecycle;
-import org.opensearch.common.component.LifecycleListener;
+import org.opensearch.mod.common.component.Lifecycle;
+import org.opensearch.mod.common.component.LifecycleListener;
 import org.opensearch.discovery.Discovery;
 import org.opensearch.discovery.DiscoveryStats;
 

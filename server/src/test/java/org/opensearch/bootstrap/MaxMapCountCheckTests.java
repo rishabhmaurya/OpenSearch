@@ -41,7 +41,7 @@ import org.apache.lucene.util.Constants;
 import org.opensearch.cluster.metadata.Metadata;
 import org.opensearch.common.io.PathUtils;
 import org.opensearch.common.logging.Loggers;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.AbstractBootstrapCheckTestCase;
 import org.opensearch.test.MockLogAppender;
 

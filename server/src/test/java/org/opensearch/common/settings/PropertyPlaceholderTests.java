@@ -35,6 +35,7 @@ package org.opensearch.common.settings;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.opensearch.mod.common.settings.PropertyPlaceholder;
 import org.opensearch.test.OpenSearchTestCase;
 
 import static org.hamcrest.Matchers.is;

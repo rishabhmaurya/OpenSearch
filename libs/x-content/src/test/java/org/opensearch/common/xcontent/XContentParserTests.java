@@ -33,9 +33,9 @@
 package org.opensearch.common.xcontent;
 
 import com.fasterxml.jackson.core.JsonParseException;
-import org.opensearch.common.CheckedSupplier;
-import org.opensearch.common.Strings;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.CheckedSupplier;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.test.OpenSearchTestCase;
 

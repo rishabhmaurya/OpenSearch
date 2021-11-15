@@ -40,13 +40,14 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.opensearch.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting;
 import org.opensearch.index.Index;
 import org.opensearch.index.shard.ShardId;
+import org.opensearch.mod.common.logging.PrefixLogger;
 
 import java.util.Map;
 
-import static org.opensearch.common.util.CollectionUtils.asArrayList;
+import static org.opensearch.mod.common.util.CollectionUtils.asArrayList;
 
 /**
  * A set of utilities around Logging.

@@ -33,14 +33,13 @@
 package org.opensearch.index.mapper;
 
 import org.apache.lucene.index.IndexableField;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.index.mapper.ParseContext.Document;
 import org.hamcrest.Matchers;
-import org.opensearch.index.mapper.MapperServiceTestCase;
 
 import java.io.IOException;
 import java.util.Arrays;

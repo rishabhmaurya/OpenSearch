@@ -33,7 +33,7 @@
 package org.opensearch.gateway;
 
 import org.apache.lucene.index.CorruptIndexException;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.OpenSearchAllocationTestCase;
@@ -57,9 +57,9 @@ import org.opensearch.cluster.routing.allocation.decider.AllocationDeciders;
 import org.opensearch.cluster.routing.allocation.decider.Decision;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.UUIDs;
-import org.opensearch.common.collect.ImmutableOpenMap;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.set.Sets;
+import org.opensearch.mod.common.collect.ImmutableOpenMap;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.set.Sets;
 import org.opensearch.env.ShardLockObtainFailedException;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.repositories.IndexId;

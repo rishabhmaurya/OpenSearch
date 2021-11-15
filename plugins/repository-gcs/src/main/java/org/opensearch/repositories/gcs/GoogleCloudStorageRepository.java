@@ -36,11 +36,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.cluster.metadata.RepositoryMetadata;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.blobstore.BlobPath;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.unit.ByteSizeUnit;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.indices.recovery.RecoverySettings;
 import org.opensearch.repositories.RepositoryException;
@@ -49,10 +49,10 @@ import org.opensearch.repositories.blobstore.MeteredBlobStoreRepository;
 import java.util.Map;
 import java.util.function.Function;
 
-import static org.opensearch.common.settings.Setting.Property;
-import static org.opensearch.common.settings.Setting.boolSetting;
-import static org.opensearch.common.settings.Setting.byteSizeSetting;
-import static org.opensearch.common.settings.Setting.simpleString;
+import static org.opensearch.mod.common.settings.Setting.Property;
+import static org.opensearch.mod.common.settings.Setting.boolSetting;
+import static org.opensearch.mod.common.settings.Setting.byteSizeSetting;
+import static org.opensearch.mod.common.settings.Setting.simpleString;
 
 class GoogleCloudStorageRepository extends MeteredBlobStoreRepository {
     private static final Logger logger = LogManager.getLogger(GoogleCloudStorageRepository.class);

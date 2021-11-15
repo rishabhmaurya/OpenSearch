@@ -32,8 +32,8 @@
 
 package org.opensearch.monitor;
 
-import org.opensearch.common.component.AbstractLifecycleComponent;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.component.AbstractLifecycleComponent;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.NodeEnvironment;
 import org.opensearch.monitor.fs.FsService;
 import org.opensearch.monitor.jvm.JvmGcMonitorService;

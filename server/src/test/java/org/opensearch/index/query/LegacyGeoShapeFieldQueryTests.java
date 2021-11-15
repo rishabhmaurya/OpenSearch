@@ -32,13 +32,13 @@
 
 package org.opensearch.index.query;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.common.geo.ShapeRelation;
 import org.opensearch.common.geo.SpatialStrategy;
 import org.opensearch.common.geo.builders.ShapeBuilder;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.VersionUtils;
 import org.opensearch.test.geo.RandomShapeGenerator;
 import org.opensearch.test.geo.RandomShapeGenerator.ShapeType;

@@ -32,12 +32,12 @@
 
 package org.opensearch.client.indices;
 
-import org.opensearch.OpenSearchGenerationException;
+import org.opensearch.mod.OpenSearchGenerationException;
 import org.opensearch.action.IndicesRequest;
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.client.TimedRequest;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;

@@ -33,7 +33,8 @@ package org.opensearch.indices.recovery;
 
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.store.IndexOutput;
-import org.opensearch.common.util.set.Sets;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.util.set.Sets;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.index.store.StoreFileMetadata;
@@ -44,7 +45,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 public class RecoveryStatusTests extends OpenSearchSingleNodeTestCase {
-    private static final org.apache.lucene.util.Version MIN_SUPPORTED_LUCENE_VERSION = org.opensearch.Version.CURRENT
+    private static final org.apache.lucene.util.Version MIN_SUPPORTED_LUCENE_VERSION = Version.CURRENT
         .minimumIndexCompatibilityVersion().luceneVersion;
     public void testRenameTempFiles() throws IOException {
         IndexService service = createIndex("foo");

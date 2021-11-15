@@ -34,7 +34,7 @@ package org.opensearch.indices.settings;
 
 import org.opensearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.opensearch.common.ValidationException;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.test.OpenSearchIntegTestCase;
 

@@ -32,10 +32,9 @@
 
 package org.opensearch.action.admin.cluster.settings;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.test.AbstractXContentTestCase;
-import org.opensearch.action.admin.cluster.settings.ClusterGetSettingsResponse;
 
 import java.io.IOException;
 import java.util.function.Predicate;

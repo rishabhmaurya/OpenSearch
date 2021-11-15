@@ -32,7 +32,7 @@
 package org.opensearch.search.lookup;
 
 import org.apache.lucene.index.LeafReader;
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.OpenSearchParseException;
 import org.opensearch.common.Nullable;
 import org.opensearch.index.fieldvisitor.SingleFieldsVisitor;
 import org.opensearch.index.mapper.DocumentMapper;

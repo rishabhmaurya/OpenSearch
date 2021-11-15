@@ -33,7 +33,7 @@
 package org.opensearch.action.search;
 
 import org.opensearch.client.Client;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.search.builder.SearchSourceBuilder;

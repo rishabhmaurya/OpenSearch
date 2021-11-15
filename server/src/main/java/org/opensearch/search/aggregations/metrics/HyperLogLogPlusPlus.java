@@ -34,13 +34,13 @@ package org.opensearch.search.aggregations.metrics;
 
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.packed.PackedInts;
-import org.opensearch.common.lease.Releasable;
-import org.opensearch.common.lease.Releasables;
-import org.opensearch.common.util.BigArrays;
-import org.opensearch.common.util.BitArray;
-import org.opensearch.common.util.ByteArray;
-import org.opensearch.common.util.ByteUtils;
-import org.opensearch.common.util.IntArray;
+import org.opensearch.mod.common.lease.Releasable;
+import org.opensearch.mod.common.lease.Releasables;
+import org.opensearch.mod.common.util.BigArrays;
+import org.opensearch.mod.common.util.BitArray;
+import org.opensearch.mod.common.util.ByteArray;
+import org.opensearch.mod.common.util.ByteUtils;
+import org.opensearch.mod.common.util.IntArray;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;

@@ -31,7 +31,7 @@
 
 package org.opensearch.test.rest.yaml.section;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 
 public class VersionRange {
     private final Version lower;

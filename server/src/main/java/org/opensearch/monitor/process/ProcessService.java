@@ -34,12 +34,12 @@ package org.opensearch.monitor.process;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.SingleObjectCache;
-import org.opensearch.node.ReportingService;
+import org.opensearch.mod.common.util.SingleObjectCache;
+import org.opensearch.mod.node.ReportingService;
 
 public final class ProcessService implements ReportingService<ProcessInfo> {
 

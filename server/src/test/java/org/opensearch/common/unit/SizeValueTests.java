@@ -31,6 +31,8 @@
 
 package org.opensearch.common.unit;
 
+import org.opensearch.mod.common.unit.SizeUnit;
+import org.opensearch.mod.common.unit.SizeValue;
 import org.opensearch.test.OpenSearchTestCase;
 
 import static org.hamcrest.Matchers.containsString;

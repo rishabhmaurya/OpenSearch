@@ -35,9 +35,9 @@ package org.opensearch.common.geo;
 import org.apache.lucene.spatial.prefix.tree.GeohashPrefixTree;
 import org.apache.lucene.spatial.prefix.tree.QuadPrefixTree;
 import org.apache.lucene.util.SloppyMath;
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.common.unit.DistanceUnit;
-import org.opensearch.common.xcontent.LoggingDeprecationHandler;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.unit.DistanceUnit;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentParser.Token;
@@ -50,6 +50,7 @@ import org.opensearch.index.fielddata.MultiGeoPointValues;
 import org.opensearch.index.fielddata.NumericDoubleValues;
 import org.opensearch.index.fielddata.SortedNumericDoubleValues;
 import org.opensearch.index.fielddata.SortingNumericDoubleValues;
+import org.opensearch.mod.common.geo.GeoPoint;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -410,15 +411,17 @@ public class GeoUtils {
         }
     }
 
-    /**
+    /** #RF moved to GeoPoint
      * Represents the point of the geohash cell that should be used as the value of geohash
      */
+    /*
     public enum EffectivePoint {
         TOP_LEFT,
         TOP_RIGHT,
         BOTTOM_LEFT,
         BOTTOM_RIGHT
     }
+     */
 
     /**
      * Parse a geopoint represented as an object, string or an array. If the geopoint is represented as a geohash,
@@ -426,7 +429,7 @@ public class GeoUtils {
      */
     public static GeoPoint parseGeoPoint(XContentParser parser, GeoPoint point, final boolean ignoreZValue)
             throws IOException, OpenSearchParseException {
-        return parseGeoPoint(parser, point, ignoreZValue, EffectivePoint.BOTTOM_LEFT);
+        return parseGeoPoint(parser, point, ignoreZValue, GeoPoint.EffectivePoint.BOTTOM_LEFT);
     }
 
     /**
@@ -443,7 +446,7 @@ public class GeoUtils {
      * @param point A {@link GeoPoint} that will be reset by the values parsed
      * @return new {@link GeoPoint} parsed from the parse
      */
-    public static GeoPoint parseGeoPoint(XContentParser parser, GeoPoint point, final boolean ignoreZValue, EffectivePoint effectivePoint)
+    public static GeoPoint parseGeoPoint(XContentParser parser, GeoPoint point, final boolean ignoreZValue, GeoPoint.EffectivePoint effectivePoint)
             throws IOException, OpenSearchParseException {
         double lat = Double.NaN;
         double lon = Double.NaN;
@@ -556,7 +559,7 @@ public class GeoUtils {
      */
     public static GeoPoint parseFromString(String val) {
         GeoPoint point = new GeoPoint();
-        return point.resetFromString(val, false, EffectivePoint.BOTTOM_LEFT);
+        return point.resetFromString(val, false, GeoPoint.EffectivePoint.BOTTOM_LEFT);
     }
 
     /**

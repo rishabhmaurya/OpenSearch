@@ -32,16 +32,13 @@
 
 package org.opensearch.cluster.routing;
 
-import org.opensearch.cluster.routing.AllocationId;
 import org.opensearch.cluster.routing.RecoverySource.ExistingStoreRecoverySource;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.cluster.routing.ShardRouting;
-import org.opensearch.cluster.routing.UnassignedInfo;
 
 import java.io.IOException;
 

@@ -33,13 +33,13 @@ package org.opensearch.transport;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.compress.CompressorFactory;
-import org.opensearch.common.io.stream.InputStreamStreamInput;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.compress.CompressorFactory;
+import org.opensearch.mod.common.io.stream.InputStreamStreamInput;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 import org.opensearch.core.internal.io.IOUtils;
 
 import java.io.IOException;

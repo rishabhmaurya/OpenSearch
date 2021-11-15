@@ -31,7 +31,7 @@
 
 package org.opensearch.common.xcontent;
 
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 
 /**
  * Objects that can both render themselves in as json/yaml/etc and can provide a {@link RestStatus} for their response. Usually should be

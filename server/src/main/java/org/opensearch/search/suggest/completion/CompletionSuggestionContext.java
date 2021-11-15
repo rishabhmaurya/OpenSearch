@@ -33,7 +33,7 @@ package org.opensearch.search.suggest.completion;
 
 import org.apache.lucene.search.suggest.document.CompletionQuery;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.common.unit.Fuzziness;
+import org.opensearch.mod.common.unit.Fuzziness;
 import org.opensearch.index.mapper.CompletionFieldMapper;
 import org.opensearch.index.query.QueryShardContext;
 import org.opensearch.search.suggest.SuggestionSearchContext;

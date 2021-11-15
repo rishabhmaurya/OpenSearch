@@ -33,7 +33,7 @@
 package org.opensearch.search.aggregations.metrics;
 
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.search.aggregations.InternalAggregation;
 import org.opensearch.search.aggregations.bucket.geogrid.GeoGrid;
 import org.opensearch.search.aggregations.bucket.global.Global;

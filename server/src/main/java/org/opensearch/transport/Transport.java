@@ -32,16 +32,16 @@
 
 package org.opensearch.transport;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionListener;
 import org.opensearch.cluster.node.DiscoveryNode;
-import org.opensearch.common.collect.MapBuilder;
-import org.opensearch.common.component.LifecycleComponent;
+import org.opensearch.mod.common.collect.MapBuilder;
+import org.opensearch.mod.common.component.LifecycleComponent;
 import org.opensearch.common.transport.BoundTransportAddress;
 import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.concurrent.ConcurrentCollections;
-import org.opensearch.common.util.concurrent.ConcurrentMapLong;
+import org.opensearch.mod.common.util.concurrent.ConcurrentCollections;
+import org.opensearch.mod.common.util.concurrent.ConcurrentMapLong;
 
 import java.io.Closeable;
 import java.io.IOException;

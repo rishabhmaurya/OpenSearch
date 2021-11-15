@@ -34,7 +34,7 @@ package org.opensearch.search.aggregations.pipeline;
 
 import org.opensearch.action.index.IndexRequestBuilder;
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.common.collect.EvictingQueue;
+import org.opensearch.mod.common.collect.EvictingQueue;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram.Bucket;
 import org.opensearch.search.aggregations.support.ValuesSourceAggregationBuilder;

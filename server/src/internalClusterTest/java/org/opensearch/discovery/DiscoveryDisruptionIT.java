@@ -38,7 +38,7 @@ import org.opensearch.cluster.coordination.PublicationTransportHandler;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.discovery.zen.MembershipAction;
 import org.opensearch.discovery.zen.PublishClusterStateAction;
 import org.opensearch.discovery.zen.ZenDiscovery;

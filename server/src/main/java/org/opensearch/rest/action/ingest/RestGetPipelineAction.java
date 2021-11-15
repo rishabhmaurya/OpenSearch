@@ -34,7 +34,7 @@ package org.opensearch.rest.action.ingest;
 
 import org.opensearch.action.ingest.GetPipelineRequest;
 import org.opensearch.client.node.NodeClient;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestStatusToXContentListener;

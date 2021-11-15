@@ -35,14 +35,15 @@ package org.opensearch.client.core;
 import org.opensearch.action.search.ShardSearchFailure;
 import org.opensearch.common.ParseField;
 import org.opensearch.common.xcontent.XContentParser;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
+import org.opensearch.rest.RestUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.opensearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
+import static org.opensearch.mod.common.xcontent.XContentParserUtils.ensureExpectedToken;
 
 /**
  * A response to _count API request.
@@ -110,7 +111,7 @@ public final class CountResponse {
     }
 
     public RestStatus status() {
-        return RestStatus.status(shardStats.successfulShards, shardStats.totalShards, shardStats.shardFailures);
+        return RestUtils.status(shardStats.successfulShards, shardStats.totalShards, shardStats.shardFailures);
     }
 
     public static CountResponse fromXContent(XContentParser parser) throws IOException {

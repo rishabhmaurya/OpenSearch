@@ -33,6 +33,7 @@
 package org.opensearch.common.util.set;
 
 import org.opensearch.common.collect.Tuple;
+import org.opensearch.mod.common.util.set.Sets;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.HashSet;

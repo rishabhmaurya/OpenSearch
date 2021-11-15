@@ -38,11 +38,11 @@ import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.node.DiscoveryNode;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.concurrent.OpenSearchRejectedExecutionException;
+import org.opensearch.mod.common.util.concurrent.OpenSearchRejectedExecutionException;
 import org.opensearch.tasks.Task;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.ConnectTransportException;
@@ -62,7 +62,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 
-import static org.opensearch.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
+import static org.opensearch.mod.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
 
 /**
  * A fault detection of multiple nodes.

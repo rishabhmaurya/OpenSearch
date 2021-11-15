@@ -33,7 +33,7 @@
 package org.opensearch.analysis.common;
 
 import org.apache.lucene.analysis.charfilter.HTMLStripCharFilter;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.analysis.AbstractCharFilterFactory;
@@ -43,7 +43,7 @@ import java.util.List;
 import java.util.Set;
 
 import static java.util.Collections.unmodifiableSet;
-import static org.opensearch.common.util.set.Sets.newHashSet;
+import static org.opensearch.mod.common.util.set.Sets.newHashSet;
 
 public class HtmlStripCharFilterFactory extends AbstractCharFilterFactory {
     private final Set<String> escapedTags;

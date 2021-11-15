@@ -32,7 +32,7 @@
 
 package org.opensearch.transport.nio;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.nio.ChannelFactory;
 import org.opensearch.nio.Config;
 import org.opensearch.nio.NioGroup;

@@ -58,9 +58,9 @@ import org.opensearch.cluster.routing.allocation.decider.EnableAllocationDecider
 import org.opensearch.cluster.routing.allocation.decider.EnableAllocationDecider.Allocation;
 import org.opensearch.cluster.routing.allocation.decider.ThrottlingAllocationDecider;
 import org.opensearch.common.Priority;
-import org.opensearch.common.io.FileSystemUtils;
+import org.opensearch.mod.common.io.FileSystemUtils;
 import org.opensearch.common.logging.Loggers;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.env.NodeEnvironment;

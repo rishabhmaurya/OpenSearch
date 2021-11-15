@@ -32,6 +32,8 @@
 
 package org.opensearch.cli;
 
+import org.opensearch.mod.cli.Command;
+import org.opensearch.mod.cli.Terminal;
 import org.opensearch.test.OpenSearchTestCase;
 import org.junit.Before;
 

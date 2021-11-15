@@ -34,8 +34,10 @@ package org.opensearch.common.breaker;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
-import org.opensearch.common.unit.ByteSizeValue;
-import org.opensearch.indices.breaker.BreakerSettings;
+import org.opensearch.mod.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.breaker.CircuitBreaker;
+import org.opensearch.mod.common.breaker.CircuitBreakingException;
+import org.opensearch.mod.common.breaker.fromindices.breaker.BreakerSettings;
 import org.opensearch.indices.breaker.HierarchyCircuitBreakerService;
 
 import java.util.concurrent.atomic.AtomicLong;

@@ -31,7 +31,7 @@
 
 package org.opensearch.action.search;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.OriginalIndices;
 import org.opensearch.cluster.ClusterState;
@@ -40,9 +40,9 @@ import org.opensearch.cluster.routing.GroupShardsIterator;
 import org.opensearch.cluster.routing.RecoverySource;
 import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.cluster.routing.UnassignedInfo;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.UUIDs;
-import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
 import org.opensearch.index.Index;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.search.SearchPhaseResult;
@@ -71,8 +71,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.opensearch.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
-import static org.opensearch.common.util.concurrent.ConcurrentCollections.newConcurrentSet;
+import static org.opensearch.mod.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
+import static org.opensearch.mod.common.util.concurrent.ConcurrentCollections.newConcurrentSet;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 

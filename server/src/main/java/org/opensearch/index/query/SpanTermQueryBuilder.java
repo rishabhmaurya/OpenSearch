@@ -38,7 +38,7 @@ import org.apache.lucene.search.spans.SpanQuery;
 import org.apache.lucene.search.spans.SpanTermQuery;
 import org.opensearch.common.ParseField;
 import org.opensearch.common.ParsingException;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.common.lucene.BytesRefs;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.index.mapper.MappedFieldType;

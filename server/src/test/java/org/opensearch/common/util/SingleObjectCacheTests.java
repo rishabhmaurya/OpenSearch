@@ -33,6 +33,7 @@
 package org.opensearch.common.util;
 
 import org.opensearch.common.unit.TimeValue;
+import org.opensearch.mod.common.util.SingleObjectCache;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.concurrent.CountDownLatch;

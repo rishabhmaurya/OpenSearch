@@ -32,7 +32,7 @@
 
 package org.opensearch.index.shard;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 
 /**
  * An {@link IndexSettingProvider} is a provider for index level settings that can be set

@@ -37,7 +37,7 @@ import org.opensearch.common.CheckedFunction;
 import org.opensearch.common.xcontent.ObjectParser;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;
-import org.opensearch.common.xcontent.XContentParserUtils;
+import org.opensearch.mod.common.xcontent.XContentParserUtils;
 import org.opensearch.search.aggregations.bucket.MultiBucketsAggregation;
 
 import java.io.IOException;
@@ -45,7 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
-import static org.opensearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
+import static org.opensearch.mod.common.xcontent.XContentParserUtils.ensureExpectedToken;
 
 public abstract class ParsedMultiBucketAggregation<B extends ParsedMultiBucketAggregation.Bucket>
         extends ParsedAggregation implements MultiBucketsAggregation {

@@ -33,13 +33,13 @@ package org.opensearch.rest.action.cat;
 
 import org.opensearch.client.node.NodeClient;
 import org.opensearch.common.Table;
-import org.opensearch.common.io.Streams;
-import org.opensearch.common.io.UTF8StreamWriter;
-import org.opensearch.common.io.stream.BytesStream;
+import org.opensearch.mod.common.io.Streams;
+import org.opensearch.mod.common.io.UTF8StreamWriter;
+import org.opensearch.mod.common.io.stream.BytesStream;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestRequest;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 
 import java.io.IOException;
 import java.util.Arrays;

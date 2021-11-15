@@ -32,18 +32,16 @@
 package org.opensearch.cluster.coordination;
 
 import org.opensearch.OpenSearchException;
-import org.opensearch.Version;
-import org.opensearch.cluster.coordination.DeterministicTaskQueue;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodeRole;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.discovery.DiscoveryModule;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.transport.MockTransport;
 import org.opensearch.transport.TransportRequest;
 import org.opensearch.transport.TransportService;
 import org.junit.Before;
-import org.opensearch.cluster.coordination.ClusterBootstrapService;
 
 import java.util.Collections;
 import java.util.List;
@@ -62,7 +60,7 @@ import static java.util.Collections.singletonMap;
 import static org.opensearch.cluster.coordination.ClusterBootstrapService.BOOTSTRAP_PLACEHOLDER_PREFIX;
 import static org.opensearch.cluster.coordination.ClusterBootstrapService.INITIAL_MASTER_NODES_SETTING;
 import static org.opensearch.cluster.coordination.ClusterBootstrapService.UNCONFIGURED_BOOTSTRAP_TIMEOUT_SETTING;
-import static org.opensearch.common.settings.Settings.builder;
+import static org.opensearch.mod.common.settings.Settings.builder;
 import static org.opensearch.discovery.DiscoveryModule.DISCOVERY_SEED_PROVIDERS_SETTING;
 import static org.opensearch.discovery.SettingsBasedSeedHostsProvider.DISCOVERY_SEED_HOSTS_SETTING;
 import static org.opensearch.node.Node.NODE_NAME_SETTING;

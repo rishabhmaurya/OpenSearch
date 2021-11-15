@@ -32,15 +32,15 @@
 
 package org.opensearch.script;
 
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.InputStreamStreamInput;
-import org.opensearch.common.io.stream.OutputStreamStreamOutput;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.stream.InputStreamStreamInput;
+import org.opensearch.mod.common.io.stream.OutputStreamStreamOutput;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
-import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.mod.common.xcontent.XContentHelper;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.test.OpenSearchTestCase;

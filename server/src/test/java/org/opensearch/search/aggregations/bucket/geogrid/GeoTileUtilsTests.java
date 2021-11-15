@@ -32,7 +32,7 @@
 
 package org.opensearch.search.aggregations.bucket.geogrid;
 
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.geometry.Rectangle;
 import org.opensearch.test.OpenSearchTestCase;
 

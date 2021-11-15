@@ -33,7 +33,7 @@ package org.opensearch.cluster.metadata;
 
 import org.apache.lucene.util.SetOnce;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.collect.Tuple;
 
 import java.util.ArrayList;

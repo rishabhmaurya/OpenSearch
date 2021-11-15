@@ -39,7 +39,7 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.MergePolicy;
 import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 
 import java.io.IOException;
 import java.util.Collections;

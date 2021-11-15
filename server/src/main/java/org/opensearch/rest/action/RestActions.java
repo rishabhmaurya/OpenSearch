@@ -41,7 +41,7 @@ import org.opensearch.action.support.nodes.BaseNodesResponse;
 import org.opensearch.common.ParseField;
 import org.opensearch.common.ParsingException;
 import org.opensearch.common.lucene.uid.Versions;
-import org.opensearch.common.util.CollectionUtils;
+import org.opensearch.mod.common.util.CollectionUtils;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.ToXContent.Params;
 import org.opensearch.common.xcontent.XContentBuilder;
@@ -54,7 +54,7 @@ import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestChannel;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.RestResponse;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 
 import java.io.IOException;
 import java.util.List;

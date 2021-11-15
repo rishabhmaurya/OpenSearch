@@ -34,7 +34,7 @@ package org.opensearch.index.analysis;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.pl.PolishAnalyzer;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.Index;
 import org.opensearch.index.analysis.pl.PolishStemTokenFilterFactory;
 import org.opensearch.plugin.analysis.stempel.AnalysisStempelPlugin;

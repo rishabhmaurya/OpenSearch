@@ -32,8 +32,8 @@
 package org.opensearch.test;
 
 import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexService;

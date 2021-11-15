@@ -31,11 +31,11 @@
 
 package org.opensearch.common.geo;
 
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.OpenSearchParseException;
 import org.opensearch.common.ParseField;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;
@@ -44,6 +44,7 @@ import org.opensearch.geometry.Rectangle;
 import org.opensearch.geometry.ShapeType;
 import org.opensearch.geometry.utils.StandardValidator;
 import org.opensearch.geometry.utils.WellKnownText;
+import org.opensearch.mod.common.geo.GeoPoint;
 
 import java.io.IOException;
 import java.text.ParseException;
@@ -226,19 +227,19 @@ public class GeoBoundingBox implements ToXContentObject, Writeable {
                     right = parser.doubleValue();
                 } else {
                     if (TOP_LEFT_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
-                        GeoUtils.parseGeoPoint(parser, sparse, false, GeoUtils.EffectivePoint.TOP_LEFT);
+                        GeoUtils.parseGeoPoint(parser, sparse, false, GeoPoint.EffectivePoint.TOP_LEFT);
                         top = sparse.getLat();
                         left = sparse.getLon();
                     } else if (BOTTOM_RIGHT_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
-                        GeoUtils.parseGeoPoint(parser, sparse, false, GeoUtils.EffectivePoint.BOTTOM_RIGHT);
+                        GeoUtils.parseGeoPoint(parser, sparse, false, GeoPoint.EffectivePoint.BOTTOM_RIGHT);
                         bottom = sparse.getLat();
                         right = sparse.getLon();
                     } else if (TOP_RIGHT_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
-                        GeoUtils.parseGeoPoint(parser, sparse, false, GeoUtils.EffectivePoint.TOP_RIGHT);
+                        GeoUtils.parseGeoPoint(parser, sparse, false, GeoPoint.EffectivePoint.TOP_RIGHT);
                         top = sparse.getLat();
                         right = sparse.getLon();
                     } else if (BOTTOM_LEFT_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
-                        GeoUtils.parseGeoPoint(parser, sparse, false, GeoUtils.EffectivePoint.BOTTOM_LEFT);
+                        GeoUtils.parseGeoPoint(parser, sparse, false, GeoPoint.EffectivePoint.BOTTOM_LEFT);
                         bottom = sparse.getLat();
                         left = sparse.getLon();
                     } else {

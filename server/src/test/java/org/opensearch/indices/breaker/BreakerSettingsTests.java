@@ -32,8 +32,9 @@
 
 package org.opensearch.indices.breaker;
 
-import org.opensearch.common.breaker.CircuitBreaker;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.breaker.CircuitBreaker;
+import org.opensearch.mod.common.breaker.fromindices.breaker.BreakerSettings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.OpenSearchTestCase;
 
 import static org.hamcrest.Matchers.equalTo;

@@ -33,14 +33,20 @@ package org.opensearch.common.settings;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.routing.allocation.decider.FilterAllocationDecider;
 import org.opensearch.cluster.routing.allocation.decider.ShardsLimitAllocationDecider;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.logging.Loggers;
-import org.opensearch.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.AbstractScopedSettings;
+import org.opensearch.mod.common.settings.SecureSetting;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
 import org.opensearch.index.IndexModule;
+import org.opensearch.mod.common.settings.SettingUpgrader;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.settings.SettingsException;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.transport.TransportSettings;
 

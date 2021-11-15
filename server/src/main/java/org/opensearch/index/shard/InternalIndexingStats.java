@@ -32,10 +32,10 @@
 
 package org.opensearch.index.shard;
 
-import org.opensearch.common.collect.MapBuilder;
+import org.opensearch.mod.common.collect.MapBuilder;
 import org.opensearch.common.metrics.CounterMetric;
 import org.opensearch.common.metrics.MeanMetric;
-import org.opensearch.common.regex.Regex;
+import org.opensearch.mod.common.regex.Regex;
 import org.opensearch.index.engine.Engine;
 
 import java.util.HashMap;

@@ -34,8 +34,8 @@ package org.opensearch.action.admin.indices.mapping.get;
 
 import com.carrotsearch.hppc.cursors.ObjectCursor;
 import org.opensearch.cluster.metadata.MappingMetadata;
-import org.opensearch.common.collect.ImmutableOpenMap;
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.collect.ImmutableOpenMap;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.ToXContent.Params;
 import org.opensearch.common.xcontent.XContentParser;
@@ -43,7 +43,6 @@ import org.opensearch.index.mapper.MapperService;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.test.AbstractSerializingTestCase;
 import org.opensearch.test.EqualsHashCodeTestUtils;
-import org.opensearch.action.admin.indices.mapping.get.GetMappingsResponse;
 
 import java.io.IOException;
 import java.util.ArrayList;

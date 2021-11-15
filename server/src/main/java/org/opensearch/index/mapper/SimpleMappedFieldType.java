@@ -34,7 +34,7 @@ package org.opensearch.index.mapper;
 
 import org.apache.lucene.search.Query;
 import org.opensearch.common.geo.ShapeRelation;
-import org.opensearch.common.time.DateMathParser;
+import org.opensearch.mod.common.time.DateMathParser;
 import org.opensearch.index.query.QueryShardContext;
 
 import java.time.ZoneId;

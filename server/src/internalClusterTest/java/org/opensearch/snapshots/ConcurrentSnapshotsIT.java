@@ -47,9 +47,9 @@ import org.opensearch.action.support.master.AcknowledgedResponse;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.SnapshotDeletionsInProgress;
 import org.opensearch.cluster.SnapshotsInProgress;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.UUIDs;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.UncategorizedExecutionException;
 import org.opensearch.discovery.AbstractDisruptionTestCase;
@@ -530,10 +530,10 @@ public class ConcurrentSnapshotsIT extends AbstractSnapshotIntegTestCase {
 
         final String secondSnapshot = "snapshot-two";
         final ActionFuture<CreateSnapshotResponse> secondSnapshotResponse = startFullSnapshotFromMasterClient(repoName, secondSnapshot);
-        
+
         // make sure second snapshot is in progress before restarting data node
         waitUntilInprogress(repoName, secondSnapshot, TimeValue.timeValueSeconds(5L));
-        
+
         internalCluster().restartNode(dataNode, InternalTestCluster.EMPTY_CALLBACK);
 
         assertThat(firstSnapshotResponse.get().getSnapshotInfo().state(), is(SnapshotState.PARTIAL));
@@ -1385,16 +1385,16 @@ public class ConcurrentSnapshotsIT extends AbstractSnapshotIntegTestCase {
         waitForBlock(internalCluster().getMasterName(), blockedRepoName, TimeValue.timeValueSeconds(30L));
         return fut;
     }
-    
-    private static void waitUntilInprogress(final String repoName, final String snapshotName, 
+
+    private static void waitUntilInprogress(final String repoName, final String snapshotName,
             TimeValue timeout) throws InterruptedException {
-        waitUntil(() -> 
+        waitUntil(() ->
             currentSnapshots(repoName)
                 .stream()
                 .filter(s -> s.snapshotId().getName().equals(snapshotName))
                 .filter(s -> s.state() == SnapshotState.IN_PROGRESS)
                 .findAny()
-                .isPresent(), 
+                .isPresent(),
             timeout.millis(),
             TimeUnit.MILLISECONDS);
     }

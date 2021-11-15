@@ -41,19 +41,19 @@ import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.IndexOrDocValuesQuery;
 import org.apache.lucene.search.IndexSortSortedNumericDocValuesRangeQuery;
 import org.apache.lucene.search.Query;
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.Version;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.Version;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.geo.ShapeRelation;
 import org.opensearch.common.joda.Joda;
-import org.opensearch.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.logging.DeprecationLogger;
 import org.opensearch.common.lucene.BytesRefs;
-import org.opensearch.common.time.DateFormatter;
-import org.opensearch.common.time.DateFormatters;
-import org.opensearch.common.time.DateMathParser;
-import org.opensearch.common.time.DateUtils;
+import org.opensearch.mod.common.time.DateFormatter;
+import org.opensearch.mod.common.time.DateFormatters;
+import org.opensearch.mod.common.time.DateMathParser;
+import org.opensearch.mod.common.time.DateUtils;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.LocaleUtils;
+import org.opensearch.mod.common.util.LocaleUtils;
 import org.opensearch.index.fielddata.IndexFieldData;
 import org.opensearch.index.fielddata.IndexNumericFieldData.NumericType;
 import org.opensearch.index.fielddata.plain.SortedNumericIndexFieldData;
@@ -79,7 +79,7 @@ import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
-import static org.opensearch.common.time.DateUtils.toLong;
+import static org.opensearch.mod.common.time.DateUtils.toLong;
 
 /** A {@link FieldMapper} for dates. */
 public final class DateFieldMapper extends ParametrizedFieldMapper {

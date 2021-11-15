@@ -33,9 +33,9 @@ package org.opensearch.index.snapshots.blobstore;
 
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Version;
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
@@ -53,7 +53,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 
 public class FileInfoTests extends OpenSearchTestCase {
-    private static final org.apache.lucene.util.Version MIN_SUPPORTED_LUCENE_VERSION = org.opensearch.Version.CURRENT
+    private static final org.apache.lucene.util.Version MIN_SUPPORTED_LUCENE_VERSION = org.opensearch.mod.Version.CURRENT
         .minimumIndexCompatibilityVersion().luceneVersion;
 
     public void testToFromXContent() throws IOException {

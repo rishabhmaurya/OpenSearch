@@ -32,8 +32,11 @@
 
 package org.opensearch.common.util.concurrent;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
+import org.opensearch.mod.common.util.concurrent.ConcurrentCollections;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.util.concurrent.WrappedRunnable;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.concurrent.TimeUnit;

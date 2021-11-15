@@ -33,21 +33,22 @@
 package org.opensearch.action.search;
 
 import org.apache.lucene.search.TotalHits;
-import org.opensearch.LegacyESVersion;
+import org.opensearch.mod.LegacyESVersion;
 import org.opensearch.action.ActionResponse;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.ParseField;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.StatusToXContentObject;
 import org.opensearch.common.xcontent.ToXContentFragment;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentParser.Token;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
+import org.opensearch.rest.RestUtils;
 import org.opensearch.rest.action.RestActions;
 import org.opensearch.search.SearchHit;
 import org.opensearch.search.SearchHits;
@@ -65,7 +66,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-import static org.opensearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
+import static org.opensearch.mod.common.xcontent.XContentParserUtils.ensureExpectedToken;
 
 
 /**
@@ -143,7 +144,7 @@ public class SearchResponse extends ActionResponse implements StatusToXContentOb
 
     @Override
     public RestStatus status() {
-        return RestStatus.status(successfulShards, totalShards, shardFailures);
+        return RestUtils.status(successfulShards, totalShards, shardFailures);
     }
 
     public SearchResponseSections getInternalResponse() {

@@ -33,8 +33,8 @@ package org.opensearch.search.aggregations;
 
 
 import org.opensearch.common.ParseField;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.NamedWriteable;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.stream.NamedWriteable;
 import org.opensearch.common.xcontent.ToXContentFragment;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.index.query.QueryRewriteContext;

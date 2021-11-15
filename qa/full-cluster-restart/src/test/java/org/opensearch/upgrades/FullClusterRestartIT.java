@@ -33,8 +33,8 @@
 package org.opensearch.upgrades;
 
 import org.apache.http.util.EntityUtils;
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.ResponseException;
@@ -44,8 +44,8 @@ import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.MetadataIndexStateService;
 import org.opensearch.common.Booleans;
 import org.opensearch.common.CheckedFunction;
-import org.opensearch.common.Strings;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.common.xcontent.support.XContentMapValues;

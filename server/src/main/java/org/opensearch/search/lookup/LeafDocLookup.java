@@ -34,7 +34,7 @@ package org.opensearch.search.lookup;
 import org.apache.lucene.index.LeafReaderContext;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.logging.DeprecationLogger;
 import org.opensearch.index.fielddata.IndexFieldData;
 import org.opensearch.index.fielddata.ScriptDocValues;
 import org.opensearch.index.mapper.MappedFieldType;

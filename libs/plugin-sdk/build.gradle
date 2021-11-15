@@ -1,0 +1,213 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * The OpenSearch Contributors require contributions made to
+ * this file be licensed under the Apache-2.0 license or a
+ * compatible open source license.
+ *
+ * Modifications Copyright OpenSearch Contributors. See
+ * GitHub history for details.
+ */
+
+/*
+ * Licensed to Elasticsearch under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+
+apply plugin: 'opensearch.build'
+apply plugin: 'opensearch.publish'
+
+//apply plugin: "org.javamodularity.moduleplugin"
+
+dependencies {
+  api project(':libs:opensearch-core')
+
+  api project(':libs:opensearch-x-content')
+  api project(':libs:opensearch-geo')
+  api project(':libs:opensearch-cli')
+
+  // lucene
+  api "org.apache.lucene:lucene-core:${versions.lucene}"
+  api 'com.carrotsearch:hppc:0.8.1'
+
+  // time handling, remove with java 8 time
+  api "joda-time:joda-time:${versions.joda}"
+
+  // logging
+  api "org.apache.logging.log4j:log4j-api:${versions.log4j}"
+  api "org.apache.logging.log4j:log4j-core:${versions.log4j}"
+
+  // lucene spatial
+  api "org.locationtech.spatial4j:spatial4j:${versions.spatial4j}"
+  api "org.locationtech.jts:jts-core:${versions.jts}"
+
+  api "org.apache.lucene:lucene-analyzers-common:${versions.lucene}"
+//  api "org.apache.lucene:lucene-backward-codecs:${versions.lucene}"
+//  api "org.apache.lucene:lucene-grouping:${versions.lucene}"
+  api "org.apache.lucene:lucene-highlighter:${versions.lucene}"
+  api "org.apache.lucene:lucene-join:${versions.lucene}"
+//  api "org.apache.lucene:lucene-memory:${versions.lucene}"
+  api "org.apache.lucene:lucene-misc:${versions.lucene}"
+  api "org.apache.lucene:lucene-queries:${versions.lucene}"
+//  api "org.apache.lucene:lucene-queryparser:${versions.lucene}"
+//  api "org.apache.lucene:lucene-sandbox:${versions.lucene}"
+  api "org.apache.lucene:lucene-spatial-extras:${versions.lucene}"
+  api "org.apache.lucene:lucene-spatial3d:${versions.lucene}"
+  api "org.apache.lucene:lucene-suggest:${versions.lucene}"
+}
+
+
+tasks.named('forbiddenApisMain').configure {
+  // x-content does not depend on server
+  // TODO: Need to decide how we want to handle for forbidden signatures with the changes to core
+  replaceSignatureFiles 'jdk-signatures'
+}
+
+tasks.named("thirdPartyAudit").configure {
+  ignoreMissingClasses(
+    // from com.fasterxml.jackson.dataformat.yaml.YAMLMapper (jackson-dataformat-yaml)
+    'com.fasterxml.jackson.databind.ObjectMapper',
+
+    // from log4j
+    'com.conversantmedia.util.concurrent.DisruptorBlockingQueue',
+    'com.conversantmedia.util.concurrent.SpinPolicy',
+    'com.fasterxml.jackson.annotation.JsonInclude$Include',
+    'com.fasterxml.jackson.databind.DeserializationContext',
+    'com.fasterxml.jackson.databind.DeserializationFeature',
+    'com.fasterxml.jackson.databind.JsonMappingException',
+    'com.fasterxml.jackson.databind.JsonNode',
+    'com.fasterxml.jackson.databind.Module$SetupContext',
+    'com.fasterxml.jackson.databind.ObjectReader',
+    'com.fasterxml.jackson.databind.ObjectWriter',
+    'com.fasterxml.jackson.databind.SerializerProvider',
+    'com.fasterxml.jackson.databind.deser.std.StdDeserializer',
+    'com.fasterxml.jackson.databind.deser.std.StdScalarDeserializer',
+    'com.fasterxml.jackson.databind.module.SimpleModule',
+    'com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter',
+    'com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider',
+    'com.fasterxml.jackson.databind.ser.std.StdScalarSerializer',
+    'com.fasterxml.jackson.databind.ser.std.StdSerializer',
+    'com.fasterxml.jackson.dataformat.xml.JacksonXmlModule',
+    'com.fasterxml.jackson.dataformat.xml.XmlMapper',
+    'com.fasterxml.jackson.dataformat.xml.util.DefaultXmlPrettyPrinter',
+    'com.fasterxml.jackson.databind.node.ObjectNode',
+    'org.fusesource.jansi.Ansi',
+    'org.fusesource.jansi.AnsiRenderer$Code',
+    'com.lmax.disruptor.BlockingWaitStrategy',
+    'com.lmax.disruptor.BusySpinWaitStrategy',
+    'com.lmax.disruptor.EventFactory',
+    'com.lmax.disruptor.EventTranslator',
+    'com.lmax.disruptor.EventTranslatorTwoArg',
+    'com.lmax.disruptor.EventTranslatorVararg',
+    'com.lmax.disruptor.ExceptionHandler',
+    'com.lmax.disruptor.LifecycleAware',
+    'com.lmax.disruptor.RingBuffer',
+    'com.lmax.disruptor.Sequence',
+    'com.lmax.disruptor.SequenceReportingEventHandler',
+    'com.lmax.disruptor.SleepingWaitStrategy',
+    'com.lmax.disruptor.TimeoutBlockingWaitStrategy',
+    'com.lmax.disruptor.WaitStrategy',
+    'com.lmax.disruptor.YieldingWaitStrategy',
+    'com.lmax.disruptor.dsl.Disruptor',
+    'com.lmax.disruptor.dsl.ProducerType',
+    'javax.jms.Connection',
+    'javax.jms.ConnectionFactory',
+    'javax.jms.Destination',
+    'javax.jms.JMSException',
+    'javax.jms.MapMessage',
+    'javax.jms.Message',
+    'javax.jms.MessageConsumer',
+    'javax.jms.MessageProducer',
+    'javax.jms.Session',
+    'javax.mail.Authenticator',
+    'javax.mail.Message$RecipientType',
+    'javax.mail.PasswordAuthentication',
+    'javax.mail.Session',
+    'javax.mail.Transport',
+    'javax.mail.internet.InternetAddress',
+    'javax.mail.internet.InternetHeaders',
+    'javax.mail.internet.MimeBodyPart',
+    'javax.mail.internet.MimeMessage',
+    'javax.mail.internet.MimeMultipart',
+    'javax.mail.internet.MimeUtility',
+    'javax.mail.util.ByteArrayDataSource',
+    'org.apache.commons.compress.compressors.CompressorStreamFactory',
+    'org.apache.commons.compress.utils.IOUtils',
+    'org.apache.commons.csv.CSVFormat',
+    'org.apache.commons.csv.QuoteMode',
+    'org.apache.kafka.clients.producer.Callback',
+    'org.apache.kafka.clients.producer.KafkaProducer',
+    'org.apache.kafka.clients.producer.Producer',
+    'org.apache.kafka.clients.producer.ProducerRecord',
+    'org.apache.kafka.clients.producer.RecordMetadata',
+    'org.codehaus.stax2.XMLStreamWriter2',
+    'org.jctools.queues.MessagePassingQueue$Consumer',
+    'org.jctools.queues.MpscArrayQueue',
+    'org.osgi.framework.AdaptPermission',
+    'org.osgi.framework.AdminPermission',
+    'org.osgi.framework.Bundle',
+    'org.osgi.framework.BundleActivator',
+    'org.osgi.framework.BundleContext',
+    'org.osgi.framework.BundleEvent',
+    'org.osgi.framework.BundleReference',
+    'org.osgi.framework.FrameworkUtil',
+    'org.osgi.framework.ServiceRegistration',
+    'org.osgi.framework.SynchronousBundleListener',
+    'org.osgi.framework.wiring.BundleWire',
+    'org.osgi.framework.wiring.BundleWiring',
+    'org.zeromq.ZMQ$Context',
+    'org.zeromq.ZMQ$Socket',
+    'org.zeromq.ZMQ',
+
+    // from org.locationtech.spatial4j.io.GeoJSONReader (spatial4j)
+    'org.noggit.JSONParser',
+
+    // from lucene-spatial
+    'com.fasterxml.jackson.databind.JsonSerializer',
+    'com.fasterxml.jackson.databind.JsonDeserializer',
+    'com.fasterxml.jackson.databind.node.ArrayNode'
+  )
+}
+
+tasks.named("dependencyLicenses").configure {
+  mapping from: /lucene-.*/, to: 'lucene'
+  dependencies = project.configurations.runtimeClasspath.fileCollection {
+    it.group.startsWith('org.opensearch') == false ||
+      // keep the following org.opensearch jars in
+      (it.name == 'jna' ||
+        it.name == 'securesm')
+  }
+}
+
+tasks.named("licenseHeaders").configure {
+  // Ignore our vendored version of Google Guice
+  excludes << 'org/opensearch/common/inject/**/*'
+  // Ignore temporary copies of impending 8.7 Lucene classes
+  excludes << 'org/apache/lucene/search/RegExp87*'
+  excludes << 'org/apache/lucene/search/RegexpQuery87*'
+  excludes << 'org/opensearch/client/documentation/placeholder.txt'
+}
+testingConventions.enabled = false
+
+
+tasks.withType(JavaCompile).configureEach {
+  options.compilerArgs -= '-Xlint:cast'
+  options.compilerArgs -= '-Xlint:rawtypes'
+  options.compilerArgs -= '-Xlint:unchecked'
+}
+

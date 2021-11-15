@@ -35,7 +35,7 @@ package org.opensearch.painless;
 import org.opensearch.painless.lookup.PainlessCast;
 import org.opensearch.painless.lookup.PainlessLookupUtility;
 import org.opensearch.painless.lookup.def;
-import org.opensearch.script.JodaCompatibleZonedDateTime;
+import org.opensearch.mod.common.time.JodaCompatibleZonedDateTime;
 
 import java.time.ZonedDateTime;
 import java.util.Objects;

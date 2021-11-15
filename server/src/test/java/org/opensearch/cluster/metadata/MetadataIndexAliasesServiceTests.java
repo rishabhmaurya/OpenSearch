@@ -32,24 +32,15 @@
 
 package org.opensearch.cluster.metadata;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.ClusterState;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.set.Sets;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.set.Sets;
 import org.opensearch.index.Index;
 import org.opensearch.index.IndexNotFoundException;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.VersionUtils;
-import org.opensearch.cluster.metadata.AliasAction;
-import org.opensearch.cluster.metadata.AliasMetadata;
-import org.opensearch.cluster.metadata.AliasValidator;
-import org.opensearch.cluster.metadata.DataStream;
-import org.opensearch.cluster.metadata.IndexAbstraction;
-import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.cluster.metadata.Metadata;
-import org.opensearch.cluster.metadata.MetadataDeleteIndexService;
-import org.opensearch.cluster.metadata.MetadataIndexAliasesService;
 
 import java.util.ArrayList;
 import java.util.Arrays;

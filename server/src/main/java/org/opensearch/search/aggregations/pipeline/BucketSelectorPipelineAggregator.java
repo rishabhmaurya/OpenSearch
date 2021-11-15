@@ -32,8 +32,8 @@
 
 package org.opensearch.search.aggregations.pipeline;
 
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
 import org.opensearch.script.BucketAggregationSelectorScript;
 import org.opensearch.script.Script;
 import org.opensearch.search.aggregations.InternalAggregation;

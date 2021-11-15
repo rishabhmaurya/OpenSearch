@@ -31,8 +31,9 @@
 
 package org.opensearch.common.util;
 
-import org.opensearch.common.util.CancellableThreads.IOInterruptible;
-import org.opensearch.common.util.CancellableThreads.Interruptible;
+import org.opensearch.mod.common.util.CancellableThreads;
+import org.opensearch.mod.common.util.CancellableThreads.IOInterruptible;
+import org.opensearch.mod.common.util.CancellableThreads.Interruptible;
 import org.opensearch.test.OpenSearchTestCase;
 import org.hamcrest.Matchers;
 
@@ -41,7 +42,7 @@ import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.opensearch.common.util.CancellableThreads.ExecutionCancelledException;
+import static org.opensearch.mod.common.util.CancellableThreads.ExecutionCancelledException;
 import static org.hamcrest.Matchers.equalTo;
 
 public class CancellableThreadsTests extends OpenSearchTestCase {

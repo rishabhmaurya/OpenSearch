@@ -32,7 +32,7 @@
 
 package org.opensearch.painless;
 
-import org.opensearch.script.JodaCompatibleZonedDateTime;
+import org.opensearch.mod.common.time.JodaCompatibleZonedDateTime;
 
 import java.time.ZonedDateTime;
 

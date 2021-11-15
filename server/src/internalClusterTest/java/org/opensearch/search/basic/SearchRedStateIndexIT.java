@@ -41,8 +41,8 @@ import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.health.ClusterHealthStatus;
 import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.cluster.routing.ShardRoutingState;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.rest.RestStatus;
 import org.opensearch.search.SearchService;
 import org.opensearch.test.OpenSearchIntegTestCase;
 

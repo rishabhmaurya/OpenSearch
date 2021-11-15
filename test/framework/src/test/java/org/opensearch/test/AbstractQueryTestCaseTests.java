@@ -33,9 +33,8 @@
 package org.opensearch.test;
 
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.util.set.Sets;
+import org.opensearch.mod.common.util.set.Sets;
 import org.hamcrest.Matcher;
-import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;
 import java.util.List;

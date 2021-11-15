@@ -33,12 +33,10 @@
 package org.opensearch.test.rest.yaml;
 
 import org.apache.http.HttpEntity;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.client.NodeSelector;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.VersionUtils;
-import org.opensearch.test.rest.yaml.ClientYamlTestExecutionContext;
-import org.opensearch.test.rest.yaml.ClientYamlTestResponse;
 
 import java.io.IOException;
 import java.util.Collections;

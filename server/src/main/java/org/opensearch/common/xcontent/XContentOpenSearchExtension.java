@@ -33,11 +33,11 @@
 package org.opensearch.common.xcontent;
 
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.time.DateFormatter;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.time.DateFormatter;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.script.JodaCompatibleZonedDateTime;
+import org.opensearch.mod.common.time.JodaCompatibleZonedDateTime;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;

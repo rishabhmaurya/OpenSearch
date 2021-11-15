@@ -34,9 +34,9 @@ package org.opensearch.action.admin.cluster.settings;
 
 import org.opensearch.action.ActionResponse;
 import org.opensearch.common.ParseField;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.ConstructingObjectParser;
 import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;

@@ -32,7 +32,7 @@
 
 package org.opensearch.action.ingest;
 
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.OpenSearchParseException;
 import org.opensearch.index.VersionType;
 import org.opensearch.ingest.CompoundProcessor;
 import org.opensearch.ingest.IngestDocument;

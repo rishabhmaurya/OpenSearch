@@ -27,6 +27,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+//apply plugin: 'org.javamodularity.moduleplugin'
+
+//compileJava {
+//  exclude 'module-info.java'
+//  //options.compilerArgs = ['--release', '8']
+//}
+//
+//task compileModuleInfoJava(type: JavaCompile) {
+//  classpath = files() // empty
+//  source = 'src/main/java/module-info.java'
+//  destinationDir = compileJava.destinationDir
+//  // same dir to see classes compiled by compileJava
+//
+//  doFirst {
+//    options.compilerArgs = [
+//      '--release', '11',
+//      '--module-path', compileJava.classpath.asPath,
+//    ]
+//  }
+//}
 
 apply plugin: 'opensearch.build'
 apply plugin: 'opensearch.publish'
@@ -37,6 +57,7 @@ dependencies {
   }
 }
 
+jar.manifest.attributes("Automatic-Module-Name": "opensearch.geo")
 tasks.named('forbiddenApisMain').configure {
   // geo does not depend on server
   // TODO: Need to decide how we want to handle for forbidden signatures with the changes to core

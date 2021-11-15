@@ -32,7 +32,7 @@
 
 package org.opensearch.common;
 
-import org.opensearch.common.settings.SecureString;
+import org.opensearch.mod.common.settings.SecureString;
 
 import java.util.Random;
 

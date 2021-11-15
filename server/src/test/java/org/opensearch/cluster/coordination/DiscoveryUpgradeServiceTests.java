@@ -31,11 +31,10 @@
 
 package org.opensearch.cluster.coordination;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.UUIDs;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.cluster.coordination.DiscoveryUpgradeService;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.lessThan;

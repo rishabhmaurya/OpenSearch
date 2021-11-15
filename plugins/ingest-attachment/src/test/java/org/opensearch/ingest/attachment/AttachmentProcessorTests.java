@@ -34,7 +34,7 @@ package org.opensearch.ingest.attachment;
 
 import org.apache.commons.io.IOUtils;
 
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.OpenSearchParseException;
 import org.opensearch.ingest.IngestDocument;
 import org.opensearch.ingest.Processor;
 import org.opensearch.ingest.RandomDocumentPicks;

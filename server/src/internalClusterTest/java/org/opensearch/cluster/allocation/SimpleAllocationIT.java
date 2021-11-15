@@ -33,7 +33,7 @@ package org.opensearch.cluster.allocation;
 
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.routing.RoutingNode;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.OpenSearchIntegTestCase;
 
 import static org.opensearch.cluster.metadata.IndexMetadata.SETTING_NUMBER_OF_REPLICAS;

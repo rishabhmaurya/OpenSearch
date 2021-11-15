@@ -33,16 +33,15 @@
 package org.opensearch.cluster.coordination;
 
 import org.apache.logging.log4j.message.ParameterizedMessage;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.coordination.CoordinationMetadata.VotingConfiguration;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.settings.Settings.Builder;
-import org.opensearch.common.util.set.Sets;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings.Builder;
+import org.opensearch.mod.common.util.set.Sets;
 import org.opensearch.test.OpenSearchTestCase;
 import org.junit.Before;
-import org.opensearch.cluster.coordination.Reconfigurator;
 
 import java.util.Arrays;
 import java.util.Comparator;

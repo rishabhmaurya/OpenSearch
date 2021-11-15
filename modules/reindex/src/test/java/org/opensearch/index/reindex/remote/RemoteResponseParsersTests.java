@@ -33,7 +33,7 @@
 package org.opensearch.index.reindex.remote;
 
 import org.opensearch.action.search.ShardSearchFailure;
-import org.opensearch.common.util.concurrent.OpenSearchRejectedExecutionException;
+import org.opensearch.mod.common.util.concurrent.OpenSearchRejectedExecutionException;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;

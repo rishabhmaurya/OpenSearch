@@ -31,12 +31,12 @@
 
 package org.opensearch.test;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.common.inject.AbstractModule;
+import org.opensearch.mod.common.inject.AbstractModule;
 import org.opensearch.common.settings.IndexScopedSettings;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.Index;
 import org.opensearch.index.IndexSettings;
 

@@ -34,8 +34,8 @@ package org.opensearch.indices.analysis;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
-import org.opensearch.Version;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.test.OpenSearchIntegTestCase;
 

@@ -34,9 +34,9 @@ package org.opensearch.index.query;
 
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.ParseField;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
 import org.opensearch.common.xcontent.XContentBuilder;
 
 import java.io.IOException;
@@ -170,7 +170,7 @@ public abstract class BaseTermQueryBuilder<QB extends BaseTermQueryBuilder<QB>> 
         builder.endObject();
         builder.endObject();
     }
-    
+
     protected void addExtraXContent(XContentBuilder builder, Params params) throws IOException {
         // Do nothing but allows subclasses to override.
     }

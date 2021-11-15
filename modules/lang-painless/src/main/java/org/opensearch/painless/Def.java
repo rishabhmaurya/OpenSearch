@@ -36,7 +36,7 @@ import org.opensearch.painless.lookup.PainlessLookup;
 import org.opensearch.painless.lookup.PainlessLookupUtility;
 import org.opensearch.painless.lookup.PainlessMethod;
 import org.opensearch.painless.symbol.FunctionTable;
-import org.opensearch.script.JodaCompatibleZonedDateTime;
+import org.opensearch.mod.common.time.JodaCompatibleZonedDateTime;
 
 import java.lang.invoke.CallSite;
 import java.lang.invoke.MethodHandle;

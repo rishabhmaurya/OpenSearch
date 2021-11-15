@@ -32,7 +32,7 @@
 
 package org.opensearch.snapshots;
 
-import org.opensearch.common.collect.ImmutableOpenMap;
+import org.opensearch.mod.common.collect.ImmutableOpenMap;
 
 public class EmptySnapshotsInfoService implements SnapshotsInfoService {
     public static final EmptySnapshotsInfoService INSTANCE = new EmptySnapshotsInfoService();

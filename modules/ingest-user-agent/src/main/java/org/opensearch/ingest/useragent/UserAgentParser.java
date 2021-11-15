@@ -32,8 +32,8 @@
 
 package org.opensearch.ingest.useragent;
 
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.common.xcontent.LoggingDeprecationHandler;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentParser;

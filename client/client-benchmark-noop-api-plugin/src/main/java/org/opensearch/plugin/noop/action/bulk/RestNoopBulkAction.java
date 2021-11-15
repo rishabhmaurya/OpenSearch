@@ -56,7 +56,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
 import static org.opensearch.rest.RestRequest.Method.POST;
 import static org.opensearch.rest.RestRequest.Method.PUT;
-import static org.opensearch.rest.RestStatus.OK;
+import static org.opensearch.mod.rest.RestStatus.OK;
 
 public class RestNoopBulkAction extends BaseRestHandler {
 

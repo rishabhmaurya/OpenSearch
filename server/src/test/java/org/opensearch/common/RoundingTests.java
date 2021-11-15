@@ -34,8 +34,8 @@ package org.opensearch.common;
 
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.rounding.DateTimeUnit;
-import org.opensearch.common.time.DateFormatter;
-import org.opensearch.common.time.DateFormatters;
+import org.opensearch.mod.common.time.DateFormatter;
+import org.opensearch.mod.common.time.DateFormatters;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.test.OpenSearchTestCase;
 import org.hamcrest.Description;

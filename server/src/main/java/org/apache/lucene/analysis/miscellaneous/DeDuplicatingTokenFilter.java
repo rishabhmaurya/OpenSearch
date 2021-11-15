@@ -37,7 +37,7 @@ import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.common.hash.MurmurHash3;
+import org.opensearch.mod.common.hash.MurmurHash3;
 
 import java.io.IOException;
 import java.util.ArrayList;

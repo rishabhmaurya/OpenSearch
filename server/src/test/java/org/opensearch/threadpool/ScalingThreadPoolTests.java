@@ -33,7 +33,7 @@
 package org.opensearch.threadpool;
 
 import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.util.concurrent.OpenSearchThreadPoolExecutor;
 
 import java.util.HashMap;

@@ -32,7 +32,7 @@
 
 package org.opensearch.action.admin.cluster.storedscripts;
 
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.script.ScriptContextInfo.ScriptMethodInfo.ParameterInfo;
 import org.opensearch.test.AbstractSerializingTestCase;

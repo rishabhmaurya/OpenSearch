@@ -37,11 +37,10 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.MatchNoDocsQuery;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.common.network.InetAddresses;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.index.mapper.FieldTypeTestCase;
+import org.opensearch.mod.common.settings.Settings;
 
 import java.io.IOException;
 import java.net.InetAddress;

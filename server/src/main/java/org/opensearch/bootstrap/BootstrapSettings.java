@@ -32,8 +32,8 @@
 
 package org.opensearch.bootstrap;
 
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
 
 public final class BootstrapSettings {
 

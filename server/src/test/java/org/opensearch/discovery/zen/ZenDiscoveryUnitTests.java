@@ -32,7 +32,7 @@
 
 package org.opensearch.discovery.zen;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.support.replication.ClusterStateCreationUtils;
 import org.opensearch.cluster.ClusterChangedEvent;
@@ -59,9 +59,9 @@ import org.opensearch.cluster.routing.UnassignedInfo;
 import org.opensearch.cluster.routing.allocation.AllocationService;
 import org.opensearch.cluster.service.ClusterApplier;
 import org.opensearch.cluster.service.MasterService;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.discovery.zen.PublishClusterStateActionTests.AssertingAckListener;
 import org.opensearch.discovery.zen.ZenDiscovery.ZenNodeRemovalClusterStateTaskExecutor;

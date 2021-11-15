@@ -32,7 +32,7 @@
 
 package org.opensearch.index.analysis;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.Index;
 import org.opensearch.plugin.analysis.smartcn.AnalysisSmartChinesePlugin;
 import org.opensearch.test.OpenSearchTestCase;

@@ -33,15 +33,28 @@
 package org.opensearch.common.util;
 
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.common.util.MockBigArrays;
-import org.opensearch.common.util.MockPageCacheRecycler;
-import org.opensearch.common.breaker.CircuitBreaker;
-import org.opensearch.common.breaker.CircuitBreakingException;
+import org.opensearch.mod.common.breaker.CircuitBreaker;
+import org.opensearch.mod.common.breaker.CircuitBreakingException;
 import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
 import org.opensearch.indices.breaker.HierarchyCircuitBreakerService;
-import org.opensearch.indices.breaker.NoneCircuitBreakerService;
+import org.opensearch.mod.common.breaker.fromindices.breaker.NoneCircuitBreakerService;
+import org.opensearch.mod.common.util.BigArray;
+import org.opensearch.mod.common.util.BigArrays;
+import org.opensearch.mod.common.util.BigByteArray;
+import org.opensearch.mod.common.util.BigDoubleArray;
+import org.opensearch.mod.common.util.BigFloatArray;
+import org.opensearch.mod.common.util.BigIntArray;
+import org.opensearch.mod.common.util.BigLongArray;
+import org.opensearch.mod.common.util.BigObjectArray;
+import org.opensearch.mod.common.util.ByteArray;
+import org.opensearch.mod.common.util.DoubleArray;
+import org.opensearch.mod.common.util.FloatArray;
+import org.opensearch.mod.common.util.IntArray;
+import org.opensearch.mod.common.util.LongArray;
+import org.opensearch.mod.common.util.ObjectArray;
+import org.opensearch.mod.common.util.PageCacheRecycler;
 import org.opensearch.test.OpenSearchTestCase;
 import org.junit.Before;
 

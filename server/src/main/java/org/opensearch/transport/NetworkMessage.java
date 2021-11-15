@@ -31,9 +31,9 @@
 
 package org.opensearch.transport;
 
-import org.opensearch.Version;
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 
 /**
  * Represents a transport message sent over the network. Subclasses implement serialization and

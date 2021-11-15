@@ -33,7 +33,7 @@
 package org.opensearch.search.aggregations.bucket;
 
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.common.util.Comparators;
+import org.opensearch.mod.common.util.Comparators;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.search.aggregations.Aggregation;
 import org.opensearch.search.aggregations.Aggregator.SubAggCollectionMode;

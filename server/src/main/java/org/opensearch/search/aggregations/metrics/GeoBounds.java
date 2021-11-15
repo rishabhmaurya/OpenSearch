@@ -32,7 +32,7 @@
 
 package org.opensearch.search.aggregations.metrics;
 
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.search.aggregations.Aggregation;
 
 /**

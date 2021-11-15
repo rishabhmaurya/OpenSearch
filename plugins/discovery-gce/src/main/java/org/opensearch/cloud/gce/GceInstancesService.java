@@ -33,8 +33,8 @@
 package org.opensearch.cloud.gce;
 
 import com.google.api.services.compute.model.Instance;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
 import org.opensearch.common.unit.TimeValue;
 
 import java.io.Closeable;

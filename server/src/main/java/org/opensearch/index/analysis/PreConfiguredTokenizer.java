@@ -33,7 +33,7 @@
 package org.opensearch.index.analysis;
 
 import org.apache.lucene.analysis.Tokenizer;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.indices.analysis.PreBuiltCacheFactory;
 import org.opensearch.indices.analysis.PreBuiltCacheFactory.CachingStrategy;
 
@@ -70,7 +70,7 @@ public final class PreConfiguredTokenizer extends PreConfiguredAnalysisComponent
      * @param name the name of the tokenizer in the api
      * @param create builds the tokenizer
      */
-    public static PreConfiguredTokenizer openSearchVersion(String name, Function<org.opensearch.Version, Tokenizer> create) {
+    public static PreConfiguredTokenizer openSearchVersion(String name, Function<Version, Tokenizer> create) {
         return new PreConfiguredTokenizer(name, CachingStrategy.OPENSEARCH, create);
     }
 

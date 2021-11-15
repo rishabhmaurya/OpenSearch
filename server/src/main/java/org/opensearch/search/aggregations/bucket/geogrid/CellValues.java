@@ -33,6 +33,7 @@ package org.opensearch.search.aggregations.bucket.geogrid;
 
 import org.opensearch.index.fielddata.AbstractSortingNumericDocValues;
 import org.opensearch.index.fielddata.MultiGeoPointValues;
+import org.opensearch.mod.common.geo.GeoPoint;
 
 import java.io.IOException;
 
@@ -77,5 +78,5 @@ abstract class CellValues extends AbstractSortingNumericDocValues {
      * @param valuesIdx the index into <code>values</code> to set
      * @return          valuesIdx + 1 if value was set, valuesIdx otherwise.
      */
-    abstract int advanceValue(org.opensearch.common.geo.GeoPoint target, int valuesIdx);
+    abstract int advanceValue(GeoPoint target, int valuesIdx);
 }

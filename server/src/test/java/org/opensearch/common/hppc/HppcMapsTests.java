@@ -32,8 +32,8 @@
 package org.opensearch.common.hppc;
 
 import com.carrotsearch.hppc.ObjectHashSet;
-import org.opensearch.Assertions;
-import org.opensearch.common.collect.HppcMaps;
+import org.opensearch.mod.Assertions;
+import org.opensearch.mod.common.collect.HppcMaps;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.ArrayList;

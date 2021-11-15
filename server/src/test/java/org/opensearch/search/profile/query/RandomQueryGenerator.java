@@ -33,7 +33,7 @@
 package org.opensearch.search.profile.query;
 
 import org.apache.lucene.util.English;
-import org.opensearch.common.unit.Fuzziness;
+import org.opensearch.mod.common.unit.Fuzziness;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.DisMaxQueryBuilder;
 import org.opensearch.index.query.FuzzyQueryBuilder;

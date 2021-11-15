@@ -31,11 +31,38 @@ apply plugin: 'opensearch.build'
 apply plugin: 'nebula.optional-base'
 apply plugin: 'opensearch.publish'
 
-dependencies {
-  api 'net.sf.jopt-simple:jopt-simple:5.0.2'
-  api project(':libs:opensearch-core')
+java {
+  modularity.inferModulePath.set(false)
 }
+apply plugin: 'org.javamodularity.moduleplugin'
+configurations {
+  modulePath {
+    transitive false
+  }
+}
+dependencies {
+  //api 'net.sf.jopt-simple:jopt-simple:5.0.2'
+  //api project(':libs:opensearch-core')
+  api project(':libs:opensearch-core')
+  api 'net.sf.jopt-simple:jopt-simple:5.0.2'
+}
+compileJava.doFirst {
+  //options.compilerArgs -= ['--module-path', project.configurations.compileClasspath.asPath]
+  options.compilerArgs += [
+    //'-Xmaxerrs', '10',
+    '-Xmaxwarns', '1',
+    '-cp', project.configurations.compileClasspath.asPath,
+    '--add-modules', 'ALL-SYSTEM',
+    '--module-path', configurations.modulePath.asPath,
+    //'--patch-module',"opensearch.common=opensearch-x-content-2.0.0-SNAPSHOT.jar",
+    '--add-reads', "opensearch.cli=ALL-UNNAMED"
+  ]
 
+  //forbiddenApisJava11Test.enabled = false
+  //println sourceSets.java11Test.compileClasspath.asPath
+  println compileJava.options.compilerArgs
+}
+javadoc.enabled = false
 test.enabled = false
 // Since CLI does not depend on :server, it cannot run the jarHell task
 jarHell.enabled = false

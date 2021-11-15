@@ -34,13 +34,10 @@ package org.opensearch.cluster;
 
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.service.ClusterApplierService;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.cluster.ClusterName;
-import org.opensearch.cluster.ClusterState;
-import org.opensearch.cluster.ClusterStateObserver;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;

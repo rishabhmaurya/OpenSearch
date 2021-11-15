@@ -32,7 +32,7 @@
 
 package org.opensearch.action.admin.cluster.health;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.support.ActiveShardCount;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.ClusterState;
@@ -42,14 +42,11 @@ import org.opensearch.cluster.routing.IndexRoutingTable;
 import org.opensearch.cluster.routing.RoutingTable;
 import org.opensearch.cluster.routing.ShardRoutingState;
 import org.opensearch.cluster.routing.TestShardRouting;
-import org.opensearch.common.Randomness;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.Randomness;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.Index;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.action.admin.cluster.health.ClusterHealthRequest;
-import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
-import org.opensearch.action.admin.cluster.health.TransportClusterHealthAction;
 
 import java.util.ArrayList;
 import java.util.List;

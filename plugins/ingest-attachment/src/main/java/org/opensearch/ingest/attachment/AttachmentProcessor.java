@@ -37,8 +37,8 @@ import org.apache.tika.language.LanguageIdentifier;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.ingest.AbstractProcessor;
 import org.opensearch.ingest.IngestDocument;
 import org.opensearch.ingest.Processor;

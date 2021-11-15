@@ -32,7 +32,7 @@
 
 package org.opensearch.index.analysis;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 
 import java.util.ArrayList;
 import java.util.List;

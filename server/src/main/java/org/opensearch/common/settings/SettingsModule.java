@@ -34,12 +34,16 @@ package org.opensearch.common.settings;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
-import org.opensearch.common.Strings;
-import org.opensearch.common.inject.Binder;
-import org.opensearch.common.inject.Module;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.inject.binder.Binder;
+import org.opensearch.mod.common.inject.Module;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.mod.common.settings.SecureSetting;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.SettingUpgrader;
+import org.opensearch.mod.common.settings.Settings;
 
 import java.io.IOException;
 import java.util.Arrays;

@@ -33,7 +33,7 @@
 package org.opensearch.persistent;
 
 import org.opensearch.cluster.ClusterState;
-import org.opensearch.common.io.stream.VersionedNamedWriteable;
+import org.opensearch.mod.common.io.stream.VersionedNamedWriteable;
 import org.opensearch.common.xcontent.ToXContentObject;
 
 /**

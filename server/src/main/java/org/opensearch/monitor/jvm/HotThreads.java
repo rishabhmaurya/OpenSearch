@@ -34,7 +34,7 @@ package org.opensearch.monitor.jvm;
 
 import org.apache.lucene.util.CollectionUtil;
 import org.opensearch.OpenSearchException;
-import org.opensearch.common.time.DateFormatter;
+import org.opensearch.mod.common.time.DateFormatter;
 import org.opensearch.common.unit.TimeValue;
 
 import java.lang.management.ManagementFactory;

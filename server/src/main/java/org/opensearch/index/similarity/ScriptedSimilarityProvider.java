@@ -33,9 +33,9 @@
 package org.opensearch.index.similarity;
 
 import org.apache.lucene.search.similarities.Similarity;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.common.TriFunction;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.script.Script;
 import org.opensearch.script.ScriptService;
 import org.opensearch.script.SimilarityScript;

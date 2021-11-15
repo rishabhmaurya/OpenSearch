@@ -47,7 +47,7 @@ import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.util.ArrayUtil;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.lucene.Lucene;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.index.fieldvisitor.FieldsVisitor;

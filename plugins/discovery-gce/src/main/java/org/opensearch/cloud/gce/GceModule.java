@@ -34,8 +34,8 @@ package org.opensearch.cloud.gce;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.common.inject.AbstractModule;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.inject.AbstractModule;
+import org.opensearch.mod.common.settings.Settings;
 
 public class GceModule extends AbstractModule {
     // pkg private so tests can override with mock

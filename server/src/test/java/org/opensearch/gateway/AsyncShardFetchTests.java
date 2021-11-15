@@ -32,7 +32,7 @@
 package org.opensearch.gateway;
 
 import org.apache.logging.log4j.LogManager;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.FailedNodeException;
 import org.opensearch.action.support.nodes.BaseNodeResponse;
 import org.opensearch.cluster.node.DiscoveryNode;

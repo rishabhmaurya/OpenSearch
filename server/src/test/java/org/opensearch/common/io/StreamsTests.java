@@ -33,8 +33,9 @@
 package org.opensearch.common.io;
 
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.Streams;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.ByteArrayOutputStream;
@@ -44,11 +45,11 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-import static org.opensearch.common.io.Streams.copyToString;
+import static org.opensearch.mod.common.io.Streams.copyToString;
 import static org.hamcrest.Matchers.equalTo;
 
 /**
- * Unit tests for {@link org.opensearch.common.io.Streams}.
+ * Unit tests for {@link Streams}.
  */
 public class StreamsTests extends OpenSearchTestCase {
 

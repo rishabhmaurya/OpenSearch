@@ -34,7 +34,7 @@ package org.opensearch.action.admin.indices.exists.types;
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.action.support.master.MasterNodeReadOperationRequestBuilder;
 import org.opensearch.client.OpenSearchClient;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 
 /**
  * A builder for {@link TypesExistsRequest}.

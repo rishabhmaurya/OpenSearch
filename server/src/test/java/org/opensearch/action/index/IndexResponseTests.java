@@ -34,8 +34,8 @@ package org.opensearch.action.index;
 
 import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.support.replication.ReplicationResponse;
-import org.opensearch.common.Strings;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentParser;

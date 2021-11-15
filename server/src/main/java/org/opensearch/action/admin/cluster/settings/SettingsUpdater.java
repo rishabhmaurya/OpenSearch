@@ -40,12 +40,12 @@ import org.opensearch.cluster.block.ClusterBlocks;
 import org.opensearch.cluster.metadata.Metadata;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 
 import java.util.Map;
 
 import static org.opensearch.cluster.ClusterState.builder;
-import static org.opensearch.common.settings.AbstractScopedSettings.ARCHIVED_SETTINGS_PREFIX;
+import static org.opensearch.mod.common.settings.AbstractScopedSettings.ARCHIVED_SETTINGS_PREFIX;
 
 /**
  * Updates transient and persistent cluster state settings if there are any changes

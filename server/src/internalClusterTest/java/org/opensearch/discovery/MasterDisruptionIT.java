@@ -39,7 +39,7 @@ import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.coordination.NoMasterBlockService;
 import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.discovery.zen.ZenDiscovery;

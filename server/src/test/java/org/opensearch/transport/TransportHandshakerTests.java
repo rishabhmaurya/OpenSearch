@@ -31,11 +31,11 @@
 
 package org.opensearch.transport;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.support.PlainActionFuture;
 import org.opensearch.cluster.node.DiscoveryNode;
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.tasks.TaskId;
 import org.opensearch.test.OpenSearchTestCase;

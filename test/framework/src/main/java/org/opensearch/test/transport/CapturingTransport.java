@@ -33,7 +33,7 @@
 package org.opensearch.test.transport;
 
 import org.opensearch.cluster.node.DiscoveryNode;
-import org.opensearch.common.util.concurrent.ConcurrentCollections;
+import org.opensearch.mod.common.util.concurrent.ConcurrentCollections;
 import org.opensearch.transport.Transport;
 import org.opensearch.transport.TransportRequest;
 

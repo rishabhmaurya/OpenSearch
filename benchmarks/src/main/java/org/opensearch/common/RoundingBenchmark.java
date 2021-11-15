@@ -32,7 +32,7 @@
 
 package org.opensearch.common;
 
-import org.opensearch.common.time.DateFormatter;
+import org.opensearch.mod.common.time.DateFormatter;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
 import org.openjdk.jmh.annotations.Benchmark;

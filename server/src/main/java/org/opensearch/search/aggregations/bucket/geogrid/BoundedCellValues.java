@@ -33,6 +33,7 @@ package org.opensearch.search.aggregations.bucket.geogrid;
 
 import org.opensearch.common.geo.GeoBoundingBox;
 import org.opensearch.index.fielddata.MultiGeoPointValues;
+import org.opensearch.mod.common.geo.GeoPoint;
 
 /**
  * Class representing {@link CellValues} whose values are filtered
@@ -52,7 +53,7 @@ class BoundedCellValues extends CellValues {
 
 
     @Override
-    int advanceValue(org.opensearch.common.geo.GeoPoint target, int valuesIdx) {
+    int advanceValue(GeoPoint target, int valuesIdx) {
         if (geoBoundingBox.pointInBounds(target.getLon(), target.getLat())) {
             values[valuesIdx] = encoder.encode(target.getLon(), target.getLat(), precision);
             return valuesIdx + 1;

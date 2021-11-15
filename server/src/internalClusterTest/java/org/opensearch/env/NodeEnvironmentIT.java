@@ -32,11 +32,11 @@
 
 package org.opensearch.env;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.node.DiscoveryNodeRole;
 import org.opensearch.common.CheckedConsumer;
 import org.opensearch.common.io.PathUtils;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.gateway.PersistedClusterStateService;
 import org.opensearch.indices.IndicesService;
 import org.opensearch.test.OpenSearchIntegTestCase;

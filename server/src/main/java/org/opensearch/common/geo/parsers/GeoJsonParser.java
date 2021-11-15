@@ -32,15 +32,15 @@
 package org.opensearch.common.geo.parsers;
 
 import org.locationtech.jts.geom.Coordinate;
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.OpenSearchParseException;
 import org.opensearch.common.Explicit;
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.common.geo.GeoShapeType;
 import org.opensearch.common.geo.builders.CircleBuilder;
 import org.opensearch.common.geo.builders.GeometryCollectionBuilder;
 import org.opensearch.common.geo.builders.ShapeBuilder;
 import org.opensearch.common.geo.builders.ShapeBuilder.Orientation;
-import org.opensearch.common.unit.DistanceUnit;
+import org.opensearch.mod.common.unit.DistanceUnit;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentSubParser;
 import org.opensearch.index.mapper.AbstractShapeGeometryFieldMapper;

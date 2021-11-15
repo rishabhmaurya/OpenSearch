@@ -32,8 +32,8 @@
 
 package org.opensearch.ingest.common;
 
-import org.opensearch.common.time.DateFormatter;
-import org.opensearch.common.time.DateFormatters;
+import org.opensearch.mod.common.time.DateFormatter;
+import org.opensearch.mod.common.time.DateFormatters;
 
 import java.time.Instant;
 import java.time.LocalDate;

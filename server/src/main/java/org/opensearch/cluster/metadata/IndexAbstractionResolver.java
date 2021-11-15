@@ -33,7 +33,7 @@
 package org.opensearch.cluster.metadata;
 
 import org.opensearch.action.support.IndicesOptions;
-import org.opensearch.common.regex.Regex;
+import org.opensearch.mod.common.regex.Regex;
 import org.opensearch.index.IndexNotFoundException;
 
 import java.util.ArrayList;

@@ -49,7 +49,7 @@ import org.opensearch.index.fielddata.plain.PagedBytesIndexFieldData;
 import org.opensearch.index.fielddata.plain.SortedSetOrdinalsIndexFieldData;
 import org.opensearch.index.mapper.TextFieldMapper;
 import org.opensearch.index.shard.ShardId;
-import org.opensearch.indices.breaker.NoneCircuitBreakerService;
+import org.opensearch.mod.common.breaker.fromindices.breaker.NoneCircuitBreakerService;
 import org.opensearch.search.aggregations.support.CoreValuesSourceType;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.FieldMaskingReader;

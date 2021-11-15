@@ -33,6 +33,8 @@
 package org.opensearch.common.util.concurrent;
 
 import org.opensearch.ExceptionsHelper;
+import org.opensearch.mod.common.util.concurrent.AbstractRunnable;
+import org.opensearch.mod.common.util.concurrent.WrappedRunnable;
 
 /**
  * A class used to wrap a {@code Runnable} that allows capturing the time of the task since creation

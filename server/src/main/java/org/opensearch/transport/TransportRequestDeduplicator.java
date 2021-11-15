@@ -33,7 +33,7 @@
 package org.opensearch.transport;
 
 import org.opensearch.action.ActionListener;
-import org.opensearch.common.util.concurrent.ConcurrentCollections;
+import org.opensearch.mod.common.util.concurrent.ConcurrentCollections;
 
 import java.util.ArrayList;
 import java.util.List;

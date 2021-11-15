@@ -32,8 +32,9 @@
 package org.opensearch.common.logging;
 
 import com.carrotsearch.randomizedtesting.generators.CodepointSetGenerator;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.logging.HeaderWarning;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.hamcrest.RegexMatcher;
 import org.hamcrest.core.IsSame;
@@ -47,7 +48,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
 
-import static org.opensearch.common.logging.HeaderWarning.WARNING_HEADER_PATTERN;
+import static org.opensearch.mod.common.logging.HeaderWarning.WARNING_HEADER_PATTERN;
 import static org.opensearch.test.hamcrest.RegexMatcher.matches;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;

@@ -31,7 +31,7 @@
 
 package org.opensearch.ingest.common;
 
-import org.opensearch.common.time.DateFormatter;
+import org.opensearch.mod.common.time.DateFormatter;
 import org.opensearch.ingest.IngestDocument;
 import org.opensearch.ingest.TestTemplateService;
 import org.opensearch.test.OpenSearchTestCase;

@@ -36,7 +36,7 @@ import org.joda.time.ReadableInstant;
 import org.opensearch.common.lucene.ScorerAware;
 import org.opensearch.index.fielddata.SortingNumericDoubleValues;
 import org.opensearch.script.AggregationScript;
-import org.opensearch.script.JodaCompatibleZonedDateTime;
+import org.opensearch.mod.common.time.JodaCompatibleZonedDateTime;
 import org.opensearch.search.aggregations.AggregationExecutionException;
 
 import java.io.IOException;

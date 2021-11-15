@@ -32,8 +32,8 @@
 
 package org.opensearch.transport;
 
-import org.opensearch.Version;
-import org.opensearch.common.lease.Releasable;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.lease.Releasable;
 
 import java.io.IOException;
 import java.util.Set;

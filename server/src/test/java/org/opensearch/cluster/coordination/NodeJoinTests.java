@@ -32,7 +32,7 @@
 package org.opensearch.cluster.coordination;
 
 import org.apache.logging.log4j.message.ParameterizedMessage;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionListener;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.ClusterState;
@@ -46,9 +46,9 @@ import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.service.FakeThreadPoolMasterService;
 import org.opensearch.cluster.service.MasterService;
 import org.opensearch.cluster.service.MasterServiceTests;
-import org.opensearch.common.Randomness;
+import org.opensearch.mod.common.Randomness;
 import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.util.concurrent.BaseFuture;
 import org.opensearch.common.util.concurrent.FutureUtils;
 import org.opensearch.monitor.NodeHealthService;

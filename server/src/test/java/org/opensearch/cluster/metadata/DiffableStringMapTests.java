@@ -33,9 +33,8 @@
 package org.opensearch.cluster.metadata;
 
 import org.opensearch.cluster.Diff;
-import org.opensearch.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.cluster.metadata.DiffableStringMap;
 
 import java.io.IOException;
 import java.util.HashMap;

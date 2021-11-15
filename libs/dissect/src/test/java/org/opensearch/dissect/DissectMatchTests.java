@@ -32,7 +32,7 @@
 
 package org.opensearch.dissect;
 
-import org.opensearch.common.collect.MapBuilder;
+import org.opensearch.mod.common.collect.MapBuilder;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.nio.charset.StandardCharsets;

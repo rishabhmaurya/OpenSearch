@@ -32,7 +32,7 @@
 
 package org.opensearch.plugin.store.smb;
 
-import org.opensearch.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.logging.DeprecationLogger;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.store.smbmmapfs.SmbMmapFsDirectoryFactory;
 import org.opensearch.index.store.smbniofs.SmbNIOFsDirectoryFactory;

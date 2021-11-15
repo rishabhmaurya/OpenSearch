@@ -33,9 +33,9 @@
 package org.opensearch.index.shard;
 
 import org.opensearch.OpenSearchException;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.rest.RestStatus;
 
 import java.io.IOException;
 

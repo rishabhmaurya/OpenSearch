@@ -32,7 +32,7 @@
 
 package org.opensearch.ingest;
 
-import org.opensearch.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.logging.DeprecationLogger;
 import org.opensearch.script.DynamicMap;
 import org.opensearch.script.IngestConditionalScript;
 import org.opensearch.script.Script;

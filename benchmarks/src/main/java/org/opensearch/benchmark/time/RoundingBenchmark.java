@@ -33,7 +33,7 @@ package org.opensearch.benchmark.time;
 
 import org.opensearch.common.Rounding;
 import org.opensearch.common.rounding.DateTimeUnit;
-import org.opensearch.common.time.DateUtils;
+import org.opensearch.mod.common.time.DateUtils;
 import org.opensearch.common.unit.TimeValue;
 import org.joda.time.DateTimeZone;
 import org.openjdk.jmh.annotations.Benchmark;

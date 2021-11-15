@@ -33,7 +33,7 @@
 package org.opensearch.geometry;
 
 import org.opensearch.OpenSearchException;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.geometry.utils.GeographyValidator;
 import org.opensearch.geometry.utils.WellKnownText;
 import org.opensearch.test.AbstractWireTestCase;

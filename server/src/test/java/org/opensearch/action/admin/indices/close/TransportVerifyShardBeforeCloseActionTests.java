@@ -52,7 +52,7 @@ import org.opensearch.cluster.routing.IndexShardRoutingTable;
 import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.cluster.routing.ShardRoutingState;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.engine.Engine;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.index.shard.IndexShard;
@@ -71,7 +71,6 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.mockito.ArgumentCaptor;
-import org.opensearch.action.admin.indices.close.TransportVerifyShardBeforeCloseAction;
 
 import java.util.Collections;
 import java.util.List;

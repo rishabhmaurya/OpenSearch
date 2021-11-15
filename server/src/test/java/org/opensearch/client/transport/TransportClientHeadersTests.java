@@ -32,7 +32,7 @@
 
 package org.opensearch.client.transport;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionType;
 import org.opensearch.action.admin.cluster.node.liveness.LivenessResponse;
 import org.opensearch.action.admin.cluster.node.liveness.TransportLivenessAction;
@@ -45,11 +45,11 @@ import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodeRole;
 import org.opensearch.cluster.node.DiscoveryNodes;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.common.network.NetworkModule;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.transport.TransportAddress;
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 import org.opensearch.env.Environment;
 import org.opensearch.plugins.NetworkPlugin;
 import org.opensearch.plugins.Plugin;

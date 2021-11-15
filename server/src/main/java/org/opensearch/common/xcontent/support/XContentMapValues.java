@@ -36,11 +36,11 @@ import org.apache.lucene.util.automaton.Automata;
 import org.apache.lucene.util.automaton.Automaton;
 import org.apache.lucene.util.automaton.CharacterRunAutomaton;
 import org.apache.lucene.util.automaton.Operations;
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.OpenSearchParseException;
 import org.opensearch.common.Booleans;
-import org.opensearch.common.Numbers;
-import org.opensearch.common.Strings;
-import org.opensearch.common.regex.Regex;
+import org.opensearch.mod.common.Numbers;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.regex.Regex;
 import org.opensearch.common.unit.TimeValue;
 
 import java.util.ArrayList;

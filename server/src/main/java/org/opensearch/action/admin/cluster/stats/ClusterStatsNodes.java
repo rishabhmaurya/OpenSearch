@@ -34,23 +34,23 @@ package org.opensearch.action.admin.cluster.stats;
 
 import com.carrotsearch.hppc.ObjectIntHashMap;
 import com.carrotsearch.hppc.cursors.ObjectIntCursor;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.admin.cluster.node.info.NodeInfo;
 import org.opensearch.action.admin.cluster.node.info.PluginsAndModules;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodeRole;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.network.NetworkModule;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.transport.TransportAddress;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.ToXContentFragment;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.discovery.DiscoveryModule;
 import org.opensearch.monitor.fs.FsInfo;
-import org.opensearch.monitor.jvm.JvmInfo;
+import org.opensearch.mod.monitor.jvm.JvmInfo;
 import org.opensearch.monitor.os.OsInfo;
 import org.opensearch.plugins.PluginInfo;
 import org.opensearch.transport.TransportInfo;
@@ -473,7 +473,7 @@ public class ClusterStatsNodes implements ToXContentFragment {
             }
 
             for (NodeStats nodeStats : nodeStatsList) {
-                org.opensearch.monitor.jvm.JvmStats js = nodeStats.getJvm();
+                org.opensearch.mod.monitor.jvm.JvmStats js = nodeStats.getJvm();
                 if (js == null) {
                     continue;
                 }

@@ -31,7 +31,7 @@
 
 package org.opensearch.test.hamcrest;
 
-import org.opensearch.common.collect.ImmutableOpenMap;
+import org.opensearch.mod.common.collect.ImmutableOpenMap;
 import org.hamcrest.Matcher;
 
 /**

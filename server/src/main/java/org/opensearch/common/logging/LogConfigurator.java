@@ -51,12 +51,14 @@ import org.apache.logging.log4j.status.StatusConsoleListener;
 import org.apache.logging.log4j.status.StatusData;
 import org.apache.logging.log4j.status.StatusListener;
 import org.apache.logging.log4j.status.StatusLogger;
-import org.opensearch.cli.ExitCodes;
-import org.opensearch.cli.UserException;
+import org.opensearch.mod.cli.ExitCodes;
+import org.opensearch.mod.cli.UserException;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.common.SuppressForbidden;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
+import org.opensearch.mod.common.logging.LoggingOutputStream;
+import org.opensearch.mod.common.logging.NodeNamePatternConverter;
 import org.opensearch.node.Node;
 
 import java.io.IOException;
@@ -147,6 +149,9 @@ public class LogConfigurator {
      */
     public static void loadLog4jPlugins() {
         PluginManager.addPackage(LogConfigurator.class.getPackage().getName());
+        // #RF - due to rename and refactoring of common.logging. To search for log4j plugins
+        PluginManager.addPackage("org.opensearch.mod.common.logging");
+
     }
 
     /**

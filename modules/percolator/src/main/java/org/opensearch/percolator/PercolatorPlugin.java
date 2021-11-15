@@ -32,7 +32,7 @@
 
 package org.opensearch.percolator;
 
-import org.opensearch.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting;
 import org.opensearch.index.mapper.Mapper;
 import org.opensearch.plugins.MapperPlugin;
 import org.opensearch.plugins.Plugin;

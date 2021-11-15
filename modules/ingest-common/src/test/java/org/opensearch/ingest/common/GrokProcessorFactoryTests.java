@@ -32,7 +32,7 @@
 
 package org.opensearch.ingest.common;
 
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.OpenSearchParseException;
 import org.opensearch.grok.MatcherWatchdog;
 import org.opensearch.test.OpenSearchTestCase;
 

@@ -33,7 +33,7 @@ package org.opensearch.action.support;
 
 import org.opensearch.action.ActionRequest;
 import org.opensearch.action.ActionResponse;
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.tasks.Task;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportChannel;

@@ -33,7 +33,7 @@ package org.opensearch.indices.analysis;
 
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.standard.StandardTokenizer;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.index.analysis.TokenFilterFactory;
 import org.opensearch.indices.analysis.PreBuiltCacheFactory.CachingStrategy;
 

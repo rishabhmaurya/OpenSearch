@@ -33,10 +33,10 @@
 package org.opensearch.common.geo;
 
 import org.opensearch.OpenSearchException;
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.OpenSearchParseException;
 import org.opensearch.common.ParseField;
 import org.opensearch.common.geo.parsers.ShapeParser;
-import org.opensearch.common.unit.DistanceUnit;
+import org.opensearch.mod.common.unit.DistanceUnit;
 import org.opensearch.common.xcontent.ConstructingObjectParser;
 import org.opensearch.common.xcontent.ObjectParser;
 import org.opensearch.common.xcontent.ToXContent;

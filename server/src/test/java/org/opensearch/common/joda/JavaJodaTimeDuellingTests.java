@@ -32,12 +32,12 @@
 
 package org.opensearch.common.joda;
 
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.OpenSearchParseException;
 import org.opensearch.bootstrap.JavaVersion;
-import org.opensearch.common.time.DateFormatter;
-import org.opensearch.common.time.DateFormatters;
-import org.opensearch.common.time.DateMathParser;
-import org.opensearch.common.time.FormatNames;
+import org.opensearch.mod.common.time.DateFormatter;
+import org.opensearch.mod.common.time.DateFormatters;
+import org.opensearch.mod.common.time.DateMathParser;
+import org.opensearch.mod.common.time.FormatNames;
 import org.opensearch.test.OpenSearchTestCase;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;

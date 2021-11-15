@@ -32,8 +32,8 @@
 
 package org.opensearch.common.util.concurrent;
 
-import org.opensearch.Assertions;
-import org.opensearch.common.lease.Releasable;
+import org.opensearch.mod.Assertions;
+import org.opensearch.mod.common.lease.Releasable;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.index.engine.EngineException;
 

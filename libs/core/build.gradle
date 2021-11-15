@@ -36,6 +36,7 @@ apply plugin: 'opensearch.publish'
 archivesBaseName = 'opensearch-core'
 
 // we want to keep the JDKs in our IDEs set to JDK 8 until minimum JDK is bumped to 11 so we do not include this source set in our IDEs
+
 if (!isEclipse) {
   sourceSets {
     java11 {
@@ -71,8 +72,57 @@ if (!isEclipse) {
       from sourceSets.java11.output
     }
     manifest.attributes('Multi-Release': 'true')
+    //manifest.attributes("Automatic-Module-Name": "opensearch.core")
   }
 }
+
+//tasks.withType(JavaCompile) {
+//  doFirst {
+//    println "Args for for $name are $options.allCompilerArgs"
+//  }
+//}
+//// we want to keep the JDKs in our IDEs set to JDK 8 until minimum JDK is bumped to 11 so we do not include this source set in our IDEs
+//if (!isEclipse) {
+//  sourceSets {
+//    moduleInfo {
+//      java {
+//        srcDirs = ['src/main/java/module-info']
+//      }
+//    }
+//  }
+//
+//  configurations {
+//    moduleInfoCompile.extendsFrom(compile)
+//  }
+//
+//  compileModuleInfoJava {
+//    sourceCompatibility = 11
+//    targetCompatibility = 11
+//    inputs.property("moduleName", 'opensearch.core')
+//    destinationDir = compileJava.destinationDir
+//    doFirst {
+//      classpath += sourceSets.java11.compileClasspath
+//      classpath += sourceSets.main.compileClasspath
+//      println classpath.asPath
+//      options.compilerArgs = [
+//        '-cp', classpath.asPath,
+//        //'--module-path','',
+//        '--add-modules', 'ALL-SYSTEM',
+//        //'-d', sourceSets.main.output.asPath
+//      ]
+//    }
+//  }
+//  compileModuleInfoJava.dependsOn compileJava
+//  compileModuleInfoJava.dependsOn compileJava11Java
+//
+//  //classes.dependsOn compileModuleInfoJava
+//  forbiddenApisModuleInfo {
+//    if (BuildParams.runtimeJavaVersion < JavaVersion.VERSION_11) {
+//      targetCompatibility = JavaVersion.VERSION_11.getMajorVersion()
+//    }
+//    replaceSignatureFiles 'jdk-signatures'
+//  }
+//}
 
 dependencies {
   // This dependency is used only by :libs:core for null-checking interop with other tools

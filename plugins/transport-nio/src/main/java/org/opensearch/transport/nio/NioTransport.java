@@ -36,15 +36,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import org.opensearch.OpenSearchException;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.support.PlainActionFuture;
 import org.opensearch.cluster.node.DiscoveryNode;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.common.network.NetworkService;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.PageCacheRecycler;
-import org.opensearch.indices.breaker.CircuitBreakerService;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.PageCacheRecycler;
+import org.opensearch.mod.common.breaker.fromindices.breaker.CircuitBreakerService;
 import org.opensearch.nio.BytesChannelContext;
 import org.opensearch.nio.ChannelFactory;
 import org.opensearch.nio.Config;
@@ -65,7 +65,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import static org.opensearch.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
+import static org.opensearch.mod.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
 
 public class NioTransport extends TcpTransport {
 

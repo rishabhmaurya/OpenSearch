@@ -32,7 +32,7 @@
 
 package org.opensearch.gateway;
 
-import org.opensearch.common.inject.AbstractModule;
+import org.opensearch.mod.common.inject.AbstractModule;
 
 public class GatewayModule extends AbstractModule {
 

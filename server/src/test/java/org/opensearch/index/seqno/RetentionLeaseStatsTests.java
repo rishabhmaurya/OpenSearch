@@ -35,13 +35,12 @@ package org.opensearch.index.seqno;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.opensearch.action.support.replication.ReplicationResponse;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.indices.IndicesService;
 import org.opensearch.test.OpenSearchSingleNodeTestCase;
-import org.opensearch.index.seqno.RetentionLeaseUtils;
 
 import java.util.HashMap;
 import java.util.Map;

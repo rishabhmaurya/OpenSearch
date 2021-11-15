@@ -32,8 +32,8 @@
 
 package org.opensearch.common.breaker;
 
-import org.opensearch.common.breaker.CircuitBreakingException;
-import org.opensearch.common.breaker.NoopCircuitBreaker;
+import org.opensearch.mod.common.breaker.CircuitBreakingException;
+import org.opensearch.mod.common.breaker.NoopCircuitBreaker;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 

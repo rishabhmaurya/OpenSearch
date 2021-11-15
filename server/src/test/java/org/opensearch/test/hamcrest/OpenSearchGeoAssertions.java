@@ -33,9 +33,9 @@
 package org.opensearch.test.hamcrest;
 
 import org.opensearch.common.geo.GeoDistance;
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.common.geo.parsers.ShapeParser;
-import org.opensearch.common.unit.DistanceUnit;
+import org.opensearch.mod.common.unit.DistanceUnit;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.geometry.Line;
 import org.opensearch.geometry.MultiLine;

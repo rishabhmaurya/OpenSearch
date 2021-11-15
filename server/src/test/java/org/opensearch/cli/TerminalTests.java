@@ -32,12 +32,13 @@
 
 package org.opensearch.cli;
 
+import org.opensearch.mod.cli.Terminal;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.BufferedReader;
 import java.io.StringReader;
 
-import static org.opensearch.cli.Terminal.readLineToCharArray;
+import static org.opensearch.mod.cli.Terminal.readLineToCharArray;
 import static org.hamcrest.Matchers.equalTo;
 
 public class TerminalTests extends OpenSearchTestCase {

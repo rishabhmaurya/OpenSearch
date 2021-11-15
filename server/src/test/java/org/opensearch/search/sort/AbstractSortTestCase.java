@@ -34,12 +34,12 @@ package org.opensearch.search.sort;
 
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.SortField;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.common.TriFunction;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.BigArrays;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.BigArrays;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;

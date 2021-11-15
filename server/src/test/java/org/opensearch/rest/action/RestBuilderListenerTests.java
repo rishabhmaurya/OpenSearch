@@ -32,11 +32,11 @@
 
 package org.opensearch.rest.action;
 
-import org.opensearch.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesArray;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestResponse;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.rest.FakeRestChannel;
 import org.opensearch.test.rest.FakeRestRequest;

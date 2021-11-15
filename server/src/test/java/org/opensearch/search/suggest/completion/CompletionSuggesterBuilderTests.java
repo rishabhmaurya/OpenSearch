@@ -33,8 +33,8 @@
 package org.opensearch.search.suggest.completion;
 
 import org.apache.lucene.analysis.core.SimpleAnalyzer;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.unit.Fuzziness;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.unit.Fuzziness;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.index.analysis.AnalyzerScope;
 import org.opensearch.index.analysis.NamedAnalyzer;

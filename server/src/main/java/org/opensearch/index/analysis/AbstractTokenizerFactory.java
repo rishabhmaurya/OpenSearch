@@ -33,7 +33,7 @@
 package org.opensearch.index.analysis;
 
 import org.apache.lucene.util.Version;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.AbstractIndexComponent;
 import org.opensearch.index.IndexSettings;
 

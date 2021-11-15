@@ -38,8 +38,8 @@ import org.opensearch.action.ActionListener;
 import org.opensearch.action.ActionRunnable;
 import org.opensearch.client.Client;
 import org.opensearch.client.transport.TransportClient;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.concurrent.AbstractRunnable;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.concurrent.AbstractRunnable;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.util.concurrent.Future;

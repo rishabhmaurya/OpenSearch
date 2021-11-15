@@ -47,7 +47,7 @@ import org.apache.lucene.search.similarities.ClassicSimilarity;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.search.similarities.TFIDFSimilarity;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -374,7 +374,7 @@ public class MoreLikeThisQuery extends Query {
     public void setBoostTerms(boolean boostTerms) {
         this.boostTerms = boostTerms;
     }
- 
+
     public float getBoostTermsFactor() {
         return boostTermsFactor;
     }

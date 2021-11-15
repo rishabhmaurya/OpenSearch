@@ -31,12 +31,12 @@
 
 package org.opensearch.search.aggregations;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.NamedWriteable;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.util.BigArrays;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.stream.NamedWriteable;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.util.BigArrays;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.rest.action.search.RestSearchAction;
 import org.opensearch.script.ScriptService;

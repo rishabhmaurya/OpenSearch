@@ -34,7 +34,7 @@ package org.opensearch.indices.analysis;
 
 import org.apache.lucene.analysis.util.TokenFilterFactory;
 import org.apache.lucene.analysis.util.TokenizerFactory;
-import org.opensearch.common.collect.MapBuilder;
+import org.opensearch.mod.common.collect.MapBuilder;
 import org.opensearch.index.analysis.HunspellTokenFilterFactory;
 import org.opensearch.index.analysis.ShingleTokenFilterFactory;
 import org.opensearch.index.analysis.StandardTokenizerFactory;

@@ -35,7 +35,7 @@ package org.opensearch.action.delete;
 import org.opensearch.action.bulk.TransportBulkAction;
 import org.opensearch.action.bulk.TransportSingleItemBulkWriteAction;
 import org.opensearch.action.support.ActionFilters;
-import org.opensearch.common.inject.Inject;
+import org.opensearch.mod.common.inject.Inject;
 import org.opensearch.transport.TransportService;
 
 /**

@@ -37,18 +37,18 @@ import org.opensearch.cluster.action.shard.ShardStateAction;
 import org.opensearch.common.CheckedFunction;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.ParseField;
-import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.logging.LoggerMessageFormat;
-import org.opensearch.common.xcontent.ToXContentFragment;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.OpenSearchExceptionDup;
+import org.opensearch.mod.OpenSearchWrapperException;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.logging.LoggerMessageFormat;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParseException;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.index.Index;
 import org.opensearch.index.shard.ShardId;
-import org.opensearch.rest.RestStatus;
 import org.opensearch.search.SearchException;
 import org.opensearch.search.aggregations.MultiBucketConsumerService;
 import org.opensearch.transport.TcpTransport;
@@ -68,13 +68,13 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static java.util.Collections.unmodifiableMap;
 import static org.opensearch.cluster.metadata.IndexMetadata.INDEX_UUID_NA_VALUE;
-import static org.opensearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
-import static org.opensearch.common.xcontent.XContentParserUtils.ensureFieldName;
+import static org.opensearch.mod.common.xcontent.XContentParserUtils.ensureExpectedToken;
+import static org.opensearch.mod.common.xcontent.XContentParserUtils.ensureFieldName;
 
 /**
  * A base class for all opensearch exceptions.
  */
-public class OpenSearchException extends RuntimeException implements ToXContentFragment, Writeable {
+public class OpenSearchException extends OpenSearchExceptionDup {
 
     private static final Version UNKNOWN_VERSION_ADDED = Version.fromId(0);
 
@@ -247,9 +247,10 @@ public class OpenSearchException extends RuntimeException implements ToXContentF
         return headers;
     }
 
-    /**
+    /** #RF - defined in OpenSearchExceptionDup
      * Returns the rest status code associated with this exception.
      */
+    /*
     public RestStatus status() {
         Throwable cause = unwrapCause();
         if (cause == this) {
@@ -258,6 +259,8 @@ public class OpenSearchException extends RuntimeException implements ToXContentF
             return ExceptionsHelper.status(cause);
         }
     }
+
+     */
 
     /**
      * Unwraps the actual cause from the exception for cases when the exception is a
@@ -333,16 +336,22 @@ public class OpenSearchException extends RuntimeException implements ToXContentF
         return false;
     }
 
+    /* #RF - defined in OpenSearchExceptionDup
     static Set<Class<? extends OpenSearchException>> getRegisteredKeys() { // for testing
         return CLASS_TO_OPENSEARCH_EXCEPTION_HANDLE.keySet();
     }
 
-    /**
+     */
+
+    /** #RF - defined in OpenSearchExceptionDup
      * Returns the serialization id the given exception.
      */
+    /*
     public static int getId(Class<? extends OpenSearchException> exception) {
         return CLASS_TO_OPENSEARCH_EXCEPTION_HANDLE.get(exception).id;
     }
+
+     */
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
@@ -765,8 +774,9 @@ public class OpenSearchException extends RuntimeException implements ToXContentF
                 org.opensearch.index.snapshots.IndexShardSnapshotFailedException::new, 0, UNKNOWN_VERSION_ADDED),
         DFS_PHASE_EXECUTION_EXCEPTION(org.opensearch.search.dfs.DfsPhaseExecutionException.class,
                 org.opensearch.search.dfs.DfsPhaseExecutionException::new, 1, UNKNOWN_VERSION_ADDED),
-        EXECUTION_CANCELLED_EXCEPTION(org.opensearch.common.util.CancellableThreads.ExecutionCancelledException.class,
-                org.opensearch.common.util.CancellableThreads.ExecutionCancelledException::new, 2, UNKNOWN_VERSION_ADDED),
+        // #RF - already part of common OpenSearchExceptionDup
+        // EXECUTION_CANCELLED_EXCEPTION(org.opensearch.mod.common.util.CancellableThreads.ExecutionCancelledException.class,
+        //        org.opensearch.mod.common.util.CancellableThreads.ExecutionCancelledException::new, 2, UNKNOWN_VERSION_ADDED),
         MASTER_NOT_DISCOVERED_EXCEPTION(org.opensearch.discovery.MasterNotDiscoveredException.class,
                 org.opensearch.discovery.MasterNotDiscoveredException::new, 3, UNKNOWN_VERSION_ADDED),
         OPENSEARCH_SECURITY_EXCEPTION(org.opensearch.OpenSearchSecurityException.class,
@@ -803,8 +813,10 @@ public class OpenSearchException extends RuntimeException implements ToXContentF
                 org.opensearch.ResourceNotFoundException::new, 19, UNKNOWN_VERSION_ADDED),
         ACTION_TRANSPORT_EXCEPTION(org.opensearch.transport.ActionTransportException.class,
                 org.opensearch.transport.ActionTransportException::new, 20, UNKNOWN_VERSION_ADDED),
-        OPENSEARCH_GENERATION_EXCEPTION(org.opensearch.OpenSearchGenerationException.class,
-                org.opensearch.OpenSearchGenerationException::new, 21, UNKNOWN_VERSION_ADDED),
+        // #RF - already part of common OpenSearchExceptionDup
+
+        // OPENSEARCH_GENERATION_EXCEPTION(org.opensearch.mod.OpenSearchGenerationException.class,
+        //       org.opensearch.mod.OpenSearchGenerationException::new, 21, UNKNOWN_VERSION_ADDED),
         //      22 was CreateFailedEngineException
         INDEX_SHARD_STARTED_EXCEPTION(org.opensearch.index.shard.IndexShardStartedException.class,
                 org.opensearch.index.shard.IndexShardStartedException::new, 23, UNKNOWN_VERSION_ADDED),
@@ -828,8 +840,10 @@ public class OpenSearchException extends RuntimeException implements ToXContentF
                 org.opensearch.indices.IndexPrimaryShardNotAllocatedException::new, 33, UNKNOWN_VERSION_ADDED),
         TRANSPORT_EXCEPTION(org.opensearch.transport.TransportException.class,
                 org.opensearch.transport.TransportException::new, 34, UNKNOWN_VERSION_ADDED),
-        OPENSEARCH_PARSE_EXCEPTION(org.opensearch.OpenSearchParseException.class,
-                org.opensearch.OpenSearchParseException::new, 35, UNKNOWN_VERSION_ADDED),
+        // #RF - already part of common OpenSearchExceptionDup
+
+        //OPENSEARCH_PARSE_EXCEPTION(org.opensearch.mod.OpenSearchParseException.class,
+        //        org.opensearch.mod.OpenSearchParseException::new, 35, UNKNOWN_VERSION_ADDED),
         SEARCH_EXCEPTION(org.opensearch.search.SearchException.class,
                 org.opensearch.search.SearchException::new, 36, UNKNOWN_VERSION_ADDED),
         MAPPER_EXCEPTION(org.opensearch.index.mapper.MapperException.class,
@@ -838,8 +852,10 @@ public class OpenSearchException extends RuntimeException implements ToXContentF
                 org.opensearch.indices.InvalidTypeNameException::new, 38, UNKNOWN_VERSION_ADDED),
         SNAPSHOT_RESTORE_EXCEPTION(org.opensearch.snapshots.SnapshotRestoreException.class,
                 org.opensearch.snapshots.SnapshotRestoreException::new, 39, UNKNOWN_VERSION_ADDED),
-        PARSING_EXCEPTION(org.opensearch.common.ParsingException.class, org.opensearch.common.ParsingException::new, 40,
-            UNKNOWN_VERSION_ADDED),
+        // #RF - already part of common OpenSearchExceptionDup
+
+        //PARSING_EXCEPTION(org.opensearch.common.ParsingException.class, org.opensearch.common.ParsingException::new, 40,
+        //    UNKNOWN_VERSION_ADDED),
         INDEX_SHARD_CLOSED_EXCEPTION(org.opensearch.index.shard.IndexShardClosedException.class,
                 org.opensearch.index.shard.IndexShardClosedException::new, 41, UNKNOWN_VERSION_ADDED),
         RECOVER_FILES_RECOVERY_EXCEPTION(org.opensearch.indices.recovery.RecoverFilesRecoveryException.class,
@@ -867,8 +883,9 @@ public class OpenSearchException extends RuntimeException implements ToXContentF
         // 54 was DocumentAlreadyExistsException, which is superseded by VersionConflictEngineException
         NO_SUCH_NODE_EXCEPTION(org.opensearch.action.NoSuchNodeException.class, org.opensearch.action.NoSuchNodeException::new, 55,
             UNKNOWN_VERSION_ADDED),
-        SETTINGS_EXCEPTION(org.opensearch.common.settings.SettingsException.class,
-                org.opensearch.common.settings.SettingsException::new, 56, UNKNOWN_VERSION_ADDED),
+        // #RF - already part of common OpenSearchExceptionDup
+        //SETTINGS_EXCEPTION(org.opensearch.mod.common.settings.SettingsException.class,
+        //        org.opensearch.mod.common.settings.SettingsException::new, 56, UNKNOWN_VERSION_ADDED),
         INDEX_TEMPLATE_MISSING_EXCEPTION(org.opensearch.indices.IndexTemplateMissingException.class,
                 org.opensearch.indices.IndexTemplateMissingException::new, 57, UNKNOWN_VERSION_ADDED),
         SEND_REQUEST_TRANSPORT_EXCEPTION(org.opensearch.transport.SendRequestTransportException.class,
@@ -876,8 +893,9 @@ public class OpenSearchException extends RuntimeException implements ToXContentF
         // 59 used to be OpenSearchRejectedExecutionException
         // 60 used to be for EarlyTerminationException
         // 61 used to be for RoutingValidationException
-        NOT_SERIALIZABLE_EXCEPTION_WRAPPER(org.opensearch.common.io.stream.NotSerializableExceptionWrapper.class,
-                org.opensearch.common.io.stream.NotSerializableExceptionWrapper::new, 62, UNKNOWN_VERSION_ADDED),
+        // #RF
+        //NOT_SERIALIZABLE_EXCEPTION_WRAPPER(org.opensearch.mod.common.io.stream.NotSerializableExceptionWrapper.class,
+        //        org.opensearch.mod.common.io.stream.NotSerializableExceptionWrapper::new, 62, UNKNOWN_VERSION_ADDED),
         ALIAS_FILTER_PARSING_EXCEPTION(org.opensearch.indices.AliasFilterParsingException.class,
                 org.opensearch.indices.AliasFilterParsingException::new, 63, UNKNOWN_VERSION_ADDED),
         // 64 was DeleteByQueryFailedEngineException, which was removed in 5.0
@@ -961,8 +979,9 @@ public class OpenSearchException extends RuntimeException implements ToXContentF
         DOCUMENT_SOURCE_MISSING_EXCEPTION(org.opensearch.index.engine.DocumentSourceMissingException.class,
                 org.opensearch.index.engine.DocumentSourceMissingException::new, 109, UNKNOWN_VERSION_ADDED),
         // 110 used to be FlushNotAllowedEngineException
-        NO_CLASS_SETTINGS_EXCEPTION(org.opensearch.common.settings.NoClassSettingsException.class,
-                org.opensearch.common.settings.NoClassSettingsException::new, 111, UNKNOWN_VERSION_ADDED),
+        // #RF - already part of common OpenSearchExceptionDup
+        //NO_CLASS_SETTINGS_EXCEPTION(org.opensearch.mod.common.settings.NoClassSettingsException.class,
+        //        org.opensearch.mod.common.settings.NoClassSettingsException::new, 111, UNKNOWN_VERSION_ADDED),
         BIND_TRANSPORT_EXCEPTION(org.opensearch.transport.BindTransportException.class,
                 org.opensearch.transport.BindTransportException::new, 112, UNKNOWN_VERSION_ADDED),
         ALIASES_NOT_FOUND_EXCEPTION(org.opensearch.rest.action.admin.indices.AliasesNotFoundException.class,
@@ -1001,8 +1020,9 @@ public class OpenSearchException extends RuntimeException implements ToXContentF
                 org.opensearch.action.UnavailableShardsException::new, 131, UNKNOWN_VERSION_ADDED),
         FLUSH_FAILED_ENGINE_EXCEPTION(org.opensearch.index.engine.FlushFailedEngineException.class,
                 org.opensearch.index.engine.FlushFailedEngineException::new, 132, UNKNOWN_VERSION_ADDED),
-        CIRCUIT_BREAKING_EXCEPTION(org.opensearch.common.breaker.CircuitBreakingException.class,
-                org.opensearch.common.breaker.CircuitBreakingException::new, 133, UNKNOWN_VERSION_ADDED),
+        // #RF - already part of common OpenSearchExceptionDup
+        //CIRCUIT_BREAKING_EXCEPTION(org.opensearch.mod.common.breaker.CircuitBreakingException.class,
+        //        org.opensearch.mod.common.breaker.CircuitBreakingException::new, 133, UNKNOWN_VERSION_ADDED),
         NODE_NOT_CONNECTED_EXCEPTION(org.opensearch.transport.NodeNotConnectedException.class,
                 org.opensearch.transport.NodeNotConnectedException::new, 134, UNKNOWN_VERSION_ADDED),
         STRICT_DYNAMIC_MAPPING_EXCEPTION(org.opensearch.index.mapper.StrictDynamicMappingException.class,
@@ -1104,12 +1124,13 @@ public class OpenSearchException extends RuntimeException implements ToXContentF
         return Arrays.stream(OpenSearchExceptionHandle.values()).mapToInt(h -> h.id).toArray();
     }
 
-    /**
+    /** #RF - defined in OpenSearchExceptionDup
      * Returns an array of all registered pairs of handle IDs and exception classes. These pairs are
      * provided for every registered exception.
      *
      * @return an array of all registered pairs of handle IDs and exception classes
      */
+    /*
     static Tuple<Integer, Class<? extends OpenSearchException>>[] classes() {
         @SuppressWarnings("unchecked")
         final Tuple<Integer, Class<? extends OpenSearchException>>[] ts =
@@ -1117,6 +1138,8 @@ public class OpenSearchException extends RuntimeException implements ToXContentF
                         .map(h -> Tuple.tuple(h.id, h.exceptionClass)).toArray(Tuple[]::new);
         return ts;
     }
+
+     */
 
     static {
         ID_TO_SUPPLIER = unmodifiableMap(Arrays

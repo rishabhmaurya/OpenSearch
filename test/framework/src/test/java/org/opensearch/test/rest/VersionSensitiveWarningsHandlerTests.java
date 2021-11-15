@@ -32,7 +32,7 @@
 
 package org.opensearch.test.rest;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.client.WarningsHandler;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.rest.OpenSearchRestTestCase.VersionSensitiveWarningsHandler;

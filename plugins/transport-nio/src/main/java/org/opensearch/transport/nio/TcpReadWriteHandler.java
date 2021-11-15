@@ -32,13 +32,13 @@
 
 package org.opensearch.transport.nio;
 
-import org.opensearch.common.breaker.CircuitBreaker;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.bytes.CompositeBytesReference;
-import org.opensearch.common.bytes.ReleasableBytesReference;
-import org.opensearch.common.lease.Releasable;
-import org.opensearch.common.lease.Releasables;
-import org.opensearch.common.util.PageCacheRecycler;
+import org.opensearch.mod.common.breaker.CircuitBreaker;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.CompositeBytesReference;
+import org.opensearch.mod.common.bytes.ReleasableBytesReference;
+import org.opensearch.mod.common.lease.Releasable;
+import org.opensearch.mod.common.lease.Releasables;
+import org.opensearch.mod.common.util.PageCacheRecycler;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.nio.BytesWriteHandler;
 import org.opensearch.nio.InboundChannelBuffer;

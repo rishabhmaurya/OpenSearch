@@ -31,10 +31,9 @@
 
 package org.opensearch.index.analysis;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.index.analysis.AnalysisTestsHelper;
 
 import java.io.IOException;
 

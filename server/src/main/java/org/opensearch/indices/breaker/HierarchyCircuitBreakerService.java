@@ -37,20 +37,24 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.common.Booleans;
 import org.opensearch.common.breaker.ChildMemoryCircuitBreaker;
-import org.opensearch.common.breaker.CircuitBreaker;
-import org.opensearch.common.breaker.CircuitBreakingException;
-import org.opensearch.common.breaker.NoopCircuitBreaker;
+import org.opensearch.mod.common.breaker.CircuitBreaker;
+import org.opensearch.mod.common.breaker.CircuitBreakingException;
+import org.opensearch.mod.common.breaker.NoopCircuitBreaker;
+import org.opensearch.mod.common.breaker.fromindices.breaker.AllCircuitBreakerStats;
+import org.opensearch.mod.common.breaker.fromindices.breaker.BreakerSettings;
+import org.opensearch.mod.common.breaker.fromindices.breaker.CircuitBreakerService;
+import org.opensearch.mod.common.breaker.fromindices.breaker.CircuitBreakerStats;
 import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.unit.ByteSizeUnit;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.ReleasableLock;
-import org.opensearch.monitor.jvm.GcNames;
-import org.opensearch.monitor.jvm.JvmInfo;
-
+import org.opensearch.mod.monitor.jvm.GcNames;
+import org.opensearch.mod.monitor.jvm.JvmInfo;
+//import org.opensearch.examplemodule.ExampleCBPlugin;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
@@ -65,8 +69,8 @@ import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 
-import static org.opensearch.indices.breaker.BreakerSettings.CIRCUIT_BREAKER_LIMIT_SETTING;
-import static org.opensearch.indices.breaker.BreakerSettings.CIRCUIT_BREAKER_OVERHEAD_SETTING;
+import static org.opensearch.mod.common.breaker.fromindices.breaker.BreakerSettings.CIRCUIT_BREAKER_LIMIT_SETTING;
+import static org.opensearch.mod.common.breaker.fromindices.breaker.BreakerSettings.CIRCUIT_BREAKER_OVERHEAD_SETTING;
 
 /**
  * CircuitBreakerService that attempts to redistribute space between breakers

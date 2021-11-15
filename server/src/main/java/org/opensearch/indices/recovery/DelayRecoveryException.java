@@ -33,7 +33,7 @@
 package org.opensearch.indices.recovery;
 
 import org.opensearch.OpenSearchException;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 
 import java.io.IOException;
 

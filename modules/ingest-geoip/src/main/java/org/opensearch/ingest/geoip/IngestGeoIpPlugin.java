@@ -42,7 +42,7 @@ import org.opensearch.common.SuppressForbidden;
 import org.opensearch.common.cache.Cache;
 import org.opensearch.common.cache.CacheBuilder;
 import org.opensearch.common.io.PathUtils;
-import org.opensearch.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.ingest.Processor;
 import org.opensearch.plugins.IngestPlugin;

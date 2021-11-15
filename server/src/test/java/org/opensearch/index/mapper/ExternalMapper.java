@@ -33,9 +33,9 @@
 package org.opensearch.index.mapper;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.opensearch.LegacyESVersion;
-import org.opensearch.common.collect.Iterators;
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.common.collect.Iterators;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.common.geo.builders.PointBuilder;
 import org.opensearch.geometry.Point;
 import org.opensearch.index.analysis.AnalyzerScope;

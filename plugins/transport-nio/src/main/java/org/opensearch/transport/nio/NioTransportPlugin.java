@@ -35,19 +35,19 @@ package org.opensearch.transport.nio;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.SetOnce;
-import org.opensearch.Version;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.common.network.NetworkService;
 import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.BigArrays;
-import org.opensearch.common.util.PageCacheRecycler;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.BigArrays;
+import org.opensearch.mod.common.util.PageCacheRecycler;
 import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.http.HttpServerTransport;
 import org.opensearch.http.nio.NioHttpServerTransport;
-import org.opensearch.indices.breaker.CircuitBreakerService;
+import org.opensearch.mod.common.breaker.fromindices.breaker.CircuitBreakerService;
 import org.opensearch.plugins.NetworkPlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.threadpool.ThreadPool;
@@ -59,7 +59,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import static org.opensearch.common.settings.Setting.intSetting;
+import static org.opensearch.mod.common.settings.Setting.intSetting;
 
 public class NioTransportPlugin extends Plugin implements NetworkPlugin {
 

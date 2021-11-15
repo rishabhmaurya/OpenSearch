@@ -32,8 +32,8 @@
 
 package org.opensearch.rest.action.document;
 
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentType;

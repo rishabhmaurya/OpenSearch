@@ -32,7 +32,7 @@
 
 package org.opensearch.action.admin.indices.upgrade.post;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.ack.ClusterStateUpdateRequest;
 import org.opensearch.common.collect.Tuple;
 

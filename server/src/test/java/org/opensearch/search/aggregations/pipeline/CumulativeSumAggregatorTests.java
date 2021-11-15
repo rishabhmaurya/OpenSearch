@@ -44,7 +44,7 @@ import org.apache.lucene.search.MatchNoDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.store.Directory;
 import org.opensearch.common.CheckedConsumer;
-import org.opensearch.common.time.DateFormatters;
+import org.opensearch.mod.common.time.DateFormatters;
 import org.opensearch.index.mapper.DateFieldMapper;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.index.mapper.NumberFieldMapper;

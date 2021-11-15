@@ -31,8 +31,8 @@
 
 package org.opensearch.env;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.gateway.MetadataStateFormat;
 import org.opensearch.test.OpenSearchTestCase;

@@ -33,10 +33,10 @@
 package org.opensearch.cluster.service;
 
 import org.opensearch.common.Priority;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.text.Text;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.text.Text;
 import org.opensearch.common.unit.TimeValue;
 
 import java.io.IOException;

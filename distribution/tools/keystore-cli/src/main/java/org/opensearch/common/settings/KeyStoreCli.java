@@ -33,7 +33,7 @@
 package org.opensearch.common.settings;
 
 import org.opensearch.cli.LoggingAwareMultiCommand;
-import org.opensearch.cli.Terminal;
+import org.opensearch.mod.cli.Terminal;
 
 /**
  * A cli tool for managing secrets in the opensearch keystore.

@@ -36,7 +36,7 @@ import com.carrotsearch.randomizedtesting.generators.RandomNumbers;
 import com.carrotsearch.randomizedtesting.generators.RandomPicks;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.LuceneTestCase;
-import org.opensearch.common.io.stream.InputStreamStreamInput;
+import org.opensearch.mod.common.io.stream.InputStreamStreamInput;
 import org.opensearch.core.internal.io.IOUtils;
 
 import java.io.IOException;

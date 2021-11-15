@@ -33,9 +33,9 @@
 package org.opensearch.search.suggest.completion;
 
 import org.apache.lucene.index.IndexableField;
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;

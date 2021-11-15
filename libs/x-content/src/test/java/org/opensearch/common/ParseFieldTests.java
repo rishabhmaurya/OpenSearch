@@ -31,7 +31,7 @@
 
 package org.opensearch.common;
 
-import org.opensearch.common.xcontent.LoggingDeprecationHandler;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.test.OpenSearchTestCase;
 
 import static org.hamcrest.CoreMatchers.is;

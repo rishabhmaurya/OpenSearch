@@ -33,14 +33,13 @@ package org.opensearch.action.admin.indices.template.put;
 
 import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.admin.indices.alias.Alias;
-import org.opensearch.common.collect.MapBuilder;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.collect.MapBuilder;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.test.AbstractXContentTestCase;
-import org.opensearch.action.admin.indices.template.put.PutIndexTemplateRequest;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;

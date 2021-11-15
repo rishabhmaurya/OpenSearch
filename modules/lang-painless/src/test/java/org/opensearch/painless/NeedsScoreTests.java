@@ -32,7 +32,7 @@
 
 package org.opensearch.painless;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.query.QueryShardContext;
 import org.opensearch.painless.spi.Whitelist;

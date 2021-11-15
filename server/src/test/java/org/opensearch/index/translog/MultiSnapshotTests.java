@@ -34,7 +34,7 @@ package org.opensearch.index.translog;
 
 import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.LongSet;
-import org.opensearch.common.Randomness;
+import org.opensearch.mod.common.Randomness;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.List;

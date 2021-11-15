@@ -33,14 +33,14 @@
 package org.opensearch.search.sort;
 
 import org.apache.lucene.index.LeafReaderContext;
-import org.opensearch.common.lease.Releasable;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.BigArrays;
-import org.opensearch.common.util.BitArray;
-import org.opensearch.common.util.IntArray;
+import org.opensearch.mod.common.lease.Releasable;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.BigArrays;
+import org.opensearch.mod.common.util.BitArray;
+import org.opensearch.mod.common.util.IntArray;
 import org.opensearch.common.util.MockBigArrays;
 import org.opensearch.common.util.MockPageCacheRecycler;
-import org.opensearch.indices.breaker.NoneCircuitBreakerService;
+import org.opensearch.mod.common.breaker.fromindices.breaker.NoneCircuitBreakerService;
 import org.opensearch.search.DocValueFormat;
 import org.opensearch.test.OpenSearchTestCase;
 

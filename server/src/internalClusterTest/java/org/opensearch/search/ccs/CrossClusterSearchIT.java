@@ -37,7 +37,7 @@ import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.support.PlainActionFuture;
 import org.opensearch.client.Client;
 import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.index.shard.SearchOperationListener;

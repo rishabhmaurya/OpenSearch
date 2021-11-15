@@ -33,9 +33,9 @@
 package org.opensearch.action.get;
 
 import org.opensearch.common.ParsingException;
-import org.opensearch.common.Strings;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.document.DocumentField;
 import org.opensearch.common.xcontent.ToXContent;
@@ -48,7 +48,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.function.Predicate;
 
-import static org.opensearch.common.xcontent.XContentHelper.toXContent;
+import static org.opensearch.mod.common.xcontent.XContentHelper.toXContent;
 import static org.opensearch.index.get.GetResultTests.copyGetResult;
 import static org.opensearch.index.get.GetResultTests.mutateGetResult;
 import static org.opensearch.index.get.GetResultTests.randomGetResult;

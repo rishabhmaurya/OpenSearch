@@ -33,7 +33,7 @@ package org.opensearch.discovery;
 
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.concurrent.ConcurrentCollections;
+import org.opensearch.mod.common.util.concurrent.ConcurrentCollections;
 
 import java.util.Collections;
 import java.util.Set;

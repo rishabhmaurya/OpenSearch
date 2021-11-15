@@ -35,7 +35,7 @@ package org.opensearch.index.query;
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.regex.Regex;
+import org.opensearch.mod.common.regex.Regex;
 import org.opensearch.transport.RemoteClusterAware;
 
 import java.util.function.Predicate;

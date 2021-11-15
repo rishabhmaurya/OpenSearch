@@ -31,8 +31,8 @@
 
 package org.opensearch.test;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
 import org.opensearch.common.Booleans;
 import org.opensearch.common.collect.Tuple;
 

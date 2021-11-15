@@ -35,7 +35,7 @@ package org.opensearch.cluster;
 import org.apache.lucene.search.join.ScoreMode;
 import org.opensearch.action.admin.cluster.configuration.AddVotingConfigExclusionsAction;
 import org.opensearch.action.admin.cluster.configuration.AddVotingConfigExclusionsRequest;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.discovery.MasterNotDiscoveredException;
 import org.opensearch.index.query.QueryBuilders;

@@ -34,7 +34,7 @@
 package org.opensearch.transport;
 
 import org.opensearch.action.ActionListener;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.test.OpenSearchTestCase;
 

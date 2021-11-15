@@ -39,7 +39,7 @@ import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.util.Accountable;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.util.BigArrays;
+import org.opensearch.mod.common.util.BigArrays;
 import org.opensearch.index.fielddata.IndexFieldData.XFieldComparatorSource.Nested;
 import org.opensearch.index.fielddata.IndexOrdinalsFieldData;
 import org.opensearch.index.fielddata.LeafOrdinalsFieldData;

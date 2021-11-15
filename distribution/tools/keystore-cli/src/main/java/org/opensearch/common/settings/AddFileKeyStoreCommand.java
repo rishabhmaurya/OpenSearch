@@ -34,12 +34,13 @@ package org.opensearch.common.settings;
 
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
-import org.opensearch.cli.ExitCodes;
-import org.opensearch.cli.Terminal;
-import org.opensearch.cli.UserException;
+import org.opensearch.mod.cli.ExitCodes;
+import org.opensearch.mod.cli.Terminal;
+import org.opensearch.mod.cli.UserException;
 import org.opensearch.common.SuppressForbidden;
 import org.opensearch.common.io.PathUtils;
 import org.opensearch.env.Environment;
+import org.opensearch.mod.common.settings.KeyStoreWrapper;
 
 import java.nio.file.Files;
 import java.nio.file.Path;

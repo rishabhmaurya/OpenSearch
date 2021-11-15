@@ -40,7 +40,7 @@ import org.opensearch.cluster.coordination.FollowersChecker;
 import org.opensearch.cluster.coordination.LeaderChecker;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.index.IndexService;
 import org.opensearch.plugins.Plugin;

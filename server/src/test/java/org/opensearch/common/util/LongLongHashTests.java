@@ -32,8 +32,10 @@
 
 package org.opensearch.common.util;
 
-import org.opensearch.common.settings.Settings;
-import org.opensearch.indices.breaker.NoneCircuitBreakerService;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.breaker.fromindices.breaker.NoneCircuitBreakerService;
+import org.opensearch.mod.common.util.BigArrays;
+import org.opensearch.mod.common.util.LongLongHash;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.ArrayList;

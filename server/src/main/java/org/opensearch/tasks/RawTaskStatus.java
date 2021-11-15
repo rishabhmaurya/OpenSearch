@@ -32,19 +32,19 @@
 
 package org.opensearch.tasks;
 
-import org.opensearch.common.Strings;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
 import org.opensearch.common.xcontent.XContentBuilder;
-import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.mod.common.xcontent.XContentHelper;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
-import static org.opensearch.common.xcontent.XContentHelper.convertToMap;
+import static org.opensearch.mod.common.xcontent.XContentHelper.convertToMap;
 
 /**
  * Raw, unparsed status from the task results index.

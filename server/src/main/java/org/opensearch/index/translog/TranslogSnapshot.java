@@ -31,7 +31,7 @@
 
 package org.opensearch.index.translog;
 
-import org.opensearch.common.io.Channels;
+import org.opensearch.mod.common.io.Channels;
 import org.opensearch.index.seqno.SequenceNumbers;
 
 import java.io.EOFException;

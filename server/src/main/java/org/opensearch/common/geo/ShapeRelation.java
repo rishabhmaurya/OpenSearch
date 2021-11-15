@@ -33,9 +33,9 @@
 package org.opensearch.common.geo;
 
 import org.apache.lucene.document.ShapeField.QueryRelation;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.Writeable;
 
 import java.io.IOException;
 import java.util.Locale;

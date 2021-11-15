@@ -32,12 +32,11 @@
 package org.opensearch.action.support;
 
 import org.opensearch.action.ActionListener;
-import org.opensearch.common.util.concurrent.AbstractRunnable;
+import org.opensearch.mod.common.util.concurrent.AbstractRunnable;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.threadpool.TestThreadPool;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.Transports;
-import org.opensearch.action.support.PlainListenableActionFuture;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;

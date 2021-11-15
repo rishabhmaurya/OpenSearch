@@ -39,10 +39,10 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.NIOFSDirectory;
 import org.opensearch.OpenSearchException;
 import org.opensearch.core.internal.io.IOUtils;
-import org.opensearch.common.io.FileSystemUtils;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.io.FileSystemUtils;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 
 import java.io.IOException;

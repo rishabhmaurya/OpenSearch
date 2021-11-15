@@ -32,7 +32,8 @@
 
 package org.opensearch.common.unit;
 
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.unit.RatioValue;
 import org.opensearch.test.OpenSearchTestCase;
 
 import static org.hamcrest.Matchers.is;

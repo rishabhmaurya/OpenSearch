@@ -44,7 +44,7 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.BitSetIterator;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.common.document.DocumentField;
 import org.opensearch.common.lucene.search.Queries;
 import org.opensearch.search.fetch.FetchContext;

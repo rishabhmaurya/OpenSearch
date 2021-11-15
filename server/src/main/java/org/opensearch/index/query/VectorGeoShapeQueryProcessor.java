@@ -37,7 +37,7 @@ import org.apache.lucene.geo.GeoEncodingUtils;
 import org.apache.lucene.geo.LatLonGeometry;
 import org.apache.lucene.search.MatchNoDocsQuery;
 import org.apache.lucene.search.Query;
-import org.opensearch.LegacyESVersion;
+import org.opensearch.mod.LegacyESVersion;
 import org.opensearch.common.geo.GeoLineDecomposer;
 import org.opensearch.common.geo.GeoPolygonDecomposer;
 import org.opensearch.common.geo.GeoShapeUtils;

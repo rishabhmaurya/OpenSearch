@@ -31,7 +31,7 @@
 
 package org.opensearch.cluster.routing;
 
-import org.opensearch.common.util.Countable;
+import org.opensearch.mod.common.util.Countable;
 
 import java.util.List;
 

@@ -33,8 +33,8 @@
 package org.opensearch.index.translog;
 
 import org.apache.lucene.store.BufferedChecksum;
-import org.opensearch.common.io.stream.FilterStreamInput;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.FilterStreamInput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 
 import java.io.IOException;
 import java.util.zip.CRC32;

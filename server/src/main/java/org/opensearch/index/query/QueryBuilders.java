@@ -33,8 +33,8 @@
 package org.opensearch.index.query;
 
 import org.apache.lucene.search.join.ScoreMode;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.common.geo.ShapeRelation;
 import org.opensearch.common.geo.builders.ShapeBuilder;
 import org.opensearch.geometry.Geometry;

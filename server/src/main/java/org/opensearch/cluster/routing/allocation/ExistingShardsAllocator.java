@@ -37,7 +37,7 @@ import org.opensearch.cluster.routing.RoutingNodes;
 import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.cluster.routing.UnassignedInfo;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting;
 import org.opensearch.gateway.GatewayAllocator;
 
 import java.util.List;

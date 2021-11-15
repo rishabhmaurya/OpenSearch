@@ -32,7 +32,7 @@
 
 package org.opensearch.snapshots;
 
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.test.AbstractWireSerializingTestCase;
 import org.opensearch.test.OpenSearchTestCase;

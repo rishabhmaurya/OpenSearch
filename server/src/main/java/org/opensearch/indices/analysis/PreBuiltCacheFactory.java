@@ -32,7 +32,7 @@
 package org.opensearch.indices.analysis;
 
 import org.opensearch.OpenSearchException;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -134,7 +134,7 @@ public class PreBuiltCacheFactory {
         }
 
         @Override
-        public void put(org.opensearch.Version version, T model) {
+        public void put(Version version, T model) {
             mapModel.put(version.luceneVersion, model);
         }
 

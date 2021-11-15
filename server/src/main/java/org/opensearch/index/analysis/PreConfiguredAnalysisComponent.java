@@ -32,8 +32,9 @@
 
 package org.opensearch.index.analysis;
 
-import org.opensearch.Version;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.Version;
+import org.opensearch.VersionUtil;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.indices.analysis.AnalysisModule;
@@ -60,7 +61,7 @@ public abstract class PreConfiguredAnalysisComponent<T> implements AnalysisModul
 
     @Override
     public T get(IndexSettings indexSettings, Environment environment, String name, Settings settings) throws IOException {
-        Version versionCreated = Version.indexCreated(settings);
+        Version versionCreated = VersionUtil.indexCreated(settings);
         synchronized (this) {
             T factory = cache.get(versionCreated);
             if (factory == null) {

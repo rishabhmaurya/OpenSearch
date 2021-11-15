@@ -50,7 +50,7 @@ import com.amazonaws.services.s3.model.UploadPartResult;
 import org.opensearch.common.blobstore.BlobPath;
 import org.opensearch.common.blobstore.BlobStoreException;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
 import org.opensearch.test.OpenSearchTestCase;
 import org.mockito.ArgumentCaptor;
 

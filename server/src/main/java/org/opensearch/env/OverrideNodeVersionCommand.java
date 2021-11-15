@@ -34,8 +34,8 @@ package org.opensearch.env;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import org.opensearch.OpenSearchException;
-import org.opensearch.Version;
-import org.opensearch.cli.Terminal;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.cli.Terminal;
 import org.opensearch.cluster.coordination.OpenSearchNodeCommand;
 import org.opensearch.gateway.PersistedClusterStateService;
 

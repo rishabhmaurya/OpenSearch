@@ -32,8 +32,8 @@
 
 package org.opensearch.search.suggest.completion;
 
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.json.JsonXContent;

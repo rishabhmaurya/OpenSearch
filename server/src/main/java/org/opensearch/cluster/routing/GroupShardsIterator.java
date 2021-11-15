@@ -33,7 +33,7 @@
 package org.opensearch.cluster.routing;
 
 import org.apache.lucene.util.CollectionUtil;
-import org.opensearch.common.util.Countable;
+import org.opensearch.mod.common.util.Countable;
 
 import java.util.Iterator;
 import java.util.List;

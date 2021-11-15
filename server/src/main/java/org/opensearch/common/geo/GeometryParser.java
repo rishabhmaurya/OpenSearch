@@ -32,8 +32,8 @@
 
 package org.opensearch.common.geo;
 
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.common.xcontent.LoggingDeprecationHandler;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.support.MapXContentParser;
@@ -43,6 +43,7 @@ import org.opensearch.geometry.Point;
 import org.opensearch.geometry.utils.GeometryValidator;
 import org.opensearch.geometry.utils.StandardValidator;
 import org.opensearch.geometry.utils.WellKnownText;
+import org.opensearch.mod.common.geo.GeoPoint;
 
 import java.io.IOException;
 import java.text.ParseException;

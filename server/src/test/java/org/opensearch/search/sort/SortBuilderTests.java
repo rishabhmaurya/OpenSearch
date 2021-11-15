@@ -32,9 +32,9 @@ x * Licensed to Elasticsearch under one or more contributor
 
 package org.opensearch.search.sort;
 
-import org.opensearch.common.Strings;
-import org.opensearch.common.geo.GeoPoint;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.geo.GeoPoint;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;

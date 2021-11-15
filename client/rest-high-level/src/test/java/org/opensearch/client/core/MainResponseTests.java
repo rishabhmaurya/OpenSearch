@@ -32,9 +32,9 @@
 
 package org.opensearch.client.core;
 
-import org.opensearch.Build;
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
+import org.opensearch.mod.Build;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
 import org.opensearch.client.AbstractResponseTestCase;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.common.xcontent.XContentParser;

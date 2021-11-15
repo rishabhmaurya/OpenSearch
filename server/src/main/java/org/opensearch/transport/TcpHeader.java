@@ -32,9 +32,9 @@
 
 package org.opensearch.transport;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
-import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.io.stream.StreamOutput;
 
 import java.io.IOException;
 

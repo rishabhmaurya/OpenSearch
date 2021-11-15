@@ -34,7 +34,7 @@ package org.opensearch.docker.test;
 import com.carrotsearch.randomizedtesting.annotations.ParametersFactory;
 import org.junit.Before;
 import org.opensearch.client.Request;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.rest.yaml.ClientYamlTestCandidate;
 import org.opensearch.test.rest.yaml.OpenSearchClientYamlSuiteTestCase;
 

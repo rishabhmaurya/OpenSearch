@@ -60,7 +60,7 @@ import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.FutureArrays;
 import org.opensearch.common.CheckedConsumer;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.index.mapper.NumberFieldMapper;
 import org.opensearch.script.MockScriptEngine;

@@ -37,7 +37,7 @@ import org.opensearch.action.index.IndexRequestBuilder;
 import org.opensearch.cluster.ClusterInfoService;
 import org.opensearch.cluster.InternalClusterInfoService;
 import org.opensearch.cluster.routing.allocation.DiskThresholdSettings;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.index.IndexNotFoundException;
 import org.opensearch.index.query.QueryBuilders;

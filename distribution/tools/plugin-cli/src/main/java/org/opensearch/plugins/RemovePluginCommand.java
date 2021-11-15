@@ -35,9 +35,9 @@ package org.opensearch.plugins;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
 import org.opensearch.cli.EnvironmentAwareCommand;
-import org.opensearch.cli.ExitCodes;
-import org.opensearch.cli.Terminal;
-import org.opensearch.cli.UserException;
+import org.opensearch.mod.cli.ExitCodes;
+import org.opensearch.mod.cli.Terminal;
+import org.opensearch.mod.cli.UserException;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.env.Environment;
 
@@ -53,7 +53,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.opensearch.cli.Terminal.Verbosity.VERBOSE;
+import static org.opensearch.mod.cli.Terminal.Verbosity.VERBOSE;
 
 /**
  * A command for the plugin CLI to remove a plugin from OpenSearch.

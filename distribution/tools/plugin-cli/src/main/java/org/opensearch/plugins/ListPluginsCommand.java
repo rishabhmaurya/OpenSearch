@@ -33,9 +33,9 @@
 package org.opensearch.plugins;
 
 import joptsimple.OptionSet;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cli.EnvironmentAwareCommand;
-import org.opensearch.cli.Terminal;
+import org.opensearch.mod.cli.Terminal;
 import org.opensearch.env.Environment;
 
 import java.io.IOException;

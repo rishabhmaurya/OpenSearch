@@ -37,7 +37,7 @@ import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.lucene87.Lucene87Codec;
 import org.apache.lucene.codecs.lucene87.Lucene87Codec.Mode;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.collect.MapBuilder;
+import org.opensearch.mod.common.collect.MapBuilder;
 import org.opensearch.index.mapper.MapperService;
 
 import java.util.Map;

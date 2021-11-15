@@ -34,11 +34,11 @@ package org.opensearch.index.translog;
 
 import org.apache.lucene.store.ByteArrayDataOutput;
 import org.opensearch.common.UUIDs;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.ReleasableBytesReference;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.ReleasableBytesReference;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.lease.Releasable;
-import org.opensearch.common.util.BigArrays;
+import org.opensearch.mod.common.lease.Releasable;
+import org.opensearch.mod.common.util.BigArrays;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.index.seqno.RetentionLease;
 import org.opensearch.index.seqno.RetentionLeases;

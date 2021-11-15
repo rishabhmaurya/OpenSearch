@@ -32,6 +32,7 @@
 
 package org.opensearch.common.util;
 
+import org.opensearch.mod.common.util.Maps;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.Arrays;

@@ -32,6 +32,7 @@
 package org.opensearch.common.util.concurrent;
 
 import org.opensearch.common.Priority;
+import org.opensearch.mod.common.util.concurrent.WrappedRunnable;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;

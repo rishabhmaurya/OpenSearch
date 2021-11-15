@@ -36,7 +36,7 @@ import org.apache.lucene.util.Constants;
 import org.opensearch.bootstrap.BootstrapInfo;
 import org.opensearch.test.OpenSearchTestCase;
 
-import static org.opensearch.monitor.jvm.JvmInfo.jvmInfo;
+import static org.opensearch.mod.monitor.jvm.JvmInfo.jvmInfo;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.equalTo;

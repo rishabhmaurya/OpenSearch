@@ -32,8 +32,8 @@
 
 package org.opensearch.search.suggest.completion;
 
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
-import org.opensearch.common.unit.Fuzziness;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.unit.Fuzziness;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;

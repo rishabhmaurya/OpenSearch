@@ -32,14 +32,13 @@
 
 package org.opensearch.action.admin.cluster.settings;
 
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentParseException;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.XContentTestUtils;
-import org.opensearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 
 import java.io.IOException;
 import java.util.Collections;

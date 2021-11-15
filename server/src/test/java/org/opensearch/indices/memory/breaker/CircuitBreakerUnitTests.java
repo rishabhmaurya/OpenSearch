@@ -32,9 +32,9 @@
 
 package org.opensearch.indices.memory.breaker;
 
-import org.opensearch.common.breaker.CircuitBreaker;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.indices.breaker.BreakerSettings;
+import org.opensearch.mod.common.breaker.CircuitBreaker;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.breaker.fromindices.breaker.BreakerSettings;
 import org.opensearch.indices.breaker.HierarchyCircuitBreakerService;
 import org.opensearch.test.OpenSearchTestCase;
 

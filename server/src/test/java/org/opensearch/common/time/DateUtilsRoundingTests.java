@@ -32,6 +32,7 @@
 
 package org.opensearch.common.time;
 
+import org.opensearch.mod.common.time.DateUtilsRounding;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.time.ZoneOffset;

@@ -32,7 +32,7 @@
 
 package org.opensearch.painless.api;
 
-import org.opensearch.common.hash.MessageDigests;
+import org.opensearch.mod.common.hash.MessageDigests;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;

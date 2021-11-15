@@ -9,11 +9,11 @@
 package org.opensearch.upgrade;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.opensearch.Version;
-import org.opensearch.cli.Terminal;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.cli.Terminal;
 import org.opensearch.common.SuppressForbidden;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 
 import java.io.File;
 import java.io.IOException;

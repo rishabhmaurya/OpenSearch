@@ -32,9 +32,11 @@
 
 package org.opensearch.common.settings;
 
-import org.opensearch.common.Strings;
-import org.opensearch.common.regex.Regex;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.regex.Regex;
 import org.opensearch.common.xcontent.ToXContent.Params;
+import org.opensearch.mod.common.settings.AbstractScopedSettings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.rest.RestRequest;
 
 import java.util.ArrayList;

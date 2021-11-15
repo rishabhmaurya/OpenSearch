@@ -59,7 +59,7 @@ class org.opensearch.painless.api.Debug {
 
 #### ES Scripting API
 
-class org.opensearch.common.geo.GeoPoint {
+class org.opensearch.mod.common.geo.GeoPoint {
   double getLat()
   double getLon()
 }
@@ -74,7 +74,7 @@ class org.opensearch.index.fielddata.ScriptDocValues$Longs {
   long getValue()
 }
 
-class org.opensearch.script.JodaCompatibleZonedDateTime {
+class org.opensearch.mod.common.time.JodaCompatibleZonedDateTime {
   ##### ZonedDateTime methods
   int getDayOfMonth()
   int getDayOfYear()
@@ -160,8 +160,8 @@ class org.opensearch.index.fielddata.ScriptDocValues$Doubles {
 }
 
 class org.opensearch.index.fielddata.ScriptDocValues$GeoPoints {
-  org.opensearch.common.geo.GeoPoint get(int)
-  org.opensearch.common.geo.GeoPoint getValue()
+  org.opensearch.mod.common.geo.GeoPoint get(int)
+  org.opensearch.mod.common.geo.GeoPoint getValue()
   double getLat()
   double getLon()
   double[] getLats()

@@ -32,6 +32,7 @@
 
 package org.opensearch.common.time;
 
+import org.opensearch.mod.common.time.DateUtils;
 import org.opensearch.test.OpenSearchTestCase;
 import org.joda.time.DateTimeZone;
 
@@ -48,11 +49,11 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.opensearch.common.time.DateUtils.clampToNanosRange;
-import static org.opensearch.common.time.DateUtils.toInstant;
-import static org.opensearch.common.time.DateUtils.toLong;
-import static org.opensearch.common.time.DateUtils.toMilliSeconds;
-import static org.opensearch.common.time.DateUtils.toNanoSeconds;
+import static org.opensearch.mod.common.time.DateUtils.clampToNanosRange;
+import static org.opensearch.mod.common.time.DateUtils.toInstant;
+import static org.opensearch.mod.common.time.DateUtils.toLong;
+import static org.opensearch.mod.common.time.DateUtils.toMilliSeconds;
+import static org.opensearch.mod.common.time.DateUtils.toNanoSeconds;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;

@@ -38,7 +38,7 @@ import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexOutput;
 import org.opensearch.common.lucene.store.FilterIndexOutput;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.SingleObjectCache;
+import org.opensearch.mod.common.util.SingleObjectCache;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;

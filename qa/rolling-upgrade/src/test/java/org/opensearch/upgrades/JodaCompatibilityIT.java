@@ -33,14 +33,14 @@ package org.opensearch.upgrades;
 
 import org.apache.http.HttpStatus;
 import org.apache.http.util.EntityUtils;
-import org.opensearch.LegacyESVersion;
+import org.opensearch.mod.LegacyESVersion;
 import org.opensearch.client.Node;
 import org.opensearch.client.Request;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.Response;
 import org.opensearch.client.WarningsHandler;
 import org.opensearch.common.Booleans;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.search.DocValueFormat;
 import org.junit.BeforeClass;
 

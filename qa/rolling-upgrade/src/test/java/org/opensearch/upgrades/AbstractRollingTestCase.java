@@ -31,8 +31,8 @@
 
 package org.opensearch.upgrades;
 
-import org.opensearch.Version;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.rest.OpenSearchRestTestCase;
 
 public abstract class AbstractRollingTestCase extends OpenSearchRestTestCase {

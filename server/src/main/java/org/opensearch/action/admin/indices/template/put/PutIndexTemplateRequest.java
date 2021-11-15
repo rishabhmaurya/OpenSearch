@@ -31,30 +31,30 @@
 
 package org.opensearch.action.admin.indices.template.put;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.OpenSearchGenerationException;
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.OpenSearchGenerationException;
+import org.opensearch.mod.OpenSearchParseException;
 import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.IndicesRequest;
 import org.opensearch.action.admin.indices.alias.Alias;
 import org.opensearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.action.support.master.MasterNodeRequest;
-import org.opensearch.common.Strings;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.collect.MapBuilder;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.logging.DeprecationLogger;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.collect.MapBuilder;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.DeprecationHandler;
-import org.opensearch.common.xcontent.LoggingDeprecationHandler;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
-import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.mod.common.xcontent.XContentHelper;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.common.xcontent.json.JsonXContent;
@@ -71,9 +71,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.opensearch.action.ValidateActions.addValidationError;
-import static org.opensearch.common.settings.Settings.Builder.EMPTY_SETTINGS;
-import static org.opensearch.common.settings.Settings.readSettingsFromStream;
-import static org.opensearch.common.settings.Settings.writeSettingsToStream;
+import static org.opensearch.mod.common.settings.Settings.Builder.EMPTY_SETTINGS;
+import static org.opensearch.mod.common.settings.Settings.readSettingsFromStream;
+import static org.opensearch.mod.common.settings.Settings.writeSettingsToStream;
 
 /**
  * A request to create an index template.

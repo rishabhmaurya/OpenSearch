@@ -32,7 +32,7 @@
 
 package org.opensearch.common.xcontent.smile;
 
-import org.opensearch.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentGenerator;
 import org.opensearch.common.xcontent.XContentParser;

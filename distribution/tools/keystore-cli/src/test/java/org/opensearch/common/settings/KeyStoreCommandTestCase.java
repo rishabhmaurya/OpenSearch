@@ -50,6 +50,8 @@ import org.opensearch.env.Environment;
 import org.opensearch.env.TestEnvironment;
 import org.junit.After;
 import org.junit.Before;
+import org.opensearch.mod.common.settings.KeyStoreWrapper;
+import org.opensearch.mod.common.settings.Settings;
 
 /**
  * Base test case for manipulating the OpenSearch keystore.

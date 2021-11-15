@@ -33,11 +33,11 @@
 package org.opensearch.test.rest.yaml.section;
 
 import org.apache.http.HttpHost;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.client.Node;
 import org.opensearch.client.NodeSelector;
 import org.opensearch.common.ParsingException;
-import org.opensearch.common.logging.HeaderWarning;
+import org.opensearch.mod.common.logging.HeaderWarning;
 import org.opensearch.common.xcontent.XContentLocation;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.yaml.YamlXContent;

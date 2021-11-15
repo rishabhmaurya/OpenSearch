@@ -33,8 +33,8 @@
 package org.opensearch.painless;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.opensearch.common.breaker.CircuitBreakingException;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.breaker.CircuitBreakingException;
+import org.opensearch.mod.common.settings.Settings;
 
 import java.util.Collections;
 

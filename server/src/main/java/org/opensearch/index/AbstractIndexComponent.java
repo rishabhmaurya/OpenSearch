@@ -33,7 +33,7 @@
 package org.opensearch.index;
 
 import org.apache.logging.log4j.Logger;
-import org.opensearch.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.logging.DeprecationLogger;
 import org.opensearch.common.logging.Loggers;
 
 public abstract class AbstractIndexComponent implements IndexComponent {

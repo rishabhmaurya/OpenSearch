@@ -34,8 +34,8 @@ package org.opensearch.bootstrap;
 
 import org.apache.lucene.util.Constants;
 import org.apache.lucene.util.LuceneTestCase;
-import org.opensearch.Version;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 import org.opensearch.env.TestEnvironment;
 import org.opensearch.plugins.PluginTestUtil;

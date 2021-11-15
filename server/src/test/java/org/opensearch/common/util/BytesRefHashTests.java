@@ -38,8 +38,10 @@ import com.carrotsearch.hppc.cursors.ObjectLongCursor;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
 import org.apache.lucene.util.TestUtil;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.indices.breaker.NoneCircuitBreakerService;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.breaker.fromindices.breaker.NoneCircuitBreakerService;
+import org.opensearch.mod.common.util.BigArrays;
+import org.opensearch.mod.common.util.BytesRefHash;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.HashMap;

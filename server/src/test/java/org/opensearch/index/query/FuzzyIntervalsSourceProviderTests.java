@@ -32,8 +32,8 @@
 
 package org.opensearch.index.query;
 
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.unit.Fuzziness;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.unit.Fuzziness;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.index.query.IntervalsSourceProvider.Fuzzy;
 import org.opensearch.test.AbstractSerializingTestCase;

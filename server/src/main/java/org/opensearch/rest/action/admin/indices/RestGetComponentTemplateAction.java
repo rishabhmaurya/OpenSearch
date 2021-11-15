@@ -34,10 +34,10 @@ package org.opensearch.rest.action.admin.indices;
 
 import org.opensearch.action.admin.indices.template.get.GetComponentTemplateAction;
 import org.opensearch.client.node.NodeClient;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.RestRequest;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 import org.opensearch.rest.action.RestToXContentListener;
 
 import java.io.IOException;
@@ -47,8 +47,8 @@ import java.util.Set;
 
 import static org.opensearch.rest.RestRequest.Method.GET;
 import static org.opensearch.rest.RestRequest.Method.HEAD;
-import static org.opensearch.rest.RestStatus.NOT_FOUND;
-import static org.opensearch.rest.RestStatus.OK;
+import static org.opensearch.mod.rest.RestStatus.NOT_FOUND;
+import static org.opensearch.mod.rest.RestStatus.OK;
 
 public class RestGetComponentTemplateAction extends BaseRestHandler {
 

@@ -36,6 +36,7 @@ import org.opensearch.action.ActionListener;
 import org.opensearch.action.ActionRunnable;
 import org.opensearch.action.support.ContextPreservingActionListener;
 import org.opensearch.common.collect.Tuple;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 
 import java.util.ArrayList;
 import java.util.List;

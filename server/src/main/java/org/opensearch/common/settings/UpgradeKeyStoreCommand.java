@@ -33,8 +33,9 @@
 package org.opensearch.common.settings;
 
 import joptsimple.OptionSet;
-import org.opensearch.cli.Terminal;
+import org.opensearch.mod.cli.Terminal;
 import org.opensearch.env.Environment;
+import org.opensearch.mod.common.settings.KeyStoreWrapper;
 
 /**
  * A sub-command for the keystore CLI that enables upgrading the keystore format.

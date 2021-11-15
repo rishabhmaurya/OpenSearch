@@ -33,7 +33,7 @@
 package org.opensearch.search.suggest.phrase;
 
 import org.opensearch.common.ParsingException;
-import org.opensearch.common.io.stream.NamedWriteable;
+import org.opensearch.mod.common.io.stream.NamedWriteable;
 import org.opensearch.common.xcontent.ToXContentFragment;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;

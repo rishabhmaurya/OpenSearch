@@ -32,13 +32,13 @@
 
 package org.opensearch.index.mapper;
 
-import org.opensearch.LegacyESVersion;
+import org.opensearch.mod.LegacyESVersion;
 import org.opensearch.common.Explicit;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.Strings;
-import org.opensearch.common.logging.DeprecationLogger;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.time.DateFormatter;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.time.DateFormatter;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.index.mapper.DynamicTemplate.XContentFieldType;

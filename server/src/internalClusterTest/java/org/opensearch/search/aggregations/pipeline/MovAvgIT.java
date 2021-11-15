@@ -39,7 +39,7 @@ import org.opensearch.action.search.SearchPhaseExecutionException;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.support.WriteRequest;
 import org.opensearch.client.Client;
-import org.opensearch.common.collect.EvictingQueue;
+import org.opensearch.mod.common.collect.EvictingQueue;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram.Bucket;

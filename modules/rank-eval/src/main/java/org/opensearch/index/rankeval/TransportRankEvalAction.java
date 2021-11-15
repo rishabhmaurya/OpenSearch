@@ -40,10 +40,10 @@ import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
 import org.opensearch.client.Client;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.inject.Inject;
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.xcontent.LoggingDeprecationHandler;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.inject.Inject;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
@@ -63,7 +63,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.opensearch.common.xcontent.XContentHelper.createParser;
+import static org.opensearch.mod.common.xcontent.XContentHelper.createParser;
 import static org.opensearch.index.rankeval.RatedRequest.validateEvaluatedQuery;
 
 /**

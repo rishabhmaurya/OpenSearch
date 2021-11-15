@@ -8,10 +8,10 @@
 
 package org.opensearch.upgrades;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
-import org.opensearch.common.io.Streams;
+import org.opensearch.mod.common.io.Streams;
 
 import java.io.IOException;
 

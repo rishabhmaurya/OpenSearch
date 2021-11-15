@@ -34,8 +34,8 @@ package org.opensearch.search.aggregations.pipeline;
 
 import org.opensearch.action.index.IndexRequestBuilder;
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.common.time.DateFormatter;
-import org.opensearch.common.time.DateFormatters;
+import org.opensearch.mod.common.time.DateFormatter;
+import org.opensearch.mod.common.time.DateFormatters;
 import org.opensearch.search.aggregations.InternalAggregation;
 import org.opensearch.search.aggregations.InternalMultiBucketAggregation;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramInterval;

@@ -32,9 +32,9 @@
 
 package org.opensearch.common.settings;
 
-import org.opensearch.cli.Command;
-import org.opensearch.cli.ExitCodes;
-import org.opensearch.cli.UserException;
+import org.opensearch.mod.cli.Command;
+import org.opensearch.mod.cli.ExitCodes;
+import org.opensearch.mod.cli.UserException;
 import org.opensearch.env.Environment;
 
 import java.util.Map;

@@ -33,7 +33,7 @@
 package org.opensearch.plugins.spi;
 
 import org.opensearch.common.ParseField;
-import org.opensearch.common.io.Streams;
+import org.opensearch.mod.common.io.Streams;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.search.aggregations.Aggregation;
 import org.opensearch.search.aggregations.pipeline.ParsedSimpleValue;

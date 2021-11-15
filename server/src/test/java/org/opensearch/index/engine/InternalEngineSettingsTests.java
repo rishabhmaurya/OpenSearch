@@ -32,7 +32,7 @@
 package org.opensearch.index.engine;
 
 import org.apache.lucene.index.LiveIndexWriterConfig;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.shard.EngineAccess;

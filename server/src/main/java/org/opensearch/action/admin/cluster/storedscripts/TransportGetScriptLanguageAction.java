@@ -35,7 +35,7 @@ package org.opensearch.action.admin.cluster.storedscripts;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
-import org.opensearch.common.inject.Inject;
+import org.opensearch.mod.common.inject.Inject;
 import org.opensearch.script.ScriptService;
 import org.opensearch.tasks.Task;
 import org.opensearch.transport.TransportService;

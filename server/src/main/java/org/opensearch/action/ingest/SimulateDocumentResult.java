@@ -31,7 +31,7 @@
 
 package org.opensearch.action.ingest;
 
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.common.xcontent.ToXContentObject;
 
 public interface SimulateDocumentResult extends Writeable, ToXContentObject {

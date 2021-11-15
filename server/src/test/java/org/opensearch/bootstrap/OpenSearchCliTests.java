@@ -32,10 +32,10 @@
 
 package org.opensearch.bootstrap;
 
-import org.opensearch.Build;
-import org.opensearch.cli.ExitCodes;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.monitor.jvm.JvmInfo;
+import org.opensearch.mod.Build;
+import org.opensearch.mod.cli.ExitCodes;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.monitor.jvm.JvmInfo;
 
 import java.nio.file.Path;
 import java.util.Locale;

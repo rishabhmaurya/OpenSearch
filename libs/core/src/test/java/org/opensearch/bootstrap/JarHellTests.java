@@ -32,7 +32,7 @@
 
 package org.opensearch.bootstrap;
 
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.io.PathUtils;
 import org.opensearch.test.OpenSearchTestCase;
 

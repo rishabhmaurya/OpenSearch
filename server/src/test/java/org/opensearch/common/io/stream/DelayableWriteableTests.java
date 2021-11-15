@@ -37,7 +37,13 @@ import static org.hamcrest.Matchers.equalTo;
 
 import java.io.IOException;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.io.stream.DelayableWriteable;
+import org.opensearch.mod.common.io.stream.NamedWriteable;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.VersionUtils;
 

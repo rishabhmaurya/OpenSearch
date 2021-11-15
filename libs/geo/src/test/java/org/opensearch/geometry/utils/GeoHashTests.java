@@ -31,7 +31,7 @@
 
 package org.opensearch.geometry.utils;
 
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.geometry.Rectangle;
 import org.opensearch.test.OpenSearchTestCase;
 

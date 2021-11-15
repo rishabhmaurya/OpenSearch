@@ -37,10 +37,10 @@ import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.get.GetRequest;
 import org.opensearch.action.get.GetResponse;
 import org.opensearch.client.node.NodeClient;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.logging.DeprecationLogger;
 import org.opensearch.common.xcontent.XContentBuilder;
-import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.mod.common.xcontent.XContentHelper;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestChannel;
@@ -57,7 +57,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
 import static org.opensearch.rest.RestRequest.Method.GET;
 import static org.opensearch.rest.RestRequest.Method.HEAD;
-import static org.opensearch.rest.RestStatus.OK;
+import static org.opensearch.mod.rest.RestStatus.OK;
 
 /**
  * The REST handler for get source and head source APIs.

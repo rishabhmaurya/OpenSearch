@@ -32,13 +32,13 @@
 package org.opensearch.action.search;
 
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.OriginalIndices;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.routing.GroupShardsIterator;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.search.SearchPhaseResult;

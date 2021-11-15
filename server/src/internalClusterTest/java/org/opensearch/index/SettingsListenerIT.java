@@ -31,11 +31,11 @@
 
 package org.opensearch.index;
 
-import org.opensearch.common.inject.AbstractModule;
-import org.opensearch.common.inject.Module;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.inject.AbstractModule;
+import org.opensearch.mod.common.inject.Module;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.test.OpenSearchIntegTestCase.ClusterScope;

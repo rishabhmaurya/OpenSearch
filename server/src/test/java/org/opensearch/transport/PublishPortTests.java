@@ -33,7 +33,7 @@
 package org.opensearch.transport;
 
 import org.opensearch.common.network.NetworkUtils;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.net.InetSocketAddress;

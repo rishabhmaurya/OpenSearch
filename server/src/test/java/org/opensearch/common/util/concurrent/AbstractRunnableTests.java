@@ -31,6 +31,7 @@
 
 package org.opensearch.common.util.concurrent;
 
+import org.opensearch.mod.common.util.concurrent.AbstractRunnable;
 import org.opensearch.test.OpenSearchTestCase;
 
 import org.mockito.InOrder;

@@ -39,7 +39,9 @@ import org.opensearch.cluster.routing.allocation.decider.EnableAllocationDecider
 import org.opensearch.cluster.routing.allocation.decider.MaxRetryAllocationDecider;
 import org.opensearch.cluster.routing.allocation.decider.ShardsLimitAllocationDecider;
 import org.opensearch.common.logging.Loggers;
-import org.opensearch.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.AbstractScopedSettings;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.IndexSortConfig;
@@ -56,6 +58,7 @@ import org.opensearch.index.similarity.SimilarityService;
 import org.opensearch.index.store.FsDirectoryFactory;
 import org.opensearch.index.store.Store;
 import org.opensearch.indices.IndicesRequestCache;
+import org.opensearch.mod.common.settings.Settings;
 
 import java.util.Arrays;
 import java.util.Collections;

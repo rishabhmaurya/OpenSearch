@@ -50,8 +50,8 @@ import org.apache.lucene.util.FutureArrays;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.geo.ShapeRelation;
 import org.opensearch.common.network.InetAddresses;
-import org.opensearch.common.time.DateFormatter;
-import org.opensearch.common.time.DateMathParser;
+import org.opensearch.mod.common.time.DateFormatter;
+import org.opensearch.mod.common.time.DateMathParser;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.index.query.QueryShardContext;
 

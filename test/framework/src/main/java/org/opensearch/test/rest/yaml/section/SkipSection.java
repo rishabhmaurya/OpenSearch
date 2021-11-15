@@ -31,9 +31,9 @@
 
 package org.opensearch.test.rest.yaml.section;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.common.ParsingException;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.test.VersionUtils;
 import org.opensearch.test.rest.yaml.Features;

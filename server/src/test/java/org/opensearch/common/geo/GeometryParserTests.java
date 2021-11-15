@@ -32,8 +32,8 @@
 
 package org.opensearch.common.geo;
 
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;

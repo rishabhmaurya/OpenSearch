@@ -33,7 +33,7 @@ package org.opensearch.search.aggregations;
 
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.Query;
-import org.opensearch.common.inject.Inject;
+import org.opensearch.mod.common.inject.Inject;
 import org.opensearch.common.lucene.search.Queries;
 import org.opensearch.search.aggregations.bucket.global.GlobalAggregator;
 import org.opensearch.search.internal.SearchContext;

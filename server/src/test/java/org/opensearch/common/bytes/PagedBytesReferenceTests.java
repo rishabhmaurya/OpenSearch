@@ -33,8 +33,11 @@
 package org.opensearch.common.bytes;
 
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.common.util.ByteArray;
+import org.opensearch.mod.common.util.ByteArray;
 import org.hamcrest.Matchers;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.PagedBytesReference;
 
 import java.io.IOException;
 

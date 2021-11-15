@@ -32,7 +32,7 @@
 
 package org.opensearch.ingest.common;
 
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.OpenSearchParseException;
 import org.opensearch.ingest.TestTemplateService;
 import org.opensearch.test.OpenSearchTestCase;
 import org.junit.Before;

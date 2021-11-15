@@ -36,9 +36,9 @@ import com.carrotsearch.hppc.ObjectLongHashMap;
 import org.apache.lucene.util.Accountable;
 import org.opensearch.common.FieldMemoryStats;
 import org.opensearch.common.metrics.CounterMetric;
-import org.opensearch.common.regex.Regex;
-import org.opensearch.common.util.CollectionUtils;
-import org.opensearch.common.util.concurrent.ConcurrentCollections;
+import org.opensearch.mod.common.regex.Regex;
+import org.opensearch.mod.common.util.CollectionUtils;
+import org.opensearch.mod.common.util.concurrent.ConcurrentCollections;
 import org.opensearch.index.shard.ShardId;
 
 import java.util.Map;

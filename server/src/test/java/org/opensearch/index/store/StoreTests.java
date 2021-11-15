@@ -67,10 +67,10 @@ import org.apache.lucene.util.Version;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.common.UUIDs;
-import org.opensearch.common.io.stream.InputStreamStreamInput;
-import org.opensearch.common.io.stream.OutputStreamStreamOutput;
+import org.opensearch.mod.common.io.stream.InputStreamStreamInput;
+import org.opensearch.mod.common.io.stream.OutputStreamStreamOutput;
 import org.opensearch.common.lucene.Lucene;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.env.ShardLock;
@@ -119,8 +119,8 @@ import static org.hamcrest.Matchers.notNullValue;
 public class StoreTests extends OpenSearchTestCase {
 
     private static final IndexSettings INDEX_SETTINGS = IndexSettingsModule.newIndexSettings("index",
-        Settings.builder().put(IndexMetadata.SETTING_VERSION_CREATED, org.opensearch.Version.CURRENT).build());
-    private static final Version MIN_SUPPORTED_LUCENE_VERSION = org.opensearch.Version.CURRENT
+        Settings.builder().put(IndexMetadata.SETTING_VERSION_CREATED, org.opensearch.mod.Version.CURRENT).build());
+    private static final Version MIN_SUPPORTED_LUCENE_VERSION = org.opensearch.mod.Version.CURRENT
         .minimumIndexCompatibilityVersion().luceneVersion;
 
     public void testRefCount() {
@@ -752,7 +752,7 @@ public class StoreTests extends OpenSearchTestCase {
     public void testStoreStats() throws IOException {
         final ShardId shardId = new ShardId("index", "_na_", 1);
         Settings settings = Settings.builder()
-                .put(IndexMetadata.SETTING_VERSION_CREATED, org.opensearch.Version.CURRENT)
+                .put(IndexMetadata.SETTING_VERSION_CREATED, org.opensearch.mod.Version.CURRENT)
                 .put(Store.INDEX_STORE_STATS_REFRESH_INTERVAL_SETTING.getKey(), TimeValue.timeValueMinutes(0)).build();
         Store store = new Store(shardId, IndexSettingsModule.newIndexSettings("index", settings), StoreTests.newDirectory(random()),
             new DummyShardLock(shardId));
@@ -823,7 +823,7 @@ public class StoreTests extends OpenSearchTestCase {
 
     public void testMetadataSnapshotStreaming() throws Exception {
         Store.MetadataSnapshot outMetadataSnapshot = createMetadataSnapshot();
-        org.opensearch.Version targetNodeVersion = randomVersion(random());
+        org.opensearch.mod.Version targetNodeVersion = randomVersion(random());
 
         ByteArrayOutputStream outBuffer = new ByteArrayOutputStream();
         OutputStreamStreamOutput out = new OutputStreamStreamOutput(outBuffer);
@@ -896,7 +896,7 @@ public class StoreTests extends OpenSearchTestCase {
                 metadataSnapshot, peerRecoveryRetentionLeases);
         ByteArrayOutputStream outBuffer = new ByteArrayOutputStream();
         OutputStreamStreamOutput out = new OutputStreamStreamOutput(outBuffer);
-        org.opensearch.Version targetNodeVersion = randomVersion(random());
+        org.opensearch.mod.Version targetNodeVersion = randomVersion(random());
         out.setVersion(targetNodeVersion);
         outStoreFileMetadata.writeTo(out);
         ByteArrayInputStream inBuffer = new ByteArrayInputStream(outBuffer.toByteArray());

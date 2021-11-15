@@ -44,7 +44,7 @@ import org.apache.lucene.search.spans.SpanOrQuery;
 import org.apache.lucene.search.spans.SpanQuery;
 import org.apache.lucene.search.spans.SpanTermQuery;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.common.CheckedSupplier;
+import org.opensearch.mod.common.CheckedSupplier;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.lucene.search.MultiPhrasePrefixQuery;
 import org.opensearch.index.IndexSettings;

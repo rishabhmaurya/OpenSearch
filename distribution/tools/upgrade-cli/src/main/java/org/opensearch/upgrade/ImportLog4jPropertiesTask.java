@@ -8,7 +8,7 @@
 
 package org.opensearch.upgrade;
 
-import org.opensearch.cli.Terminal;
+import org.opensearch.mod.cli.Terminal;
 import org.opensearch.common.collect.Tuple;
 
 import java.io.IOException;

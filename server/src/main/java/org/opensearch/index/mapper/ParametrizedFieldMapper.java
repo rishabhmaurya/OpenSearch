@@ -33,11 +33,11 @@
 package org.opensearch.index.mapper;
 
 import org.apache.lucene.document.FieldType;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.common.Explicit;
 import org.opensearch.common.TriFunction;
-import org.opensearch.common.logging.DeprecationLogger;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.support.XContentMapValues;
 import org.opensearch.index.analysis.NamedAnalyzer;

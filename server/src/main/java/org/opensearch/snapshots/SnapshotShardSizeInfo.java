@@ -34,7 +34,7 @@ package org.opensearch.snapshots;
 
 import org.opensearch.cluster.routing.RecoverySource;
 import org.opensearch.cluster.routing.ShardRouting;
-import org.opensearch.common.collect.ImmutableOpenMap;
+import org.opensearch.mod.common.collect.ImmutableOpenMap;
 
 public class SnapshotShardSizeInfo {
 

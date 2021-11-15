@@ -34,14 +34,14 @@ package org.opensearch.test.rest.yaml;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.client.NodeSelector;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.ResponseException;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestClientBuilder;
-import org.opensearch.common.CheckedSupplier;
+import org.opensearch.mod.common.CheckedSupplier;
 import org.opensearch.test.rest.yaml.restspec.ClientYamlSuiteRestSpec;
 
 import java.io.IOException;

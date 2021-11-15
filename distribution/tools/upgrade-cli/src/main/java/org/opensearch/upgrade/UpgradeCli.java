@@ -10,9 +10,9 @@ package org.opensearch.upgrade;
 
 import joptsimple.OptionSet;
 import org.opensearch.cli.EnvironmentAwareCommand;
-import org.opensearch.cli.ExitCodes;
-import org.opensearch.cli.Terminal;
-import org.opensearch.cli.UserException;
+import org.opensearch.mod.cli.ExitCodes;
+import org.opensearch.mod.cli.Terminal;
+import org.opensearch.mod.cli.UserException;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.env.Environment;
 

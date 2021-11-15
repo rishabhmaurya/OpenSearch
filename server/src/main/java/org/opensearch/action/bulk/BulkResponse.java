@@ -33,13 +33,13 @@
 package org.opensearch.action.bulk;
 
 import org.opensearch.action.ActionResponse;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.StatusToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -47,9 +47,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.opensearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
-import static org.opensearch.common.xcontent.XContentParserUtils.throwUnknownField;
-import static org.opensearch.common.xcontent.XContentParserUtils.throwUnknownToken;
+import static org.opensearch.mod.common.xcontent.XContentParserUtils.ensureExpectedToken;
+import static org.opensearch.mod.common.xcontent.XContentParserUtils.throwUnknownField;
+import static org.opensearch.mod.common.xcontent.XContentParserUtils.throwUnknownToken;
 
 /**
  * A response of a bulk execution. Holding a response for each item responding (in order) of the

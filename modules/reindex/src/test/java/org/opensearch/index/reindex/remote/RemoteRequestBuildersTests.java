@@ -34,12 +34,12 @@ package org.opensearch.index.reindex.remote;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.client.Request;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.io.Streams;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.io.Streams;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.test.OpenSearchTestCase;

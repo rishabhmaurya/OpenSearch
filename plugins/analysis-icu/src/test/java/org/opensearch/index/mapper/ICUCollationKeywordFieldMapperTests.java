@@ -39,7 +39,7 @@ import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.IndexableFieldType;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.collect.List;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.plugin.analysis.icu.AnalysisICUPlugin;

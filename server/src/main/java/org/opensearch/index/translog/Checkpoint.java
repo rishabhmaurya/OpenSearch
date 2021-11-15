@@ -43,7 +43,7 @@ import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.NIOFSDirectory;
 import org.apache.lucene.store.OutputStreamIndexOutput;
-import org.opensearch.common.io.Channels;
+import org.opensearch.mod.common.io.Channels;
 import org.opensearch.index.seqno.SequenceNumbers;
 
 import java.io.ByteArrayOutputStream;

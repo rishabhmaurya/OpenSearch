@@ -34,6 +34,8 @@ package org.opensearch.common.logging;
 
 import org.apache.logging.log4j.message.Message;
 import org.apache.logging.log4j.message.SimpleMessage;
+import org.opensearch.mod.common.logging.DeprecatedMessage;
+import org.opensearch.mod.common.logging.RateLimitingFilter;
 import org.opensearch.test.OpenSearchTestCase;
 import org.junit.After;
 import org.junit.Before;

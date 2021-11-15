@@ -38,10 +38,10 @@ import org.opensearch.common.geo.parsers.ShapeParser;
 import org.locationtech.spatial4j.shape.Circle;
 import org.locationtech.jts.geom.Coordinate;
 
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.unit.DistanceUnit;
-import org.opensearch.common.unit.DistanceUnit.Distance;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.unit.DistanceUnit;
+import org.opensearch.mod.common.unit.DistanceUnit.Distance;
 import org.opensearch.common.xcontent.XContentBuilder;
 
 import java.io.IOException;
@@ -118,7 +118,7 @@ public class CircleBuilder extends ShapeBuilder<Circle, org.opensearch.geometry.
 
     /**
      * Set the radius of the circle
-     * @param radius radius of the circle (see {@link org.opensearch.common.unit.DistanceUnit.Distance})
+     * @param radius radius of the circle (see {@link DistanceUnit.Distance})
      * @return this
      */
     public CircleBuilder radius(Distance radius) {

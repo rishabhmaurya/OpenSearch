@@ -32,14 +32,14 @@
 
 package org.opensearch.common.geo;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.UUIDs;
 import org.opensearch.common.geo.parsers.ShapeParser;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentParser;

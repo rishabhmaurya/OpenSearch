@@ -38,7 +38,7 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import org.apache.http.client.methods.HttpGet;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.io.Streams;
+import org.opensearch.mod.common.io.Streams;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.ByteArrayInputStream;

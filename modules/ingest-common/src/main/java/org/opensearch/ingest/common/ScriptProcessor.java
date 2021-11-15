@@ -33,10 +33,10 @@
 package org.opensearch.ingest.common;
 
 import org.opensearch.common.Nullable;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.logging.DeprecationLogger;
-import org.opensearch.common.util.CollectionUtils;
-import org.opensearch.common.xcontent.LoggingDeprecationHandler;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.util.CollectionUtils;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;

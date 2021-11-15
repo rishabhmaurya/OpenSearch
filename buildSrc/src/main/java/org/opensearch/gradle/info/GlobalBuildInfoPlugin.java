@@ -72,8 +72,11 @@ import java.util.stream.Stream;
 
 public class GlobalBuildInfoPlugin implements Plugin<Project> {
     private static final Logger LOGGER = Logging.getLogger(GlobalBuildInfoPlugin.class);
-    private static final String DEFAULT_LEGACY_VERSION_JAVA_FILE_PATH = "server/src/main/java/org/opensearch/LegacyESVersion.java";
-    private static final String DEFAULT_VERSION_JAVA_FILE_PATH = "server/src/main/java/org/opensearch/Version.java";
+    private static final String DEFAULT_LEGACY_VERSION_JAVA_FILE_PATH =
+        "libs/opensearch-common/src/main/java/org/opensearch/mod/" +
+            "LegacyESVersion.java";
+    private static final String DEFAULT_VERSION_JAVA_FILE_PATH = "libs/opensearch-common/src/main/java/org/" +
+        "opensearch/mod/Version.java";
     private static Integer _defaultParallel = null;
     private static Boolean _isBundledJdkSupported = null;
 

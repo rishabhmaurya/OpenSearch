@@ -34,15 +34,15 @@ package org.opensearch.search.sort;
 
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.Scorable;
-import org.opensearch.common.lease.Releasable;
-import org.opensearch.common.lease.Releasables;
+import org.opensearch.mod.common.lease.Releasable;
+import org.opensearch.mod.common.lease.Releasables;
 import org.opensearch.common.lucene.ScorerAware;
-import org.opensearch.common.util.BigArray;
-import org.opensearch.common.util.BigArrays;
-import org.opensearch.common.util.BitArray;
-import org.opensearch.common.util.DoubleArray;
-import org.opensearch.common.util.FloatArray;
-import org.opensearch.common.util.LongArray;
+import org.opensearch.mod.common.util.BigArray;
+import org.opensearch.mod.common.util.BigArrays;
+import org.opensearch.mod.common.util.BitArray;
+import org.opensearch.mod.common.util.DoubleArray;
+import org.opensearch.mod.common.util.FloatArray;
+import org.opensearch.mod.common.util.LongArray;
 import org.opensearch.search.DocValueFormat;
 
 import java.io.IOException;

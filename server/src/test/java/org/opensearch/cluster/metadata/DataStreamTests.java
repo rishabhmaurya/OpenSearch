@@ -32,11 +32,10 @@
 package org.opensearch.cluster.metadata;
 
 import org.opensearch.common.UUIDs;
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.index.Index;
 import org.opensearch.test.AbstractSerializingTestCase;
-import org.opensearch.cluster.metadata.DataStream;
 
 import java.io.IOException;
 import java.util.ArrayList;

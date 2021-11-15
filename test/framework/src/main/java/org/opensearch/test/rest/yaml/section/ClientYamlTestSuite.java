@@ -33,7 +33,7 @@ package org.opensearch.test.rest.yaml.section;
 
 import org.opensearch.client.NodeSelector;
 import org.opensearch.common.ParsingException;
-import org.opensearch.common.xcontent.LoggingDeprecationHandler;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentParseException;
 import org.opensearch.common.xcontent.XContentParser;

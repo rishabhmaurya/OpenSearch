@@ -34,7 +34,7 @@ package org.opensearch.index.analysis;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.uk.UkrainianMorfologikAnalyzer;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.Index;
 import org.opensearch.plugin.analysis.ukrainian.AnalysisUkrainianPlugin;
 import org.opensearch.test.OpenSearchTestCase;

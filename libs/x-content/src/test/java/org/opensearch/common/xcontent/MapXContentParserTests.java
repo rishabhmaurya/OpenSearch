@@ -33,8 +33,9 @@
 package org.opensearch.common.xcontent;
 
 import org.opensearch.common.CheckedConsumer;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.support.MapXContentParser;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;

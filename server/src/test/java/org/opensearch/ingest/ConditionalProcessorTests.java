@@ -32,7 +32,7 @@
 
 package org.opensearch.ingest;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.script.IngestConditionalScript;
 import org.opensearch.script.MockScriptEngine;
 import org.opensearch.script.MockScriptService;

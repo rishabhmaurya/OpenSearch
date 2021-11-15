@@ -32,13 +32,13 @@
 
 package org.opensearch.cluster.routing.allocation;
 
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.unit.ByteSizeValue;
-import org.opensearch.common.unit.RatioValue;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.unit.RatioValue;
 import org.opensearch.common.unit.TimeValue;
 
 import java.util.Arrays;

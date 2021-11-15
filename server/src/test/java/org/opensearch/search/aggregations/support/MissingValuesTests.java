@@ -39,7 +39,7 @@ import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.index.SortedSetDocValues;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.TestUtil;
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.index.fielddata.AbstractSortedNumericDocValues;
 import org.opensearch.index.fielddata.AbstractSortedSetDocValues;
 import org.opensearch.index.fielddata.MultiGeoPointValues;

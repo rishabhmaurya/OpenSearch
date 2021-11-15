@@ -34,7 +34,7 @@ package org.opensearch.index.query;
 
 import com.carrotsearch.randomizedtesting.generators.RandomNumbers;
 import com.carrotsearch.randomizedtesting.generators.RandomStrings;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 
 import java.util.Random;
 

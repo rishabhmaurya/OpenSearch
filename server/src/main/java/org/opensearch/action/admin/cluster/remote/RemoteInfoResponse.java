@@ -34,8 +34,8 @@ package org.opensearch.action.admin.cluster.remote;
 
 import org.opensearch.action.ActionResponse;
 import org.opensearch.transport.RemoteConnectionInfo;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
 import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;
 

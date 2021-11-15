@@ -35,9 +35,9 @@ package org.opensearch.search.aggregations.bucket.range;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.opensearch.common.geo.GeoDistance;
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.common.geo.GeoUtils;
-import org.opensearch.common.unit.DistanceUnit;
+import org.opensearch.mod.common.unit.DistanceUnit;
 import org.opensearch.index.fielddata.MultiGeoPointValues;
 import org.opensearch.index.fielddata.SortedBinaryDocValues;
 import org.opensearch.index.fielddata.SortedNumericDoubleValues;
@@ -156,10 +156,10 @@ public class GeoDistanceRangeAggregatorFactory extends ValuesSourceAggregatorFac
         private final ValuesSource.GeoPoint source;
         private final GeoDistance distanceType;
         private final DistanceUnit units;
-        private final org.opensearch.common.geo.GeoPoint origin;
+        private final org.opensearch.mod.common.geo.GeoPoint origin;
 
         DistanceSource(ValuesSource.GeoPoint source, GeoDistance distanceType,
-                       org.opensearch.common.geo.GeoPoint origin, DistanceUnit units) {
+                       org.opensearch.mod.common.geo.GeoPoint origin, DistanceUnit units) {
             this.source = source;
             // even if the geo points are unique, there's no guarantee the
             // distances are

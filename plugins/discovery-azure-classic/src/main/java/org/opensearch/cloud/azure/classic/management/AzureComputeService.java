@@ -34,8 +34,8 @@ package org.opensearch.cloud.azure.classic.management;
 
 import com.microsoft.windowsazure.core.utils.KeyStoreType;
 import com.microsoft.windowsazure.management.compute.models.HostedServiceGetDetailedResponse;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.discovery.azure.classic.AzureSeedHostsProvider;
 import org.opensearch.discovery.azure.classic.AzureSeedHostsProvider.Deployment;

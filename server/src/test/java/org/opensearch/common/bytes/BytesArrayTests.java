@@ -31,8 +31,10 @@
 
 package org.opensearch.common.bytes;
 
-import org.opensearch.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
 import org.hamcrest.Matchers;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
 
 import java.io.IOException;
 

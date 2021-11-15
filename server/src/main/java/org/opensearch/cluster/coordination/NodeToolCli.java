@@ -32,8 +32,8 @@
 package org.opensearch.cluster.coordination;
 
 import org.opensearch.cli.CommandLoggingConfigurator;
-import org.opensearch.cli.MultiCommand;
-import org.opensearch.cli.Terminal;
+import org.opensearch.mod.cli.MultiCommand;
+import org.opensearch.mod.cli.Terminal;
 import org.opensearch.env.NodeRepurposeCommand;
 import org.opensearch.env.OverrideNodeVersionCommand;
 

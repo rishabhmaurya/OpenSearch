@@ -31,11 +31,11 @@
 
 package org.opensearch.test;
 
-import org.opensearch.Version;
-import org.opensearch.common.io.stream.NamedWriteable;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.io.stream.NamedWriteable;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.Writeable;
 
 import java.io.IOException;
 

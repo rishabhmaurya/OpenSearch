@@ -33,7 +33,7 @@
 package org.opensearch.action.support;
 
 import com.carrotsearch.hppc.cursors.ObjectCursor;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.IndexMetadata;
@@ -43,10 +43,9 @@ import org.opensearch.cluster.routing.IndexShardRoutingTable;
 import org.opensearch.cluster.routing.RoutingTable;
 import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.common.UUIDs;
-import org.opensearch.common.io.stream.ByteBufferStreamInput;
-import org.opensearch.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.ByteBufferStreamInput;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.action.support.ActiveShardCount;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

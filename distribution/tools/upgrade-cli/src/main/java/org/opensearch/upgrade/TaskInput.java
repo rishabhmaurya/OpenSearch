@@ -8,7 +8,7 @@
 
 package org.opensearch.upgrade;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.env.Environment;
 
 import java.nio.file.Path;

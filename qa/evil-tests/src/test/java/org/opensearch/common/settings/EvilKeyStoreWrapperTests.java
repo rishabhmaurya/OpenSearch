@@ -34,8 +34,9 @@ package org.opensearch.common.settings;
 
 import org.apache.lucene.util.Constants;
 import org.apache.lucene.util.LuceneTestCase;
-import org.opensearch.cli.ExitCodes;
-import org.opensearch.cli.UserException;
+import org.opensearch.mod.cli.ExitCodes;
+import org.opensearch.mod.cli.UserException;
+import org.opensearch.mod.common.settings.KeyStoreWrapper;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.nio.file.AccessDeniedException;

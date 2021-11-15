@@ -33,10 +33,10 @@
 package org.opensearch.bootstrap;
 
 
-import org.opensearch.cli.ExitCodes;
+import org.opensearch.mod.cli.ExitCodes;
 import org.opensearch.common.SuppressForbidden;
 import org.opensearch.common.io.PathUtils;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;

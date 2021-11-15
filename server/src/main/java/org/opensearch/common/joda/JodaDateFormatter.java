@@ -32,9 +32,9 @@
 
 package org.opensearch.common.joda;
 
-import org.opensearch.common.time.DateFormatter;
-import org.opensearch.common.time.DateMathParser;
-import org.opensearch.common.time.DateUtils;
+import org.opensearch.mod.common.time.DateFormatter;
+import org.opensearch.mod.common.time.DateMathParser;
+import org.opensearch.mod.common.time.DateUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormatter;

@@ -37,10 +37,9 @@ import org.opensearch.action.admin.cluster.node.stats.NodeStats;
 import org.opensearch.action.admin.cluster.node.stats.NodeStatsTests;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.network.NetworkModule;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.action.admin.cluster.stats.ClusterStatsNodes;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -52,7 +51,7 @@ import java.util.TreeMap;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-import static org.opensearch.common.xcontent.XContentHelper.toXContent;
+import static org.opensearch.mod.common.xcontent.XContentHelper.toXContent;
 import static org.hamcrest.Matchers.equalTo;
 
 public class ClusterStatsNodesTests extends OpenSearchTestCase {

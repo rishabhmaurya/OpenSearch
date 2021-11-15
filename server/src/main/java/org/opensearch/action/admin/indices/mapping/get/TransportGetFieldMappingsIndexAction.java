@@ -33,7 +33,7 @@
 package org.opensearch.action.admin.indices.mapping.get;
 
 import org.opensearch.OpenSearchException;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.admin.indices.mapping.get.GetFieldMappingsResponse.FieldMappingMetadata;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.single.shard.TransportSingleShardAction;
@@ -43,12 +43,12 @@ import org.opensearch.cluster.block.ClusterBlockLevel;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.routing.ShardsIterator;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.inject.Inject;
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.regex.Regex;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.inject.Inject;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.regex.Regex;
 import org.opensearch.common.xcontent.ToXContent;
-import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.mod.common.xcontent.XContentHelper;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.mapper.MappingLookup;

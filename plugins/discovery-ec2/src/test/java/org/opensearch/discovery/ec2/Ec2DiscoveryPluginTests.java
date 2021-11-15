@@ -40,7 +40,7 @@ import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.services.ec2.AbstractAmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2;
 import org.opensearch.common.settings.MockSecureSettings;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.node.Node;
 import org.opensearch.test.OpenSearchTestCase;
 

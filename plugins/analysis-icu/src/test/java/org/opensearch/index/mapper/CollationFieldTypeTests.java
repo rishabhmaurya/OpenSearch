@@ -41,7 +41,7 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.OpenSearchException;
-import org.opensearch.common.unit.Fuzziness;
+import org.opensearch.mod.common.unit.Fuzziness;
 import org.opensearch.index.mapper.ICUCollationKeywordFieldMapper.CollationFieldType;
 import org.opensearch.index.mapper.MappedFieldType.Relation;
 

@@ -32,11 +32,11 @@
 
 package org.opensearch.test.transport;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionListener;
 import org.opensearch.cluster.node.DiscoveryNode;
-import org.opensearch.common.component.Lifecycle;
-import org.opensearch.common.component.LifecycleListener;
+import org.opensearch.mod.common.component.Lifecycle;
+import org.opensearch.mod.common.component.LifecycleListener;
 import org.opensearch.common.transport.BoundTransportAddress;
 import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.tasks.Task;

@@ -32,9 +32,9 @@
 
 package org.opensearch.common;
 
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.io.Channels;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.io.Channels;
 import org.opensearch.test.OpenSearchTestCase;
 import org.hamcrest.Matchers;
 import org.junit.After;

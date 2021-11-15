@@ -55,7 +55,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.NumericUtils;
-import org.opensearch.common.util.BigArrays;
+import org.opensearch.mod.common.util.BigArrays;
 import org.opensearch.index.fielddata.FieldData;
 import org.opensearch.index.mapper.KeywordFieldMapper;
 import org.opensearch.index.mapper.MappedFieldType;

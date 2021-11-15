@@ -32,7 +32,7 @@
 
 package org.opensearch.search.aggregations.pipeline;
 
-import org.opensearch.common.collect.EvictingQueue;
+import org.opensearch.mod.common.collect.EvictingQueue;
 
 /**
  * A cost minimizer which will fit a MovAvgModel to the data.

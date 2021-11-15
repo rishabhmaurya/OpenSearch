@@ -37,13 +37,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.LuceneTestCase;
 import org.opensearch.common.Booleans;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.SuppressForbidden;
-import org.opensearch.common.io.FileSystemUtils;
+import org.opensearch.mod.common.io.FileSystemUtils;
 import org.opensearch.common.io.PathUtils;
 import org.opensearch.common.network.IfConfig;
 import org.opensearch.common.network.NetworkAddress;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.plugins.PluginInfo;
 import org.opensearch.secure_sm.SecureSM;
 import org.junit.Assert;
@@ -275,14 +275,14 @@ public class BootstrapForTesting {
         }
         return raw;
     }
-    
+
     /**
-     * Collect host addresses of all local interfaces so we could check 
+     * Collect host addresses of all local interfaces so we could check
      * if the network connection is being made only on those.
      * @return host names and addresses of all local interfaces
      */
     private static Set<String> getTrustedHosts() {
-        // 
+        //
         try {
             return Collections
                 .list(NetworkInterface.getNetworkInterfaces())

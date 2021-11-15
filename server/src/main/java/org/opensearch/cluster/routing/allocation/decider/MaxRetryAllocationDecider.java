@@ -37,7 +37,7 @@ import org.opensearch.cluster.routing.RoutingNode;
 import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.cluster.routing.UnassignedInfo;
 import org.opensearch.cluster.routing.allocation.RoutingAllocation;
-import org.opensearch.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting;
 
 /**
  * An allocation decider that prevents shards from being allocated on any node if the shards allocation has been retried N times without

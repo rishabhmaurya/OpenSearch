@@ -33,7 +33,7 @@
 package org.opensearch.client.indices;
 
 import org.opensearch.common.ParseField;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.xcontent.ConstructingObjectParser;
 import org.opensearch.common.xcontent.XContentParser;
 

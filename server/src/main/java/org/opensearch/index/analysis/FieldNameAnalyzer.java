@@ -34,7 +34,7 @@ package org.opensearch.index.analysis;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.DelegatingAnalyzerWrapper;
-import org.opensearch.common.collect.CopyOnWriteHashMap;
+import org.opensearch.mod.common.collect.CopyOnWriteHashMap;
 
 import java.util.Map;
 

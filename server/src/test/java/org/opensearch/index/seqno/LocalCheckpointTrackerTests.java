@@ -33,8 +33,8 @@
 package org.opensearch.index.seqno;
 
 import org.opensearch.OpenSearchException;
-import org.opensearch.common.Randomness;
-import org.opensearch.common.util.concurrent.AbstractRunnable;
+import org.opensearch.mod.common.Randomness;
+import org.opensearch.mod.common.util.concurrent.AbstractRunnable;
 import org.opensearch.test.OpenSearchTestCase;
 import org.junit.Before;
 

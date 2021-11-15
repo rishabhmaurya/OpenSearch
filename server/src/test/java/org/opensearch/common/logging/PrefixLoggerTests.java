@@ -32,6 +32,7 @@
 
 package org.opensearch.common.logging;
 
+import org.opensearch.mod.common.logging.PrefixLogger;
 import org.opensearch.test.OpenSearchTestCase;
 
 import static org.hamcrest.Matchers.containsString;

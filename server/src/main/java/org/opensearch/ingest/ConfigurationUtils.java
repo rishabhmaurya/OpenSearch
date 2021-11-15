@@ -36,9 +36,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.OpenSearchException;
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.xcontent.LoggingDeprecationHandler;
+import org.opensearch.mod.OpenSearchExceptionDup;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;
@@ -318,7 +319,7 @@ public final class ConfigurationUtils {
         return value;
     }
 
-    public static OpenSearchException newConfigurationException(String processorType, String processorTag,
+    public static OpenSearchExceptionDup newConfigurationException(String processorType, String processorTag,
                                                                 String propertyName, String reason) {
         String msg;
         if (propertyName == null) {
@@ -391,7 +392,7 @@ public final class ConfigurationUtils {
         }
     }
 
-    private static void addMetadataToException(OpenSearchException exception, String processorType,
+    private static void addMetadataToException(OpenSearchExceptionDup exception, String processorType,
                                                String processorTag, String propertyName) {
         if (processorType != null) {
             exception.addMetadata("opensearch.processor_type", processorType);

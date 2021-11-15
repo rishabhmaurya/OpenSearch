@@ -32,8 +32,8 @@
 
 package org.opensearch.transport.nio;
 
-import org.opensearch.common.recycler.Recycler;
-import org.opensearch.common.util.PageCacheRecycler;
+import org.opensearch.mod.common.recycler.Recycler;
+import org.opensearch.mod.common.util.PageCacheRecycler;
 import org.opensearch.nio.Page;
 
 import java.nio.ByteBuffer;

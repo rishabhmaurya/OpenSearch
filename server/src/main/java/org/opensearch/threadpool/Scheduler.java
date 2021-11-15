@@ -34,12 +34,12 @@ package org.opensearch.threadpool;
 
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.common.SuppressForbidden;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.concurrent.AbstractRunnable;
+import org.opensearch.mod.common.util.concurrent.AbstractRunnable;
 import org.opensearch.common.util.concurrent.OpenSearchAbortPolicy;
 import org.opensearch.common.util.concurrent.OpenSearchExecutors;
-import org.opensearch.common.util.concurrent.OpenSearchRejectedExecutionException;
+import org.opensearch.mod.common.util.concurrent.OpenSearchRejectedExecutionException;
 
 import java.util.concurrent.Delayed;
 import java.util.concurrent.Future;

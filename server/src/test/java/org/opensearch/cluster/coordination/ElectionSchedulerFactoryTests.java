@@ -32,13 +32,11 @@
 
 package org.opensearch.cluster.coordination;
 
-import org.opensearch.cluster.coordination.DeterministicTaskQueue;
-import org.opensearch.common.lease.Releasable;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.settings.Settings.Builder;
+import org.opensearch.mod.common.lease.Releasable;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings.Builder;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.cluster.coordination.ElectionSchedulerFactory;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 

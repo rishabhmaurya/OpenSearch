@@ -32,7 +32,7 @@
 
 package org.opensearch.common.hashing;
 
-import org.opensearch.common.hash.MurmurHash3;
+import org.opensearch.mod.common.hash.MurmurHash3;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.UnsupportedEncodingException;

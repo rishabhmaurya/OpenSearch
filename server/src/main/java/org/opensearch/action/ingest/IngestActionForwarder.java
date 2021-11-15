@@ -39,7 +39,7 @@ import org.opensearch.action.ActionRequest;
 import org.opensearch.cluster.ClusterChangedEvent;
 import org.opensearch.cluster.ClusterStateApplier;
 import org.opensearch.cluster.node.DiscoveryNode;
-import org.opensearch.common.Randomness;
+import org.opensearch.mod.common.Randomness;
 import org.opensearch.transport.TransportService;
 
 import java.util.concurrent.atomic.AtomicInteger;

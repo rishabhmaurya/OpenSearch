@@ -45,7 +45,7 @@ import org.opensearch.client.indices.ComponentTemplatesExistRequest;
 import org.opensearch.client.indices.DeleteComponentTemplateRequest;
 import org.opensearch.client.indices.GetComponentTemplatesRequest;
 import org.opensearch.client.indices.PutComponentTemplateRequest;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 
 import java.io.IOException;
 

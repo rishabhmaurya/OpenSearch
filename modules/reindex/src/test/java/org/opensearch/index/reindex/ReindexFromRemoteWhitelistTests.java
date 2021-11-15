@@ -32,8 +32,8 @@
 
 package org.opensearch.index.reindex;
 
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.net.UnknownHostException;

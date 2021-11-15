@@ -39,7 +39,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.TermStatistics;
-import org.opensearch.common.collect.HppcMaps;
+import org.opensearch.mod.common.collect.HppcMaps;
 import org.opensearch.search.internal.SearchContext;
 import org.opensearch.search.rescore.RescoreContext;
 import org.opensearch.tasks.TaskCancelledException;

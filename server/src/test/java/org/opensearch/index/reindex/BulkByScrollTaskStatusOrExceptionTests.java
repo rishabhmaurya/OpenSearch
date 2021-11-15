@@ -33,7 +33,7 @@
 package org.opensearch.index.reindex;
 
 import org.opensearch.OpenSearchException;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.test.AbstractXContentTestCase;

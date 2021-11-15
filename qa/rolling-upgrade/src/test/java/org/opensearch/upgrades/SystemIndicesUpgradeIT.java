@@ -32,8 +32,8 @@
 
 package org.opensearch.upgrades;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
 import org.opensearch.client.Request;
 import org.opensearch.client.ResponseException;
 import org.opensearch.test.XContentTestUtils.JsonMapView;

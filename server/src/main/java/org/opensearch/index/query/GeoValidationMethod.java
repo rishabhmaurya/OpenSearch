@@ -32,17 +32,17 @@
 
 package org.opensearch.index.query;
 
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.util.CollectionUtils;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.util.CollectionUtils;
 
 import java.io.IOException;
 
 /**
  * This enum is used to determine how to deal with invalid geo coordinates in geo related
  * queries:
- * 
+ *
  *  On STRICT validation invalid coordinates cause an exception to be thrown.
  *  On IGNORE_MALFORMED invalid coordinates are being accepted.
  *  On COERCE invalid coordinates are being corrected to the most likely valid coordinate.
@@ -71,7 +71,7 @@ public enum GeoValidationMethod implements Writeable {
         throw new IllegalArgumentException("operator needs to be either " + CollectionUtils.arrayAsArrayList(GeoValidationMethod.values())
                 + ", but not [" + op + "]");
     }
-    
+
     /** Returns whether or not to skip bounding box validation. */
     public static boolean isIgnoreMalformed(GeoValidationMethod method) {
         return (method == GeoValidationMethod.IGNORE_MALFORMED || method == GeoValidationMethod.COERCE);

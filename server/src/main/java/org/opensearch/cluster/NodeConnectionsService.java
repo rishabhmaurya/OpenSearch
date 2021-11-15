@@ -44,12 +44,12 @@ import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.service.ClusterApplier;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.component.AbstractLifecycleComponent;
-import org.opensearch.common.inject.Inject;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.component.AbstractLifecycleComponent;
+import org.opensearch.mod.common.inject.Inject;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.concurrent.AbstractRunnable;
+import org.opensearch.mod.common.util.concurrent.AbstractRunnable;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
 
@@ -62,8 +62,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.opensearch.common.settings.Setting.Property;
-import static org.opensearch.common.settings.Setting.positiveTimeSetting;
+import static org.opensearch.mod.common.settings.Setting.Property;
+import static org.opensearch.mod.common.settings.Setting.positiveTimeSetting;
 
 /**
  * This component is responsible for maintaining connections from this node to all the nodes listed in the cluster state, and for

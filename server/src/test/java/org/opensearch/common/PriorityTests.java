@@ -31,7 +31,7 @@
 
 package org.opensearch.common;
 
-import org.opensearch.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;

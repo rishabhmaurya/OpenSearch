@@ -39,21 +39,19 @@ import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.delete.DeleteResponseTests;
 import org.opensearch.action.index.IndexResponseTests;
 import org.opensearch.action.update.UpdateResponseTests;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.action.bulk.BulkItemResponse;
-import org.opensearch.action.bulk.BulkResponse;
 
 import java.io.IOException;
 
 import static org.opensearch.OpenSearchExceptionTests.randomExceptions;
 import static org.opensearch.action.bulk.BulkItemResponseTests.assertBulkItemResponse;
 import static org.opensearch.action.bulk.BulkResponse.NO_INGEST_TOOK;
-import static org.opensearch.common.xcontent.XContentHelper.toXContent;
+import static org.opensearch.mod.common.xcontent.XContentHelper.toXContent;
 import static org.opensearch.test.hamcrest.OpenSearchAssertions.assertToXContentEquivalent;
 
 public class BulkResponseTests extends OpenSearchTestCase {

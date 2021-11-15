@@ -33,7 +33,8 @@
 package org.opensearch.common.util.concurrent;
 
 
-import org.opensearch.common.lease.Releasable;
+import org.opensearch.mod.common.lease.Releasable;
+import org.opensearch.mod.common.util.concurrent.ConcurrentCollections;
 
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;

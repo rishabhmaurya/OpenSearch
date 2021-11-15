@@ -34,8 +34,8 @@ package org.opensearch.ingest;
 
 import org.opensearch.cluster.DiffableUtils;
 import org.opensearch.cluster.metadata.Metadata;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;

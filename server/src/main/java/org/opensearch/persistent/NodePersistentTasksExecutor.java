@@ -32,7 +32,7 @@
 package org.opensearch.persistent;
 
 import org.opensearch.common.Nullable;
-import org.opensearch.common.util.concurrent.AbstractRunnable;
+import org.opensearch.mod.common.util.concurrent.AbstractRunnable;
 import org.opensearch.threadpool.ThreadPool;
 
 /**

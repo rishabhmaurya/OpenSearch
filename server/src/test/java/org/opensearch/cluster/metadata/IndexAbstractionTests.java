@@ -32,12 +32,9 @@
 
 package org.opensearch.cluster.metadata;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.common.Nullable;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.cluster.metadata.AliasMetadata;
-import org.opensearch.cluster.metadata.IndexAbstraction;
-import org.opensearch.cluster.metadata.IndexMetadata;
 
 import java.util.Objects;
 

@@ -32,8 +32,8 @@
 package org.opensearch.upgrades;
 
 import org.apache.http.util.EntityUtils;
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
 import org.opensearch.action.support.PlainActionFuture;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
@@ -42,12 +42,12 @@ import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.MetadataIndexStateService;
 import org.opensearch.cluster.routing.allocation.decider.EnableAllocationDecider;
 import org.opensearch.common.Booleans;
-import org.opensearch.common.Strings;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.concurrent.AbstractRunnable;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.concurrent.AbstractRunnable;
 import org.opensearch.common.xcontent.support.XContentMapValues;
 import org.opensearch.index.IndexSettings;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 import org.opensearch.rest.action.document.RestGetAction;
 import org.opensearch.rest.action.document.RestIndexAction;
 import org.opensearch.rest.action.document.RestUpdateAction;

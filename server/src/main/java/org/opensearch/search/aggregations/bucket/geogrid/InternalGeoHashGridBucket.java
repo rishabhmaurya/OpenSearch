@@ -31,8 +31,8 @@
 
 package org.opensearch.search.aggregations.bucket.geogrid;
 
-import org.opensearch.common.geo.GeoPoint;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.geo.GeoPoint;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.geometry.utils.Geohash;
 import org.opensearch.search.aggregations.InternalAggregations;
 

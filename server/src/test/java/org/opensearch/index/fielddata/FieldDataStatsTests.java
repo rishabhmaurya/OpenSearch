@@ -33,8 +33,8 @@ package org.opensearch.index.fielddata;
 
 import org.opensearch.common.FieldMemoryStats;
 import org.opensearch.common.FieldMemoryStatsTests;
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;

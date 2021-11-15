@@ -33,7 +33,7 @@
 package org.opensearch.index.cache.request;
 
 import org.apache.lucene.util.Accountable;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.metrics.CounterMetric;
 
 /**

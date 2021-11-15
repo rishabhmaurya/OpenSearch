@@ -33,7 +33,7 @@
 package org.opensearch.analysis.common;
 
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.index.IndexSettings;

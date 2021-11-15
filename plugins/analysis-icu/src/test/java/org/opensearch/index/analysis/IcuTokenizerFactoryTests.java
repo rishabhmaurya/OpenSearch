@@ -33,9 +33,9 @@
 package org.opensearch.index.analysis;
 
 import org.apache.lucene.analysis.icu.segmentation.ICUTokenizer;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 import org.opensearch.index.Index;
 import org.opensearch.plugin.analysis.icu.AnalysisICUPlugin;

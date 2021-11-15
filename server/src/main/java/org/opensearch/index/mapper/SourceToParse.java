@@ -35,8 +35,8 @@ package org.opensearch.index.mapper;
 import java.util.Objects;
 
 import org.opensearch.common.Nullable;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.XContentType;
 
 public class SourceToParse {

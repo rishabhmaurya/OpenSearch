@@ -32,7 +32,7 @@
 package org.opensearch.benchmark.fs;
 
 import org.opensearch.common.logging.LogConfigurator;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;
 import org.openjdk.jmh.annotations.Benchmark;

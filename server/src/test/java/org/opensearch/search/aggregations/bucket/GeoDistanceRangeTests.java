@@ -33,8 +33,8 @@
 package org.opensearch.search.aggregations.bucket;
 
 import org.opensearch.common.geo.GeoDistance;
-import org.opensearch.common.geo.GeoPoint;
-import org.opensearch.common.unit.DistanceUnit;
+import org.opensearch.mod.common.geo.GeoPoint;
+import org.opensearch.mod.common.unit.DistanceUnit;
 import org.opensearch.common.xcontent.XContentParseException;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.json.JsonXContent;

@@ -37,7 +37,7 @@ import org.apache.lucene.index.TermsEnum;
 import org.opensearch.action.bulk.BulkRequestBuilder;
 import org.opensearch.action.termvectors.TermVectorsRequest;
 import org.opensearch.action.termvectors.TermVectorsResponse;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.shard.IndexShard;

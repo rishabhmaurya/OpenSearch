@@ -8,7 +8,12 @@
  * Modifications Copyright OpenSearch Contributors. See
  * GitHub history for details.
  */
-
+pluginManagement {
+  repositories {
+    mavenLocal()
+    gradlePluginPortal()
+  }
+}
 plugins {
   id "com.gradle.enterprise" version "3.5"
 }

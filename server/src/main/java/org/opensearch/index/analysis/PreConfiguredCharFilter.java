@@ -34,7 +34,7 @@ package org.opensearch.index.analysis;
 
 import org.apache.lucene.analysis.CharFilter;
 import org.apache.lucene.analysis.TokenFilter;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.indices.analysis.PreBuiltCacheFactory.CachingStrategy;
 
 import java.io.Reader;
@@ -57,7 +57,7 @@ public class PreConfiguredCharFilter extends PreConfiguredAnalysisComponent<Char
      * Create a pre-configured char filter that may not vary at all, provide access to the openearch version
      */
     public static PreConfiguredCharFilter singletonWithVersion(String name, boolean useFilterForMultitermQueries,
-            BiFunction<Reader, org.opensearch.Version, Reader> create) {
+            BiFunction<Reader, Version, Reader> create) {
         return new PreConfiguredCharFilter(name, CachingStrategy.ONE, useFilterForMultitermQueries,
                 (reader, version) -> create.apply(reader, version));
     }
@@ -75,7 +75,7 @@ public class PreConfiguredCharFilter extends PreConfiguredAnalysisComponent<Char
      * Create a pre-configured token filter that may vary based on the OpenSearch version.
      */
     public static PreConfiguredCharFilter openSearchVersion(String name, boolean useFilterForMultitermQueries,
-            BiFunction<Reader, org.opensearch.Version, Reader> create) {
+            BiFunction<Reader, Version, Reader> create) {
         return new PreConfiguredCharFilter(name, CachingStrategy.OPENSEARCH, useFilterForMultitermQueries, create);
     }
 
@@ -83,7 +83,7 @@ public class PreConfiguredCharFilter extends PreConfiguredAnalysisComponent<Char
     private final BiFunction<Reader, Version, Reader> create;
 
     protected PreConfiguredCharFilter(String name, CachingStrategy cache, boolean useFilterForMultitermQueries,
-            BiFunction<Reader, org.opensearch.Version, Reader> create) {
+            BiFunction<Reader, Version, Reader> create) {
         super(name, cache);
         this.useFilterForMultitermQueries = useFilterForMultitermQueries;
         this.create = create;

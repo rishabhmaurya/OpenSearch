@@ -32,8 +32,8 @@
 
 package org.opensearch.cluster;
 
-import org.opensearch.Version;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.io.stream.StreamInput;
 
 import java.io.IOException;
 

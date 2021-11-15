@@ -33,7 +33,8 @@
 package org.opensearch.search.aggregations.bucket.range;
 
 import org.opensearch.common.geo.GeoDistance;
-import org.opensearch.common.unit.DistanceUnit;
+import org.opensearch.mod.common.unit.DistanceUnit;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.search.DocValueFormat;
 import org.opensearch.search.aggregations.Aggregator;
 import org.opensearch.search.aggregations.AggregatorFactories;
@@ -49,7 +50,7 @@ public interface GeoDistanceAggregatorSupplier {
         String name,
         AggregatorFactories factories,
         GeoDistance distanceType,
-        org.opensearch.common.geo.GeoPoint origin,
+        GeoPoint origin,
         DistanceUnit units,
         ValuesSource valuesSource,
         DocValueFormat format,

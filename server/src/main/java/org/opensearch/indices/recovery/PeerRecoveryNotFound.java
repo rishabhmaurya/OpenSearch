@@ -33,7 +33,7 @@
 package org.opensearch.indices.recovery;
 
 import org.opensearch.ResourceNotFoundException;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.index.shard.ShardId;
 
 import java.io.IOException;

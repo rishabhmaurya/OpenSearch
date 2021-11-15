@@ -33,7 +33,7 @@
 package org.opensearch.action.admin.indices.rollover;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.admin.indices.alias.Alias;
 import org.opensearch.action.admin.indices.create.CreateIndexClusterStateUpdateRequest;
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
@@ -59,13 +59,13 @@ import org.opensearch.cluster.metadata.Template;
 import org.opensearch.cluster.routing.allocation.AllocationService;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.CheckedFunction;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.UUIDs;
-import org.opensearch.common.compress.CompressedXContent;
+import org.opensearch.mod.common.compress.CompressedXContent;
 import org.opensearch.common.settings.IndexScopedSettings;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.env.Environment;
 import org.opensearch.index.Index;
@@ -89,11 +89,6 @@ import org.opensearch.test.ClusterServiceUtils;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.threadpool.TestThreadPool;
 import org.opensearch.threadpool.ThreadPool;
-import org.opensearch.action.admin.indices.rollover.Condition;
-import org.opensearch.action.admin.indices.rollover.MaxDocsCondition;
-import org.opensearch.action.admin.indices.rollover.MetadataRolloverService;
-import org.opensearch.action.admin.indices.rollover.RolloverInfo;
-import org.opensearch.action.admin.indices.rollover.RolloverRequest;
 
 import java.io.IOException;
 import java.util.Arrays;

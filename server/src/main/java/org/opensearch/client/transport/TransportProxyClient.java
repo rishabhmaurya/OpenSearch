@@ -38,7 +38,7 @@ import org.opensearch.action.ActionRequest;
 import org.opensearch.action.ActionRequestBuilder;
 import org.opensearch.action.ActionResponse;
 import org.opensearch.action.TransportActionNodeProxy;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.transport.TransportService;
 
 import java.util.HashMap;

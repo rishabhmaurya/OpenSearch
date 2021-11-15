@@ -32,8 +32,8 @@
 
 package org.opensearch.common.rounding;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.VersionUtils;

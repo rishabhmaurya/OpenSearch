@@ -34,7 +34,7 @@ package org.opensearch.search.aggregations.metrics;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.search.ShardSearchFailure;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.script.Script;
 import org.opensearch.script.ScriptType;

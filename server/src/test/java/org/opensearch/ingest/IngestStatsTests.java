@@ -32,10 +32,10 @@
 
 package org.opensearch.ingest;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.common.collect.MapBuilder;
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.common.collect.MapBuilder;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.VersionUtils;
 

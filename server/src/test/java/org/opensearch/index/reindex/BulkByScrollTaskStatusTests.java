@@ -34,10 +34,10 @@ package org.opensearch.index.reindex;
 
 import org.apache.lucene.util.LuceneTestCase;
 import org.opensearch.OpenSearchException;
-import org.opensearch.Version;
-import org.opensearch.common.Randomness;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.Randomness;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentParser;

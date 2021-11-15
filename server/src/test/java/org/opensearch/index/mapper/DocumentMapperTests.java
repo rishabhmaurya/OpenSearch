@@ -35,13 +35,12 @@ package org.opensearch.index.mapper;
 import org.apache.lucene.analysis.core.KeywordAnalyzer;
 import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.opensearch.common.compress.CompressedXContent;
+import org.opensearch.mod.common.compress.CompressedXContent;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.analysis.AnalyzerScope;
 import org.opensearch.index.analysis.IndexAnalyzers;
 import org.opensearch.index.analysis.NamedAnalyzer;
 import org.opensearch.index.mapper.MapperService.MergeReason;
-import org.opensearch.index.mapper.MapperServiceTestCase;
 
 import java.io.IOException;
 import java.util.Collections;

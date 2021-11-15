@@ -39,18 +39,19 @@ import org.apache.logging.log4j.util.Supplier;
 import org.opensearch.OpenSearchException;
 import org.opensearch.OpenSearchStatusException;
 import org.opensearch.ExceptionsHelper;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;
+import org.opensearch.mod.rest.RestStatus;
 
 import java.io.IOException;
 
 import static java.util.Collections.singletonMap;
 import static org.opensearch.OpenSearchException.REST_EXCEPTION_SKIP_STACK_TRACE;
 import static org.opensearch.OpenSearchException.REST_EXCEPTION_SKIP_STACK_TRACE_DEFAULT;
-import static org.opensearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
+import static org.opensearch.mod.common.xcontent.XContentParserUtils.ensureExpectedToken;
 
 
 public class BytesRestResponse extends RestResponse {

@@ -32,13 +32,13 @@
 package org.opensearch.persistent.decider;
 
 import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Settings;
 
 import java.util.Locale;
 
-import static org.opensearch.common.settings.Setting.Property.Dynamic;
-import static org.opensearch.common.settings.Setting.Property.NodeScope;
+import static org.opensearch.mod.common.settings.Setting.Property.Dynamic;
+import static org.opensearch.mod.common.settings.Setting.Property.NodeScope;
 
 /**
  * {@link EnableAssignmentDecider} is used to allow/disallow the persistent tasks

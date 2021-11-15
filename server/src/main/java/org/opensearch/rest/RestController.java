@@ -38,19 +38,20 @@ import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.OpenSearchException;
 import org.opensearch.client.node.NodeClient;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.Strings;
-import org.opensearch.common.breaker.CircuitBreaker;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.breaker.CircuitBreaker;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.logging.DeprecationLogger;
 import org.opensearch.common.path.PathTrie;
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.core.internal.io.Streams;
 import org.opensearch.http.HttpServerTransport;
-import org.opensearch.indices.breaker.CircuitBreakerService;
+import org.opensearch.mod.common.breaker.fromindices.breaker.CircuitBreakerService;
+import org.opensearch.mod.rest.RestStatus;
 import org.opensearch.usage.UsageService;
 
 import java.io.ByteArrayOutputStream;
@@ -69,11 +70,11 @@ import java.util.stream.Collectors;
 
 import static org.opensearch.cluster.metadata.IndexNameExpressionResolver.SYSTEM_INDEX_ACCESS_CONTROL_HEADER_KEY;
 import static org.opensearch.rest.BytesRestResponse.TEXT_CONTENT_TYPE;
-import static org.opensearch.rest.RestStatus.BAD_REQUEST;
-import static org.opensearch.rest.RestStatus.INTERNAL_SERVER_ERROR;
-import static org.opensearch.rest.RestStatus.METHOD_NOT_ALLOWED;
-import static org.opensearch.rest.RestStatus.NOT_ACCEPTABLE;
-import static org.opensearch.rest.RestStatus.OK;
+import static org.opensearch.mod.rest.RestStatus.BAD_REQUEST;
+import static org.opensearch.mod.rest.RestStatus.INTERNAL_SERVER_ERROR;
+import static org.opensearch.mod.rest.RestStatus.METHOD_NOT_ALLOWED;
+import static org.opensearch.mod.rest.RestStatus.NOT_ACCEPTABLE;
+import static org.opensearch.mod.rest.RestStatus.OK;
 
 public class RestController implements HttpServerTransport.Dispatcher {
 

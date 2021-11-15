@@ -35,7 +35,7 @@ import org.opensearch.action.ActionRunnable;
 import org.opensearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.opensearch.action.support.PlainActionFuture;
 import org.opensearch.cluster.RepositoryCleanupInProgress;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.repositories.RepositoriesService;
 import org.opensearch.snapshots.AbstractSnapshotIntegTestCase;

@@ -1,0 +1,97 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * The OpenSearch Contributors require contributions made to
+ * this file be licensed under the Apache-2.0 license or a
+ * compatible open source license.
+ *
+ * Modifications Copyright OpenSearch Contributors. See
+ * GitHub history for details.
+ */
+
+/*
+ * Licensed to Elasticsearch under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import org.opensearch.gradle.info.BuildParams
+
+apply plugin: 'opensearch.build'
+apply plugin: 'opensearch.publish'
+// changes for module plugin
+java {
+  modularity.inferModulePath.set(false)
+}
+
+apply plugin: 'org.javamodularity.moduleplugin'
+//compileJava.moduleOptions.compileModuleInfoSeparately = true
+//compileModuleInfoJava.sourceCompatibility = 11
+//compileModuleInfoJava.targetCompatibility = 11
+//compileJava {
+//  moduleOptions {
+//    addModules = ['opensearch.common']
+//  }
+//}
+// changes to compile the main source set using java 11
+configurations {
+  modulePath {
+    transitive false
+  }
+}
+
+// add all required modules to module path
+dependencies {
+  modulePath project(':libs:opensearch-opensearch-common')
+}
+
+compileJava.doFirst {
+  //options.compilerArgs -= ['--module-path', project.configurations.compileClasspath.asPath]
+  options.compilerArgs += [
+    //'-Xmaxerrs', '10',
+    '-Xmaxwarns', '1',
+    '-cp', project.configurations.compileClasspath.asPath,
+    '--add-modules', 'ALL-SYSTEM',
+    '--module-path', configurations.modulePath.asPath,
+    //'--patch-module',"opensearch.common=opensearch-x-content-2.0.0-SNAPSHOT.jar",
+    '--add-reads', "opensearch.common=ALL-UNNAMED"
+  ]
+
+  //forbiddenApisJava11Test.enabled = false
+  //println sourceSets.java11Test.compileClasspath.asPath
+  println compileJava.options.compilerArgs
+}
+
+dependencies {
+  // logging
+  api project(':libs:opensearch-opensearch-common')
+
+  testImplementation(project(":test:framework")) {
+    exclude group: 'org.opensearch', module: 'opensearch-geo'
+  }
+}
+javadoc.enabled = false
+thirdPartyAudit.enabled = false
+dependencyLicenses.enabled = false
+missingJavadoc.enabled = false
+testingConventions.enabled = false
+jarHell.enabled = false
+tasks.named('forbiddenApisMain').configure {
+  // geo does not depend on server
+  // TODO: Need to decide how we want to handle for forbidden signatures with the changes to core
+  replaceSignatureFiles 'jdk-signatures'
+}
+

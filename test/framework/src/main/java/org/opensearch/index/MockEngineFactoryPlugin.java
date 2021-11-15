@@ -33,7 +33,7 @@ package org.opensearch.index;
 
 import org.apache.lucene.index.AssertingDirectoryReader;
 import org.apache.lucene.index.FilterDirectoryReader;
-import org.opensearch.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting;
 import org.opensearch.index.engine.EngineFactory;
 import org.opensearch.plugins.EnginePlugin;
 import org.opensearch.plugins.Plugin;

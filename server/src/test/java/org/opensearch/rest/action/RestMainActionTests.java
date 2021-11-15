@@ -32,17 +32,17 @@
 
 package org.opensearch.rest.action;
 
-import org.opensearch.Build;
-import org.opensearch.Version;
+import org.opensearch.mod.Build;
+import org.opensearch.mod.Version;
 import org.opensearch.action.main.MainResponse;
 import org.opensearch.cluster.ClusterName;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestRequest;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.rest.FakeRestRequest;
 

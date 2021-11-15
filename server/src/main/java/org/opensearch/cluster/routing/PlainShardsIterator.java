@@ -31,7 +31,7 @@
 
 package org.opensearch.cluster.routing;
 
-import org.opensearch.common.util.PlainIterator;
+import org.opensearch.mod.common.util.PlainIterator;
 
 import java.util.List;
 

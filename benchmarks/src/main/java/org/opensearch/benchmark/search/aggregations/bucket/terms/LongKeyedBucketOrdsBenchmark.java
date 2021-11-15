@@ -32,9 +32,9 @@
 
 package org.opensearch.benchmark.search.aggregations.bucket.terms;
 
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.BigArrays;
-import org.opensearch.common.util.PageCacheRecycler;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.BigArrays;
+import org.opensearch.mod.common.util.PageCacheRecycler;
 import org.opensearch.search.aggregations.CardinalityUpperBound;
 import org.opensearch.search.aggregations.bucket.histogram.AutoDateHistogramAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.terms.LongKeyedBucketOrds;

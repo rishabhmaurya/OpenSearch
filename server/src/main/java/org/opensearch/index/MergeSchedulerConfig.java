@@ -33,9 +33,9 @@
 package org.opensearch.index;
 
 import org.apache.lucene.index.ConcurrentMergeScheduler;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 
 /**

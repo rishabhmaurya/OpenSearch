@@ -41,14 +41,14 @@ import org.opensearch.client.benchmark.AbstractBenchmark;
 import org.opensearch.client.benchmark.ops.bulk.BulkRequestExecutor;
 import org.opensearch.client.benchmark.ops.search.SearchRequestExecutor;
 import org.opensearch.client.transport.TransportClient;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.plugin.noop.NoopPlugin;
 import org.opensearch.plugin.noop.action.bulk.NoopBulkAction;
 import org.opensearch.plugin.noop.action.search.NoopSearchAction;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.transport.client.PreBuiltTransportClient;
 

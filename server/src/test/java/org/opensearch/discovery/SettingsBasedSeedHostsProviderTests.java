@@ -31,9 +31,9 @@
 
 package org.opensearch.discovery;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.transport.TransportAddress;
-import org.opensearch.common.util.set.Sets;
+import org.opensearch.mod.common.util.set.Sets;
 import org.opensearch.discovery.SeedHostsProvider.HostsResolver;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.transport.TransportService;

@@ -35,11 +35,11 @@ import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import org.opensearch.common.SuppressForbidden;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.io.Streams;
-import org.opensearch.common.regex.Regex;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.io.Streams;
+import org.opensearch.mod.common.regex.Regex;
+import org.opensearch.mod.rest.RestStatus;
 import org.opensearch.rest.RestUtils;
 
 import java.io.ByteArrayOutputStream;

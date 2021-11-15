@@ -31,6 +31,7 @@
 
 package org.opensearch.common.util;
 
+import org.opensearch.mod.common.util.URIPattern;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.net.URI;

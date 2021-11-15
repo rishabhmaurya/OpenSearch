@@ -33,6 +33,7 @@
 package org.opensearch.monitor.jvm;
 
 import org.opensearch.common.unit.TimeValue;
+import org.opensearch.mod.monitor.jvm.JvmStats;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.Collections;

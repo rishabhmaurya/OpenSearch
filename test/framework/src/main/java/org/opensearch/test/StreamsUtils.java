@@ -32,8 +32,8 @@
 
 package org.opensearch.test;
 
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
 import org.opensearch.core.internal.io.Streams;
 
 import java.io.FileNotFoundException;
@@ -49,7 +49,7 @@ public class StreamsUtils {
         if (is == null) {
             throw new FileNotFoundException("Resource [" + path + "] not found in classpath with class loader [" + classLoader + "]");
         }
-        return org.opensearch.common.io.Streams.copyToString(new InputStreamReader(is, StandardCharsets.UTF_8));
+        return org.opensearch.mod.common.io.Streams.copyToString(new InputStreamReader(is, StandardCharsets.UTF_8));
     }
 
     public static String copyToStringFromClasspath(String path) throws IOException {
@@ -57,7 +57,7 @@ public class StreamsUtils {
         if (is == null) {
             throw new FileNotFoundException("Resource [" + path + "] not found in classpath");
         }
-        return org.opensearch.common.io.Streams.copyToString(new InputStreamReader(is, StandardCharsets.UTF_8));
+        return org.opensearch.mod.common.io.Streams.copyToString(new InputStreamReader(is, StandardCharsets.UTF_8));
     }
 
     public static byte[] copyToBytesFromClasspath(String path) throws IOException {

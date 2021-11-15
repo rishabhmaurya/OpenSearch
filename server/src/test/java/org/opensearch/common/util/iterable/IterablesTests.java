@@ -32,6 +32,7 @@
 
 package org.opensearch.common.util.iterable;
 
+import org.opensearch.mod.common.util.iterable.Iterables;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.ArrayList;

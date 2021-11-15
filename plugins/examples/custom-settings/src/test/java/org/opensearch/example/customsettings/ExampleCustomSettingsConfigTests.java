@@ -31,7 +31,7 @@
 
 package org.opensearch.example.customsettings;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.OpenSearchTestCase;
 
 import static org.opensearch.example.customsettings.ExampleCustomSettingsConfig.VALIDATED_SETTING;

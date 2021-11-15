@@ -31,8 +31,8 @@
 
 package org.opensearch.benchmark.time;
 
-import org.opensearch.common.time.DateFormatter;
-import org.opensearch.common.time.DateFormatters;
+import org.opensearch.mod.common.time.DateFormatter;
+import org.opensearch.mod.common.time.DateFormatters;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;

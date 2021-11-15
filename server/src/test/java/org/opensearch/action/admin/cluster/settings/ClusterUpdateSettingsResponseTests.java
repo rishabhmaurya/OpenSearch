@@ -32,12 +32,12 @@
 
 package org.opensearch.action.admin.cluster.settings;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.settings.Settings.Builder;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings.Builder;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.test.AbstractSerializingTestCase;
 import org.opensearch.test.VersionUtils;

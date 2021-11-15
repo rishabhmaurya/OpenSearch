@@ -32,9 +32,10 @@
 
 package org.opensearch.common;
 
-import org.opensearch.common.util.set.Sets;
+import org.opensearch.mod.common.util.set.Sets;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.ToXContentObject;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.Collections;

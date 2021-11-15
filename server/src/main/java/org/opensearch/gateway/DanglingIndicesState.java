@@ -42,9 +42,9 @@ import org.opensearch.cluster.metadata.IndexGraveyard;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.Metadata;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.inject.Inject;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.util.concurrent.ConcurrentCollections;
+import org.opensearch.mod.common.inject.Inject;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.util.concurrent.ConcurrentCollections;
 import org.opensearch.env.NodeEnvironment;
 import org.opensearch.index.Index;
 

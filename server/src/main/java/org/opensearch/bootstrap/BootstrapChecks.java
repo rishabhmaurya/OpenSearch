@@ -39,12 +39,12 @@ import org.apache.lucene.util.Constants;
 import org.opensearch.cluster.coordination.ClusterBootstrapService;
 import org.opensearch.common.SuppressForbidden;
 import org.opensearch.common.io.PathUtils;
-import org.opensearch.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting;
 import org.opensearch.common.transport.BoundTransportAddress;
 import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.discovery.DiscoveryModule;
 import org.opensearch.index.IndexModule;
-import org.opensearch.monitor.jvm.JvmInfo;
+import org.opensearch.mod.monitor.jvm.JvmInfo;
 import org.opensearch.monitor.process.ProcessProbe;
 import org.opensearch.node.NodeValidationException;
 

@@ -31,10 +31,10 @@
 
 package org.opensearch.index.mapper;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.common.geo.SpatialStrategy;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.mapper.LegacyGeoShapeFieldMapper.GeoShapeFieldType;
 
 import java.io.IOException;

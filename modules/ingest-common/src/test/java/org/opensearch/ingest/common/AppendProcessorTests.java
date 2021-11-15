@@ -32,7 +32,7 @@
 
 package org.opensearch.ingest.common;
 
-import org.opensearch.common.util.set.Sets;
+import org.opensearch.mod.common.util.set.Sets;
 import org.opensearch.ingest.IngestDocument;
 import org.opensearch.ingest.IngestDocument.Metadata;
 import org.opensearch.ingest.Processor;

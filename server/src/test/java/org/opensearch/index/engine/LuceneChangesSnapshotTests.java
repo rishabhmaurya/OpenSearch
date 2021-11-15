@@ -32,7 +32,7 @@
 
 package org.opensearch.index.engine;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.mapper.MapperService;

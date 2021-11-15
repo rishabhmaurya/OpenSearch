@@ -36,7 +36,7 @@ import org.opensearch.ExceptionsHelper;
 import org.opensearch.common.CheckedConsumer;
 import org.opensearch.common.CheckedFunction;
 import org.opensearch.common.CheckedRunnable;
-import org.opensearch.common.CheckedSupplier;
+import org.opensearch.mod.common.CheckedSupplier;
 
 import java.util.ArrayList;
 import java.util.List;

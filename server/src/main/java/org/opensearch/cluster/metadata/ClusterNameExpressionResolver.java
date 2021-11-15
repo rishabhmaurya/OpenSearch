@@ -32,7 +32,7 @@
 
 package org.opensearch.cluster.metadata;
 
-import org.opensearch.common.regex.Regex;
+import org.opensearch.mod.common.regex.Regex;
 
 import java.util.ArrayList;
 import java.util.Collections;

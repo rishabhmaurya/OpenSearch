@@ -32,9 +32,10 @@
 
 package org.opensearch.index.mapper;
 
-import org.opensearch.Version;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.time.DateFormatter;
+import org.opensearch.mod.Version;
+import org.opensearch.VersionUtil;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.time.DateFormatter;
 import org.opensearch.common.xcontent.ToXContentFragment;
 import org.opensearch.index.analysis.IndexAnalyzers;
 import org.opensearch.index.query.QueryShardContext;
@@ -67,7 +68,7 @@ public abstract class Mapper implements ToXContentFragment, Iterable<Mapper> {
         }
 
         public Version indexCreatedVersion() {
-            return Version.indexCreated(indexSettings);
+            return VersionUtil.indexCreated(indexSettings);
         }
     }
 

@@ -32,18 +32,20 @@
 
 package org.opensearch.common.unit;
 
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;
 
-import static org.opensearch.common.unit.ByteSizeUnit.BYTES;
-import static org.opensearch.common.unit.ByteSizeUnit.GB;
-import static org.opensearch.common.unit.ByteSizeUnit.KB;
-import static org.opensearch.common.unit.ByteSizeUnit.MB;
-import static org.opensearch.common.unit.ByteSizeUnit.PB;
-import static org.opensearch.common.unit.ByteSizeUnit.TB;
+import static org.opensearch.mod.common.unit.ByteSizeUnit.BYTES;
+import static org.opensearch.mod.common.unit.ByteSizeUnit.GB;
+import static org.opensearch.mod.common.unit.ByteSizeUnit.KB;
+import static org.opensearch.mod.common.unit.ByteSizeUnit.MB;
+import static org.opensearch.mod.common.unit.ByteSizeUnit.PB;
+import static org.opensearch.mod.common.unit.ByteSizeUnit.TB;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 

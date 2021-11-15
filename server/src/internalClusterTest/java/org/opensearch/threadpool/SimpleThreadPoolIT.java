@@ -33,7 +33,7 @@
 package org.opensearch.threadpool;
 
 import org.opensearch.action.index.IndexRequestBuilder;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.test.OpenSearchIntegTestCase.ClusterScope;

@@ -35,7 +35,7 @@ package org.opensearch.index.search;
 import org.opensearch.action.admin.indices.create.CreateIndexRequestBuilder;
 import org.opensearch.action.index.IndexRequestBuilder;
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.query.MatchPhraseQueryBuilder;
 import org.opensearch.index.search.MatchQuery.ZeroTermsQuery;
 import org.opensearch.test.OpenSearchIntegTestCase;

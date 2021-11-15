@@ -36,7 +36,7 @@ import com.maxmind.geoip2.DatabaseReader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.SetOnce;
-import org.opensearch.common.CheckedSupplier;
+import org.opensearch.mod.common.CheckedSupplier;
 import org.opensearch.core.internal.io.IOUtils;
 
 import java.io.Closeable;

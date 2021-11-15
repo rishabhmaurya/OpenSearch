@@ -41,12 +41,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.lucene.util.LuceneTestCase;
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
-import org.opensearch.cli.ExitCodes;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.cli.ExitCodes;
 import org.opensearch.cli.MockTerminal;
-import org.opensearch.cli.UserException;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.cli.UserException;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 import org.opensearch.env.TestEnvironment;
 import org.opensearch.test.OpenSearchTestCase;

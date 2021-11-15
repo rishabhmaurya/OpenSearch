@@ -32,7 +32,9 @@
 
 package org.opensearch.common.recycler;
 
-import org.opensearch.common.recycler.Recycler.V;
+import org.opensearch.mod.common.recycler.AbstractRecyclerC;
+import org.opensearch.mod.common.recycler.Recycler;
+import org.opensearch.mod.common.recycler.Recycler.V;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.ArrayList;

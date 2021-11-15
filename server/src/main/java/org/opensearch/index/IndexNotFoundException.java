@@ -32,7 +32,7 @@
 package org.opensearch.index;
 
 import org.opensearch.ResourceNotFoundException;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 
 import java.io.IOException;
 

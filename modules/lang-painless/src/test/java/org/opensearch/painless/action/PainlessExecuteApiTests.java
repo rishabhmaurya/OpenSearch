@@ -31,8 +31,8 @@
 
 package org.opensearch.painless.action;
 
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.query.MatchQueryBuilder;

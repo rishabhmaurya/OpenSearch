@@ -32,15 +32,15 @@
 
 package org.opensearch.transport;
 
-import org.opensearch.Version;
-import org.opensearch.common.breaker.CircuitBreakingException;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.breaker.CircuitBreakingException;
 import org.opensearch.common.breaker.TestCircuitBreaker;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.bytes.ReleasableBytesReference;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.ReleasableBytesReference;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 import org.opensearch.test.OpenSearchTestCase;
 import org.junit.Before;
 

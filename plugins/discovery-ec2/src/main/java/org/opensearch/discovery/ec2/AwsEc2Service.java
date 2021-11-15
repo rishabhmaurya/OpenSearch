@@ -32,8 +32,8 @@
 
 package org.opensearch.discovery.ec2;
 
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
 import org.opensearch.common.unit.TimeValue;
 
 import java.io.Closeable;

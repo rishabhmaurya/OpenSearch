@@ -36,7 +36,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.opensearch.common.CheckedRunnable;
 import org.opensearch.common.logging.Loggers;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.nio.ServerChannelContext;
 import org.opensearch.nio.SocketChannelContext;
 import org.opensearch.test.OpenSearchTestCase;

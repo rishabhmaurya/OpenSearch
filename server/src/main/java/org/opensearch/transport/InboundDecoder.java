@@ -32,12 +32,12 @@
 
 package org.opensearch.transport;
 
-import org.opensearch.Version;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.bytes.ReleasableBytesReference;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.lease.Releasable;
-import org.opensearch.common.util.PageCacheRecycler;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.ReleasableBytesReference;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.lease.Releasable;
+import org.opensearch.mod.common.util.PageCacheRecycler;
 import org.opensearch.core.internal.io.IOUtils;
 
 import java.io.IOException;

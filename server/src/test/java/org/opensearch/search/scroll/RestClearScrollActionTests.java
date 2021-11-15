@@ -37,7 +37,7 @@ import org.opensearch.action.ActionListener;
 import org.opensearch.action.search.ClearScrollRequest;
 import org.opensearch.action.search.ClearScrollResponse;
 import org.opensearch.client.node.NodeClient;
-import org.opensearch.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesArray;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.search.RestClearScrollAction;

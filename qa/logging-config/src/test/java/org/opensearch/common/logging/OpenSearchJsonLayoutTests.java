@@ -32,6 +32,7 @@
 package org.opensearch.common.logging;
 
 
+import org.opensearch.mod.common.logging.OpenSearchJsonLayout;
 import org.opensearch.test.OpenSearchTestCase;
 import org.hamcrest.Matchers;
 import org.junit.BeforeClass;

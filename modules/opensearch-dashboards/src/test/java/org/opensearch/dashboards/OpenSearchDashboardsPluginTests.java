@@ -32,7 +32,7 @@
 
 package org.opensearch.dashboards;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.indices.SystemIndexDescriptor;
 import org.opensearch.test.OpenSearchTestCase;
 

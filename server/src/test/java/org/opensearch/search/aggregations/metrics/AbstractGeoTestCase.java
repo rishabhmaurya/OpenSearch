@@ -39,10 +39,10 @@ import com.carrotsearch.hppc.ObjectObjectMap;
 
 import org.opensearch.action.index.IndexRequestBuilder;
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.document.DocumentField;
-import org.opensearch.common.geo.GeoPoint;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.geo.GeoPoint;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;

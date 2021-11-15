@@ -92,9 +92,9 @@ import org.opensearch.action.update.UpdateRequest;
 import org.opensearch.action.update.UpdateResponse;
 import org.opensearch.client.Requests;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.plugins.NetworkPlugin;
 import org.opensearch.plugins.Plugin;
@@ -113,8 +113,6 @@ import org.opensearch.transport.TransportRequestHandler;
 
 import org.junit.After;
 import org.junit.Before;
-import org.opensearch.action.DocWriteResponse;
-import org.opensearch.action.IndicesRequest;
 
 import java.util.ArrayList;
 import java.util.Arrays;

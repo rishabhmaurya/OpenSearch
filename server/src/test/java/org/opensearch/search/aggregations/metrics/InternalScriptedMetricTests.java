@@ -32,9 +32,9 @@
 
 package org.opensearch.search.aggregations.metrics;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.common.geo.GeoPoint;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.common.geo.GeoPoint;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.script.MockScriptEngine;
 import org.opensearch.script.Script;
 import org.opensearch.script.ScriptEngine;

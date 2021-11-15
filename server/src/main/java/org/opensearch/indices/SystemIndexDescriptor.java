@@ -33,7 +33,7 @@
 package org.opensearch.indices;
 
 import org.apache.lucene.util.automaton.CharacterRunAutomaton;
-import org.opensearch.common.regex.Regex;
+import org.opensearch.mod.common.regex.Regex;
 
 import java.util.Objects;
 

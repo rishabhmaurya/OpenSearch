@@ -33,7 +33,7 @@
 package org.opensearch.ingest;
 
 import org.opensearch.client.Client;
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 import org.opensearch.env.Environment;
 import org.opensearch.index.analysis.AnalysisRegistry;
 import org.opensearch.script.ScriptService;

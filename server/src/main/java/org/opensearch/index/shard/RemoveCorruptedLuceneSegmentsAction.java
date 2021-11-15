@@ -35,7 +35,7 @@ import org.apache.lucene.index.CheckIndex;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.Lock;
 import org.opensearch.OpenSearchException;
-import org.opensearch.cli.Terminal;
+import org.opensearch.mod.cli.Terminal;
 import org.opensearch.common.collect.Tuple;
 
 import java.io.IOException;

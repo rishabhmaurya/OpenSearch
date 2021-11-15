@@ -31,14 +31,13 @@
 
 package org.opensearch.action.admin.cluster.repositories.put;
 
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
-import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.mod.common.xcontent.XContentHelper;
 import org.opensearch.repositories.fs.FsRepository;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
 
 import java.io.IOException;
 import java.util.HashMap;

@@ -39,7 +39,7 @@ import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.core.KeywordTokenizer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.Index;
 import org.opensearch.plugin.analysis.icu.AnalysisICUPlugin;
 import org.opensearch.test.OpenSearchTestCase;
@@ -231,7 +231,7 @@ public class SimpleIcuCollationTokenFilterTests extends OpenSearchTestCase {
         TokenFilterFactory filterFactory = analysis.tokenFilter.get("myCollator");
         assertCollatesToSame(filterFactory, "Töne", "Toene");
     }
-    
+
     /*
      * Test a basic custom rules (should not interfere with reading rules list
      * in IcuCollationTokenFilterFactory and throw InvalidPathException on

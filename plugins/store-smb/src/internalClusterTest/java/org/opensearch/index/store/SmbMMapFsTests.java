@@ -32,7 +32,7 @@
 
 package org.opensearch.index.store;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 
 
 public class SmbMMapFsTests extends AbstractAzureFsTestCase {

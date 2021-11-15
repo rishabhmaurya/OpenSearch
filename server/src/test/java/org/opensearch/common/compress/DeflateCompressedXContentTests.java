@@ -33,8 +33,11 @@
 package org.opensearch.common.compress;
 
 import org.apache.lucene.util.TestUtil;
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.compress.CompressedXContent;
+import org.opensearch.mod.common.compress.Compressor;
+import org.opensearch.mod.common.compress.DeflateCompressor;
 import org.opensearch.test.OpenSearchTestCase;
 import org.junit.Assert;
 

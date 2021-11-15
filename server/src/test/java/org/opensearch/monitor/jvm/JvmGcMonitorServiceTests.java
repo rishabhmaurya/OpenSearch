@@ -33,8 +33,9 @@
 package org.opensearch.monitor.jvm;
 
 import org.apache.logging.log4j.Logger;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.common.unit.TimeValue;
+import org.opensearch.mod.monitor.jvm.JvmStats;
 import org.opensearch.test.OpenSearchTestCase;
 
 import static org.mockito.Mockito.mock;

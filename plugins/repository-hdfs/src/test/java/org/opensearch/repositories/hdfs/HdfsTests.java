@@ -39,7 +39,7 @@ import org.opensearch.action.support.master.AcknowledgedResponse;
 import org.opensearch.bootstrap.JavaVersion;
 import org.opensearch.client.Client;
 import org.opensearch.cluster.ClusterState;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.repositories.RepositoriesService;
 import org.opensearch.repositories.RepositoryException;

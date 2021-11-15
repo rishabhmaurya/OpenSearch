@@ -34,8 +34,8 @@ package org.opensearch.client.core;
 
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.client.AbstractRequestTestCase;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.ArrayUtils;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.ArrayUtils;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.index.query.MatchAllQueryBuilder;

@@ -33,7 +33,7 @@
 package org.opensearch.action.admin.cluster.snapshots.get;
 
 import org.opensearch.common.UUIDs;
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.snapshots.SnapshotId;
@@ -41,7 +41,6 @@ import org.opensearch.snapshots.SnapshotInfo;
 import org.opensearch.snapshots.SnapshotInfoTests;
 import org.opensearch.snapshots.SnapshotShardFailure;
 import org.opensearch.test.AbstractSerializingTestCase;
-import org.opensearch.action.admin.cluster.snapshots.get.GetSnapshotsResponse;
 
 import java.io.IOException;
 import java.util.ArrayList;

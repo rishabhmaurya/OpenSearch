@@ -33,7 +33,7 @@ package org.opensearch.client.indices;
 
 import org.opensearch.client.TimedRequest;
 import org.opensearch.cluster.metadata.ComposableIndexTemplate;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;
 

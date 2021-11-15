@@ -42,10 +42,10 @@ import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.routing.allocation.AllocationService;
 import org.opensearch.cluster.routing.allocation.RoutingAllocation;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.component.AbstractLifecycleComponent;
-import org.opensearch.common.inject.Inject;
+import org.opensearch.mod.common.component.AbstractLifecycleComponent;
+import org.opensearch.mod.common.inject.Inject;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.concurrent.AbstractRunnable;
+import org.opensearch.mod.common.util.concurrent.AbstractRunnable;
 import org.opensearch.threadpool.Scheduler;
 import org.opensearch.threadpool.ThreadPool;
 

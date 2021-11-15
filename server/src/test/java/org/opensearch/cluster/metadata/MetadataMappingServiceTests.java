@@ -37,8 +37,8 @@ import org.opensearch.action.admin.indices.mapping.put.PutMappingClusterStateUpd
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.ClusterStateTaskExecutor;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.Strings;
-import org.opensearch.common.compress.CompressedXContent;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.compress.CompressedXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.index.Index;
@@ -47,8 +47,6 @@ import org.opensearch.index.mapper.MapperService;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.test.OpenSearchSingleNodeTestCase;
 import org.opensearch.test.InternalSettingsPlugin;
-import org.opensearch.cluster.metadata.MappingMetadata;
-import org.opensearch.cluster.metadata.MetadataMappingService;
 
 import java.util.Collection;
 import java.util.Collections;

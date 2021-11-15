@@ -47,7 +47,7 @@ import org.apache.lucene.util.BytesRefBuilder;
 import org.opensearch.OpenSearchException;
 import org.opensearch.common.lucene.BytesRefs;
 import org.opensearch.common.lucene.search.AutomatonQueries;
-import org.opensearch.common.unit.Fuzziness;
+import org.opensearch.mod.common.unit.Fuzziness;
 import org.opensearch.index.query.QueryShardContext;
 import org.opensearch.index.query.support.QueryParsers;
 

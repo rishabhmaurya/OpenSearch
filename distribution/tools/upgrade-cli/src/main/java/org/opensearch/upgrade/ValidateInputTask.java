@@ -8,9 +8,9 @@
 
 package org.opensearch.upgrade;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
-import org.opensearch.cli.Terminal;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.cli.Terminal;
 import org.opensearch.common.collect.Tuple;
 
 import java.util.LinkedHashMap;

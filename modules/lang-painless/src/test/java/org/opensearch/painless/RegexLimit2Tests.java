@@ -33,7 +33,7 @@
 package org.opensearch.painless;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 
 public class RegexLimit2Tests extends ScriptTestCase {
     // This regex has backtracking due to .*?
@@ -47,7 +47,7 @@ public class RegexLimit2Tests extends ScriptTestCase {
         Settings settings = Settings.builder().put(CompilerSettings.REGEX_LIMIT_FACTOR.getKey(), 2).build();
         SCRIPT_ENGINE = new PainlessScriptEngine(settings, newDefaultContexts());
     }
-    
+
     @AfterClass
     public static void afterClass() {
         SCRIPT_ENGINE = null;
@@ -57,7 +57,7 @@ public class RegexLimit2Tests extends ScriptTestCase {
     protected PainlessScriptEngine getEngine() {
         return SCRIPT_ENGINE;
     }
-    
+
     public void testRegexInject_Matcher() {
         String[] scripts = new String[]{PATTERN + ".matcher(" + CHAR_SEQUENCE + ").matches()",
             "Matcher m = " + PATTERN + ".matcher(" + CHAR_SEQUENCE + "); m.matches()"};

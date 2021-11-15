@@ -32,8 +32,8 @@
 
 package org.opensearch.index.query;
 
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.common.lucene.search.function.FunctionScoreQuery;
 import org.opensearch.test.OpenSearchTestCase;
 

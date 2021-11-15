@@ -33,7 +33,7 @@
 package org.opensearch.index.analysis;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.opensearch.common.inject.Provider;
+import org.opensearch.mod.common.inject.Provider;
 
 public interface AnalyzerProvider<T extends Analyzer> extends Provider<T> {
 

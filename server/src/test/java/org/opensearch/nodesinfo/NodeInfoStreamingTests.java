@@ -32,23 +32,23 @@
 
 package org.opensearch.nodesinfo;
 
-import org.opensearch.Build;
+import org.opensearch.mod.Build;
 import org.opensearch.action.admin.cluster.node.info.NodeInfo;
 import org.opensearch.action.admin.cluster.node.info.PluginsAndModules;
 import org.opensearch.cluster.node.DiscoveryNode;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.transport.BoundTransportAddress;
 import org.opensearch.common.transport.TransportAddress;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.http.HttpInfo;
 import org.opensearch.ingest.IngestInfo;
 import org.opensearch.ingest.ProcessorInfo;
-import org.opensearch.monitor.jvm.JvmInfo;
+import org.opensearch.mod.monitor.jvm.JvmInfo;
 import org.opensearch.monitor.os.OsInfo;
 import org.opensearch.monitor.process.ProcessInfo;
 import org.opensearch.plugins.PluginInfo;
@@ -167,7 +167,7 @@ public class NodeInfoStreamingTests extends OpenSearchTestCase {
             int numModules = randomIntBetween(0, 5);
             List<PluginInfo> modules = new ArrayList<>();
             for (int i = 0; i < numModules; i++) {
-                String name = randomAlphaOfLengthBetween(3, 10); 
+                String name = randomAlphaOfLengthBetween(3, 10);
                 modules.add(new PluginInfo(name, randomAlphaOfLengthBetween(3, 10),
                     randomAlphaOfLengthBetween(3, 10), VersionUtils.randomVersion(random()), "1.8",
                     randomAlphaOfLengthBetween(3, 10), name, Collections.emptyList(), randomBoolean()));

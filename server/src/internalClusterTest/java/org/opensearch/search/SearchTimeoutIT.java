@@ -34,7 +34,7 @@ package org.opensearch.search;
 
 import org.opensearch.OpenSearchException;
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.script.MockScriptPlugin;

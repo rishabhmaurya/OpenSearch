@@ -34,11 +34,13 @@ package org.opensearch.monitor.jvm;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.node.ReportingService;
+import org.opensearch.mod.monitor.jvm.JvmInfo;
+import org.opensearch.mod.monitor.jvm.JvmStats;
+import org.opensearch.mod.node.ReportingService;
 
 public class JvmService implements ReportingService<JvmInfo> {
 

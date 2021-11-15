@@ -34,7 +34,7 @@ package org.opensearch.discovery.ec2;
 
 import com.amazonaws.services.ec2.AmazonEC2;
 
-import org.opensearch.common.lease.Releasable;
+import org.opensearch.mod.common.lease.Releasable;
 import org.opensearch.common.util.concurrent.AbstractRefCounted;
 
 /**

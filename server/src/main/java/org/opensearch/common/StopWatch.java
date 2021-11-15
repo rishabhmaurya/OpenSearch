@@ -32,7 +32,7 @@
 
 package org.opensearch.common;
 
-import org.opensearch.common.lease.Releasable;
+import org.opensearch.mod.common.lease.Releasable;
 import org.opensearch.common.unit.TimeValue;
 
 import java.text.NumberFormat;

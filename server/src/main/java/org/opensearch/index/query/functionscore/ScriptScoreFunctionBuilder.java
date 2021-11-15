@@ -33,8 +33,8 @@
 package org.opensearch.index.query.functionscore;
 
 import org.opensearch.common.ParsingException;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
 import org.opensearch.common.lucene.search.function.ScoreFunction;
 import org.opensearch.common.lucene.search.function.ScriptScoreFunction;
 import org.opensearch.common.xcontent.XContentBuilder;

@@ -41,7 +41,11 @@ import org.opensearch.cluster.metadata.Metadata;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.Priority;
 import org.opensearch.common.UUIDs;
-import org.opensearch.common.hash.MessageDigests;
+import org.opensearch.mod.common.hash.MessageDigests;
+import org.opensearch.mod.common.settings.SecureSetting;
+import org.opensearch.mod.common.settings.SecureSettings;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Settings;
 
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;

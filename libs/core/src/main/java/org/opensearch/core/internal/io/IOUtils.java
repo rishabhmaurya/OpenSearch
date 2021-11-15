@@ -51,7 +51,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Utilities for common I/O methods. Borrowed heavily from Lucene (org.apache.lucene.util.IOUtils).
+ * Utilities for common I/O methods. Borrowed heavily from Lucene
  */
 public final class IOUtils {
 

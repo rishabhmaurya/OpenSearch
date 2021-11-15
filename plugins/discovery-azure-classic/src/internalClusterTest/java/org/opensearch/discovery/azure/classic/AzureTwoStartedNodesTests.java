@@ -35,7 +35,7 @@ package org.opensearch.discovery.azure.classic;
 import org.opensearch.cloud.azure.classic.AbstractAzureComputeServiceTestCase;
 import org.opensearch.cloud.azure.classic.management.AzureComputeService.Discovery;
 import org.opensearch.cloud.azure.classic.management.AzureComputeService.Management;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.OpenSearchIntegTestCase;
 
 @OpenSearchIntegTestCase.ClusterScope(scope = OpenSearchIntegTestCase.Scope.TEST,

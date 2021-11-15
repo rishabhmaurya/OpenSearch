@@ -31,8 +31,8 @@
 
 package org.opensearch.example.customsettings;
 
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 import org.opensearch.plugins.Plugin;
 

@@ -32,7 +32,7 @@
 
 package org.opensearch.transport;
 
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 import org.opensearch.http.HttpServerTransport;
 import org.opensearch.tasks.Task;
 

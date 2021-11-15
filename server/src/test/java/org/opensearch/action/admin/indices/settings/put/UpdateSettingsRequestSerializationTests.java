@@ -33,14 +33,13 @@
 package org.opensearch.action.admin.indices.settings.put;
 
 import org.opensearch.action.support.IndicesOptions;
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.settings.Settings.Builder;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings.Builder;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.CollectionUtils;
+import org.opensearch.mod.common.util.CollectionUtils;
 import org.opensearch.test.AbstractWireSerializingTestCase;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 
 import java.util.ArrayList;
 import java.util.Arrays;

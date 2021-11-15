@@ -32,7 +32,7 @@
 
 package org.opensearch.ingest.common;
 
-import org.opensearch.common.collect.MapBuilder;
+import org.opensearch.mod.common.collect.MapBuilder;
 import org.opensearch.dissect.DissectException;
 import org.opensearch.ingest.IngestDocument;
 import org.opensearch.ingest.Processor;

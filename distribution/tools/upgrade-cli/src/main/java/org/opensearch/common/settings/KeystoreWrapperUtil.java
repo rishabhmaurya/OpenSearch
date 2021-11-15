@@ -8,6 +8,8 @@
 
 package org.opensearch.common.settings;
 
+import org.opensearch.mod.common.settings.KeyStoreWrapper;
+
 /**
  * Utility that has package level access to the {@link KeyStoreWrapper} for
  * saving a setting.

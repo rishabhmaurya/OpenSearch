@@ -41,7 +41,7 @@ import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpResponse;
 import org.opensearch.common.Booleans;
-import org.opensearch.monitor.jvm.JvmInfo;
+import org.opensearch.mod.monitor.jvm.JvmInfo;
 
 import java.util.List;
 

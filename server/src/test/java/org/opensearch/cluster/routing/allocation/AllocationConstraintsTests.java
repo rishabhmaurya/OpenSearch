@@ -11,7 +11,7 @@ package org.opensearch.cluster.routing.allocation;
 import org.opensearch.cluster.OpenSearchAllocationTestCase;
 import org.opensearch.cluster.routing.allocation.allocator.BalancedShardsAllocator;
 import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;

@@ -34,7 +34,7 @@ package org.opensearch.bootstrap;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.cli.Terminal;
+import org.opensearch.mod.cli.Terminal;
 import org.opensearch.common.SuppressForbidden;
 
 import java.io.IOError;

@@ -32,7 +32,7 @@
 
 package org.opensearch.client.transport;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.admin.cluster.node.liveness.LivenessResponse;
 import org.opensearch.action.admin.cluster.node.liveness.TransportLivenessAction;
@@ -41,9 +41,9 @@ import org.opensearch.action.admin.cluster.state.ClusterStateResponse;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.node.DiscoveryNode;
-import org.opensearch.common.component.Lifecycle;
-import org.opensearch.common.component.LifecycleListener;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.component.Lifecycle;
+import org.opensearch.mod.common.component.LifecycleListener;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.transport.BoundTransportAddress;
 import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.transport.CloseableConnection;

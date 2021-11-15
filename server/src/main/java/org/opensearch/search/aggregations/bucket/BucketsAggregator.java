@@ -31,9 +31,9 @@
 
 package org.opensearch.search.aggregations.bucket;
 
-import org.opensearch.common.lease.Releasable;
-import org.opensearch.common.util.BigArrays;
-import org.opensearch.common.util.IntArray;
+import org.opensearch.mod.common.lease.Releasable;
+import org.opensearch.mod.common.util.BigArrays;
+import org.opensearch.mod.common.util.IntArray;
 import org.opensearch.search.aggregations.AggregationExecutionException;
 import org.opensearch.search.aggregations.Aggregator;
 import org.opensearch.search.aggregations.AggregatorBase;

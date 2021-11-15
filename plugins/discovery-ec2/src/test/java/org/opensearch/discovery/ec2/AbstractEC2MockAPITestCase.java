@@ -38,7 +38,7 @@ import org.opensearch.common.SuppressForbidden;
 import org.opensearch.common.network.InetAddresses;
 import org.opensearch.common.network.NetworkService;
 import org.opensearch.common.settings.MockSecureSettings;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.transport.MockTransportService;

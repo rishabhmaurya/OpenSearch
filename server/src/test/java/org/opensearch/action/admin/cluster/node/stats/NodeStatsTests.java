@@ -33,17 +33,17 @@
 package org.opensearch.action.admin.cluster.node.stats;
 
 import org.opensearch.cluster.node.DiscoveryNode;
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.discovery.DiscoveryStats;
 import org.opensearch.discovery.zen.PendingClusterStateStats;
 import org.opensearch.discovery.zen.PublishClusterStateStats;
 import org.opensearch.http.HttpStats;
-import org.opensearch.indices.breaker.AllCircuitBreakerStats;
-import org.opensearch.indices.breaker.CircuitBreakerStats;
+import org.opensearch.mod.common.breaker.fromindices.breaker.AllCircuitBreakerStats;
+import org.opensearch.mod.common.breaker.fromindices.breaker.CircuitBreakerStats;
 import org.opensearch.ingest.IngestStats;
 import org.opensearch.monitor.fs.FsInfo;
-import org.opensearch.monitor.jvm.JvmStats;
+import org.opensearch.mod.monitor.jvm.JvmStats;
 import org.opensearch.monitor.os.OsStats;
 import org.opensearch.monitor.process.ProcessStats;
 import org.opensearch.node.AdaptiveSelectionStats;
@@ -154,15 +154,15 @@ public class NodeStatsTests extends OpenSearchTestCase {
                     assertEquals(mem.getNonHeapCommitted(), deserializedMem.getNonHeapCommitted());
                     assertEquals(mem.getNonHeapUsed(), deserializedMem.getNonHeapUsed());
                     assertEquals(mem.getHeapMax(), deserializedMem.getHeapMax());
-                    
+
                     final Map<String, JvmStats.MemoryPool> pools = StreamSupport
                         .stream(mem.spliterator(), false)
                         .collect(Collectors.toMap(JvmStats.MemoryPool::getName, Function.identity()));
-                    
+
                     final Map<String, JvmStats.MemoryPool> deserializedPools = StreamSupport
                         .stream(deserializedMem.spliterator(), false)
                         .collect(Collectors.toMap(JvmStats.MemoryPool::getName, Function.identity()));
-                    
+
                     assertThat(pools.keySet(), not(empty()));
                     assertThat(deserializedPools.keySet(), not(empty()));
 
@@ -173,15 +173,15 @@ public class NodeStatsTests extends OpenSearchTestCase {
                         assertEquals(entry.getValue().getPeakMax(), deserializedPools.get(entry.getKey()).getPeakMax());
                         assertEquals(entry.getValue().getPeakUsed(), deserializedPools.get(entry.getKey()).getPeakUsed());
                         assertEquals(entry.getValue().getUsed(), deserializedPools.get(entry.getKey()).getUsed());
-                        
-                        assertEquals(entry.getValue().getLastGcStats().getUsed(), 
+
+                        assertEquals(entry.getValue().getLastGcStats().getUsed(),
                                 deserializedPools.get(entry.getKey()).getLastGcStats().getUsed());
-                        assertEquals(entry.getValue().getLastGcStats().getMax(), 
+                        assertEquals(entry.getValue().getLastGcStats().getMax(),
                                 deserializedPools.get(entry.getKey()).getLastGcStats().getMax());
-                        assertEquals(entry.getValue().getLastGcStats().getUsagePercent(), 
+                        assertEquals(entry.getValue().getLastGcStats().getUsagePercent(),
                                 deserializedPools.get(entry.getKey()).getLastGcStats().getUsagePercent());
                     }
-                    
+
                     JvmStats.Classes classes = jvm.getClasses();
                     assertEquals(classes.getLoadedClassCount(), deserializedJvm.getClasses().getLoadedClassCount());
                     assertEquals(classes.getTotalLoadedClassCount(), deserializedJvm.getClasses().getTotalLoadedClassCount());

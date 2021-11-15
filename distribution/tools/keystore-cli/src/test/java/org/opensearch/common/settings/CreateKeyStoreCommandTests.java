@@ -37,10 +37,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
-import org.opensearch.cli.Command;
-import org.opensearch.cli.ExitCodes;
-import org.opensearch.cli.UserException;
+import org.opensearch.mod.cli.Command;
+import org.opensearch.mod.cli.ExitCodes;
+import org.opensearch.mod.cli.UserException;
 import org.opensearch.env.Environment;
+import org.opensearch.mod.common.settings.KeyStoreWrapper;
 
 import static org.hamcrest.Matchers.containsString;
 

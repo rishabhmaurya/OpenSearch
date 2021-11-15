@@ -35,7 +35,7 @@ package org.opensearch.test.disruption;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.SuppressForbidden;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.concurrent.AbstractRunnable;
+import org.opensearch.mod.common.util.concurrent.AbstractRunnable;
 import org.opensearch.test.InternalTestCluster;
 
 import java.lang.management.ManagementFactory;

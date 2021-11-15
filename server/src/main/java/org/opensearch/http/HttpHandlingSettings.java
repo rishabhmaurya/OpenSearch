@@ -32,7 +32,7 @@
 
 package org.opensearch.http;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 
 import static org.opensearch.http.HttpTransportSettings.SETTING_CORS_ENABLED;
 import static org.opensearch.http.HttpTransportSettings.SETTING_HTTP_COMPRESSION;

@@ -32,16 +32,18 @@
 
 package org.opensearch.common.settings;
 
-import org.opensearch.common.settings.Setting.Property;
-import org.opensearch.common.unit.ByteSizeUnit;
-import org.opensearch.common.unit.ByteSizeValue;
-import org.opensearch.common.util.PageCacheRecycler;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.util.PageCacheRecycler;
 import org.opensearch.indices.IndexingMemoryController;
 import org.opensearch.indices.IndicesQueryCache;
 import org.opensearch.indices.IndicesRequestCache;
 import org.opensearch.indices.breaker.HierarchyCircuitBreakerService;
 import org.opensearch.indices.fielddata.cache.IndicesFieldDataCache;
-import org.opensearch.monitor.jvm.JvmInfo;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.monitor.jvm.JvmInfo;
 import org.opensearch.test.OpenSearchTestCase;
 
 import static org.hamcrest.Matchers.notNullValue;

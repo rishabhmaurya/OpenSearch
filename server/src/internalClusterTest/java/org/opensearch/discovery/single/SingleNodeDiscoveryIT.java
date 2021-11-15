@@ -40,7 +40,7 @@ import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.coordination.JoinHelper;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.logging.Loggers;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.discovery.DiscoverySettings;
 import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.test.InternalTestCluster;

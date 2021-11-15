@@ -32,7 +32,7 @@
 
 package org.opensearch.cluster.coordination;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.ClusterStateTaskExecutor;
@@ -40,7 +40,6 @@ import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.routing.allocation.AllocationService;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.cluster.coordination.NodeRemovalClusterStateTaskExecutor;
 
 import java.util.ArrayList;
 import java.util.List;

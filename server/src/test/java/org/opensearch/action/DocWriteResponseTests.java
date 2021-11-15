@@ -34,7 +34,7 @@ package org.opensearch.action;
 
 import org.opensearch.action.DocWriteResponse.Result;
 import org.opensearch.action.support.replication.ReplicationResponse.ShardInfo;
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;

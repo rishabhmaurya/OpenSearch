@@ -32,7 +32,7 @@
 
 package org.opensearch.test.geo;
 
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 
 import java.util.Random;
 

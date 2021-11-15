@@ -37,7 +37,7 @@ import org.apache.lucene.index.memory.MemoryIndex;
 import org.apache.lucene.search.Scorable;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.painless.spi.Whitelist;
 import org.opensearch.script.ScriptContext;
 import org.opensearch.script.ScriptedMetricAggContexts;

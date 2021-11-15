@@ -48,6 +48,7 @@ plugins {
   id 'opensearch.docker-support'
   id 'opensearch.global-build-info'
   id "com.diffplug.spotless" version "5.6.1" apply false
+  id 'org.javamodularity.moduleplugin' version '1.8.12' apply false
 }
 
 apply from: 'gradle/build-complete.gradle'
@@ -230,7 +231,7 @@ tasks.register("branchConsistency") {
 allprojects {
   // configure compiler options
   tasks.withType(JavaCompile).configureEach { JavaCompile compile ->
-    compile.options.compilerArgs << '-Werror'
+    //compile.options.compilerArgs << '-Werror'
     compile.options.compilerArgs << '-Xlint:auxiliaryclass'
     compile.options.compilerArgs << '-Xlint:cast'
     compile.options.compilerArgs << '-Xlint:classfile'

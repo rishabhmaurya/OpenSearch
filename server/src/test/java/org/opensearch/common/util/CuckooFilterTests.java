@@ -31,9 +31,10 @@
 
 package org.opensearch.common.util;
 
-import org.opensearch.common.Randomness;
-import org.opensearch.common.hash.MurmurHash3;
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.Randomness;
+import org.opensearch.mod.common.hash.MurmurHash3;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.util.CuckooFilter;
 import org.opensearch.test.AbstractWireSerializingTestCase;
 
 import static org.hamcrest.Matchers.equalTo;

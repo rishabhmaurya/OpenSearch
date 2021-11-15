@@ -34,9 +34,10 @@ package org.opensearch.common.settings;
 
 import joptsimple.OptionSet;
 import org.opensearch.cli.KeyStoreAwareCommand;
-import org.opensearch.cli.Terminal;
-import org.opensearch.cli.UserException;
+import org.opensearch.mod.cli.Terminal;
+import org.opensearch.mod.cli.UserException;
 import org.opensearch.env.Environment;
+import org.opensearch.mod.common.settings.KeyStoreWrapper;
 
 import java.nio.file.Path;
 

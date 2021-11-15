@@ -211,6 +211,10 @@ public class JarHell {
                 }
             } else {
                 output.accept("examining directory: " + path);
+                if (path.endsWith("opensearch-common/build/classes/java/main")) {
+                    output.accept("skipping directory: " + path);
+                    break;
+                }
                 // case for tests: where we have class files in the classpath
                 final Path root = PathUtils.get(url.toURI());
                 final String sep = root.getFileSystem().getSeparator();

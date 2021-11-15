@@ -33,7 +33,7 @@
 package org.opensearch.nio;
 
 import org.opensearch.common.CheckedFunction;
-import org.opensearch.common.util.PageCacheRecycler;
+import org.opensearch.mod.common.util.PageCacheRecycler;
 import org.opensearch.test.OpenSearchTestCase;
 import org.junit.Before;
 

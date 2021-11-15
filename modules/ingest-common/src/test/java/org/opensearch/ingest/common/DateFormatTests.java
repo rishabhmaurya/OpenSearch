@@ -33,8 +33,8 @@
 package org.opensearch.ingest.common;
 
 import org.opensearch.bootstrap.JavaVersion;
-import org.opensearch.common.time.DateFormatter;
-import org.opensearch.common.time.DateUtils;
+import org.opensearch.mod.common.time.DateFormatter;
+import org.opensearch.mod.common.time.DateUtils;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.time.ZoneId;

@@ -37,7 +37,7 @@ import org.apache.lucene.util.LuceneTestCase;
 import org.opensearch.common.blobstore.BlobPath;
 import org.opensearch.common.io.PathUtils;
 import org.opensearch.common.io.PathUtilsForTesting;
-import org.opensearch.common.io.Streams;
+import org.opensearch.mod.common.io.Streams;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.test.OpenSearchTestCase;
 import org.junit.After;

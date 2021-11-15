@@ -69,9 +69,10 @@ import org.apache.lucene.analysis.sv.SwedishAnalyzer;
 import org.apache.lucene.analysis.th.ThaiAnalyzer;
 import org.apache.lucene.analysis.tr.TurkishAnalyzer;
 import org.apache.lucene.util.Version;
-import org.opensearch.common.Strings;
+import org.opensearch.VersionUtil;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.lucene.Lucene;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 
 import java.io.BufferedReader;
@@ -105,7 +106,7 @@ public class Analysis {
             return Lucene.parseVersion(sVersion, Version.LATEST, logger);
         }
         // resolve the analysis version based on the version the index was created with
-        return org.opensearch.Version.indexCreated(indexSettings).luceneVersion;
+        return VersionUtil.indexCreated(indexSettings).luceneVersion;
     }
 
     public static CharArraySet parseStemExclusion(Settings settings, CharArraySet defaultStemExclusion) {

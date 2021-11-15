@@ -32,8 +32,8 @@
 
 package org.opensearch.bootstrap;
 
-import org.opensearch.common.inject.CreationException;
-import org.opensearch.common.inject.spi.Message;
+import org.opensearch.mod.common.inject.CreationException;
+import org.opensearch.mod.common.inject.spi.Message;
 
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -52,7 +52,7 @@ final class StartupException extends RuntimeException {
     /** maximum length of a stacktrace, before we truncate it */
     static final int STACKTRACE_LIMIT = 30;
     /** all lines from this package are RLE-compressed */
-    static final String GUICE_PACKAGE = "org.opensearch.common.inject";
+    static final String GUICE_PACKAGE = "org.opensearch.mod.common.inject";
 
     /**
      * Create a new StartupException that will format {@code cause}

@@ -38,7 +38,7 @@ import org.opensearch.cli.MockTerminal;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.Metadata;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.discovery.DiscoverySettings;
 import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;

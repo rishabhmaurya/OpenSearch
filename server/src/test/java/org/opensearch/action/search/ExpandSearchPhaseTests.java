@@ -35,7 +35,7 @@ package org.opensearch.action.search;
 import org.apache.lucene.search.TotalHits;
 import org.opensearch.action.ActionListener;
 import org.opensearch.common.document.DocumentField;
-import org.opensearch.common.text.Text;
+import org.opensearch.mod.common.text.Text;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.InnerHitBuilder;
 import org.opensearch.index.query.QueryBuilder;

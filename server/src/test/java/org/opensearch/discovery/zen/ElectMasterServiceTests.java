@@ -32,10 +32,10 @@
 
 package org.opensearch.discovery.zen;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodeRole;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.discovery.zen.ElectMasterService.MasterCandidate;
 import org.opensearch.test.OpenSearchTestCase;
 

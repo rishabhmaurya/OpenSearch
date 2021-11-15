@@ -31,8 +31,8 @@
 
 package org.opensearch.action.admin.cluster.node.tasks;
 
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.xcontent.XContentHelper;
 import org.opensearch.tasks.TaskId;
 import org.opensearch.tasks.TaskInfo;
 import org.opensearch.test.OpenSearchTestCase;

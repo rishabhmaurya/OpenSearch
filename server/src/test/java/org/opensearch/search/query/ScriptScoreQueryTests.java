@@ -44,7 +44,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.store.Directory;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.common.lucene.search.Queries;
 import org.opensearch.common.lucene.search.function.ScriptScoreQuery;
 import org.opensearch.script.ScoreScript;

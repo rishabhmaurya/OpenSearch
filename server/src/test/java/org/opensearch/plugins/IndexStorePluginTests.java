@@ -35,7 +35,7 @@ package org.opensearch.plugins;
 import org.opensearch.bootstrap.JavaVersion;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.routing.ShardRouting;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.store.FsDirectoryFactory;
 import org.opensearch.indices.recovery.RecoveryState;

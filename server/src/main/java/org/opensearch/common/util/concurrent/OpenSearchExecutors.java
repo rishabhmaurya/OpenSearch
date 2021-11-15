@@ -34,11 +34,13 @@ package org.opensearch.common.util.concurrent;
 
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.common.SuppressForbidden;
-import org.opensearch.common.logging.DeprecationLogger;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
+import org.opensearch.mod.common.util.concurrent.ConcurrentCollections;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 import org.opensearch.node.Node;
 
 import java.util.List;

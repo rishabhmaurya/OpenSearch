@@ -49,7 +49,7 @@ import java.util.Objects;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
-import static org.opensearch.common.xcontent.XContentParserUtils.parseTypedKeysObject;
+import static org.opensearch.mod.common.xcontent.XContentParserUtils.parseTypedKeysObject;
 
 /**
  * Represents a set of {@link Aggregation}s

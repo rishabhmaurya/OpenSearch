@@ -33,7 +33,7 @@
 package org.opensearch.rest.action.admin.indices;
 
 import org.opensearch.cluster.metadata.AliasMetadata;
-import org.opensearch.common.collect.ImmutableOpenMap;
+import org.opensearch.mod.common.collect.ImmutableOpenMap;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentType;
@@ -43,8 +43,8 @@ import org.opensearch.test.OpenSearchTestCase;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.opensearch.rest.RestStatus.OK;
-import static org.opensearch.rest.RestStatus.NOT_FOUND;
+import static org.opensearch.mod.rest.RestStatus.OK;
+import static org.opensearch.mod.rest.RestStatus.NOT_FOUND;
 import static org.hamcrest.Matchers.equalTo;
 
 public class RestGetAliasesActionTests extends OpenSearchTestCase {

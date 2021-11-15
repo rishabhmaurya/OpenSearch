@@ -33,10 +33,10 @@ package org.opensearch.bootstrap;
 
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.common.settings.KeyStoreCommandTestCase;
-import org.opensearch.common.settings.KeyStoreWrapper;
-import org.opensearch.common.settings.SecureSettings;
-import org.opensearch.common.settings.SecureString;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.KeyStoreWrapper;
+import org.opensearch.mod.common.settings.SecureSettings;
+import org.opensearch.mod.common.settings.SecureString;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 import org.opensearch.test.OpenSearchTestCase;
 import org.junit.After;

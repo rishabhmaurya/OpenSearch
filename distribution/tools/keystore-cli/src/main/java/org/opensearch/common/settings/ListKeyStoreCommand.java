@@ -37,8 +37,9 @@ import java.util.Collections;
 import java.util.List;
 
 import joptsimple.OptionSet;
-import org.opensearch.cli.Terminal;
+import org.opensearch.mod.cli.Terminal;
 import org.opensearch.env.Environment;
+import org.opensearch.mod.common.settings.KeyStoreWrapper;
 
 /**
  * A subcommand for the keystore cli to list all settings in the keystore.

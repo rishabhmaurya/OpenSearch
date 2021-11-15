@@ -61,6 +61,7 @@ thirdPartyAudit.ignoreMissingClasses(
   'com.fasterxml.jackson.databind.ObjectMapper',
   'com.fasterxml.jackson.databind.cfg.MapperBuilder'
 )
+//jar.manifest.attributes("Automatic-Module-Name": "opensearch.x.content")
 
 tasks.named("dependencyLicenses").configure {
   mapping from: /jackson-.*/, to: 'jackson'

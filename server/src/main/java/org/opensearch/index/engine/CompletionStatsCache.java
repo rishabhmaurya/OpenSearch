@@ -43,8 +43,8 @@ import org.opensearch.action.ActionListener;
 import org.opensearch.action.support.PlainActionFuture;
 import org.opensearch.common.FieldMemoryStats;
 import org.opensearch.common.Nullable;
-import org.opensearch.common.regex.Regex;
-import org.opensearch.common.util.CollectionUtils;
+import org.opensearch.mod.common.regex.Regex;
+import org.opensearch.mod.common.util.CollectionUtils;
 import org.opensearch.search.suggest.completion.CompletionStats;
 
 import java.util.function.Supplier;

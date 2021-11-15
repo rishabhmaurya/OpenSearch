@@ -32,9 +32,9 @@
 
 package org.opensearch.action.admin.indices.rollover;
 
-import org.opensearch.Version;
-import org.opensearch.common.io.stream.NamedWriteable;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.io.stream.NamedWriteable;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.common.xcontent.ToXContentFragment;
 
 import java.util.Objects;

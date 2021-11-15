@@ -40,10 +40,10 @@ import java.io.IOException;
 
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.TotalHits;
-import org.opensearch.LegacyESVersion;
-import org.opensearch.common.io.stream.DelayableWriteable;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.common.io.stream.DelayableWriteable;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
 import org.opensearch.common.lucene.search.TopDocsAndMaxScore;
 import org.opensearch.search.DocValueFormat;
 import org.opensearch.search.RescoreDocIds;

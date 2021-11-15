@@ -36,6 +36,11 @@ import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.OptionSet;
 import joptsimple.util.KeyValuePair;
 import org.junit.Before;
+import org.opensearch.mod.cli.Command;
+import org.opensearch.mod.cli.ExitCodes;
+import org.opensearch.mod.cli.MultiCommand;
+import org.opensearch.mod.cli.Terminal;
+import org.opensearch.mod.cli.UserException;
 
 import java.io.IOException;
 import java.util.List;

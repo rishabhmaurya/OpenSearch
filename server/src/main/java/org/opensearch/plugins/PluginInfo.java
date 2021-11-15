@@ -32,13 +32,13 @@
 
 package org.opensearch.plugins;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
 import org.opensearch.bootstrap.JarHell;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;
 
@@ -113,7 +113,7 @@ public class PluginInfo implements Writeable, ToXContentObject {
      */
     public PluginInfo(String name, String description, String version, Version opensearchVersion, String javaVersion,
                       String classname, List<String> extendedPlugins, boolean hasNativeController) {
-        this(name, description, version, opensearchVersion, javaVersion, classname, null /* customFolderName */, 
+        this(name, description, version, opensearchVersion, javaVersion, classname, null /* customFolderName */,
             extendedPlugins, hasNativeController);
     }
 

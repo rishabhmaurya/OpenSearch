@@ -32,13 +32,13 @@
 
 package org.opensearch.index.mapper;
 
-import org.opensearch.Version;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.ToXContentFragment;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
-import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.mod.common.xcontent.XContentHelper;
 import org.opensearch.index.mapper.MapperService.MergeReason;
 
 import java.io.IOException;

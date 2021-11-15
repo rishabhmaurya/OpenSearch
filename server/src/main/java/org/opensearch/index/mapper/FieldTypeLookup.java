@@ -32,8 +32,8 @@
 
 package org.opensearch.index.mapper;
 
-import org.opensearch.common.collect.Iterators;
-import org.opensearch.common.regex.Regex;
+import org.opensearch.mod.common.collect.Iterators;
+import org.opensearch.mod.common.regex.Regex;
 
 import java.util.Collection;
 import java.util.Collections;

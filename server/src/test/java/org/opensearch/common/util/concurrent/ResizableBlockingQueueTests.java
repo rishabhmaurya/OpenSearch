@@ -32,6 +32,7 @@
 
 package org.opensearch.common.util.concurrent;
 
+import org.opensearch.mod.common.util.concurrent.ConcurrentCollections;
 import org.opensearch.test.OpenSearchTestCase;
 
 import static org.hamcrest.Matchers.equalTo;

@@ -31,7 +31,7 @@
 
 package org.opensearch.index.fielddata;
 
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 
 import java.io.IOException;
 

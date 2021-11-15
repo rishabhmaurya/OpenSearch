@@ -33,6 +33,7 @@ package org.opensearch.search.aggregations.bucket.geogrid;
 
 import org.opensearch.common.geo.GeoBoundingBox;
 import org.opensearch.index.fielddata.MultiGeoPointValues;
+import org.opensearch.mod.common.geo.GeoPoint;
 
 /**
  * Class representing {@link CellValues} that are unbounded by any
@@ -45,7 +46,7 @@ class UnboundedCellValues extends CellValues {
     }
 
     @Override
-    int advanceValue(org.opensearch.common.geo.GeoPoint target, int valuesIdx) {
+    int advanceValue(GeoPoint target, int valuesIdx) {
         values[valuesIdx] = encoder.encode(target.getLon(), target.getLat(), precision);
         return valuesIdx + 1;
     }

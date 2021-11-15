@@ -32,9 +32,12 @@
 
 package org.opensearch.common.settings;
 
-import org.opensearch.common.inject.ModuleTestCase;
-import org.opensearch.common.settings.Setting.Property;
+import org.opensearch.mod.common.inject.ModuleTestCase;
+import org.opensearch.mod.common.settings.SecureSetting;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Setting.Property;
 import org.hamcrest.Matchers;
+import org.opensearch.mod.common.settings.Settings;
 
 import java.util.Arrays;
 

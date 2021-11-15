@@ -16,7 +16,7 @@ import org.opensearch.cluster.metadata.DataStream;
 import org.opensearch.common.collect.List;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentType;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.rest.RestStatus;
 
 import java.util.Arrays;
 import java.util.concurrent.ExecutionException;

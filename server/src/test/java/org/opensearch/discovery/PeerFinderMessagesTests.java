@@ -32,7 +32,7 @@
 
 package org.opensearch.discovery;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.coordination.PeersResponse;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.test.OpenSearchTestCase;

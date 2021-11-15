@@ -38,7 +38,7 @@ import org.opensearch.OpenSearchException;
 import org.opensearch.action.OriginalIndices;
 import org.opensearch.action.search.TransportSearchAction.SearchTimeProvider;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.text.Text;
+import org.opensearch.mod.common.text.Text;
 import org.opensearch.index.Index;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.search.DocValueFormat;

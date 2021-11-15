@@ -49,7 +49,7 @@ import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.BulkScorer;
 import org.apache.lucene.util.Bits;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.script.ScoreScript;
 import org.opensearch.script.ScoreScript.ExplanationHolder;
 import org.opensearch.script.Script;

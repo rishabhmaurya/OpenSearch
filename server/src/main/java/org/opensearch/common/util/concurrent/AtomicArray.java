@@ -32,7 +32,7 @@
 
 package org.opensearch.common.util.concurrent;
 
-import org.opensearch.OpenSearchGenerationException;
+import org.opensearch.mod.OpenSearchGenerationException;
 
 import java.util.ArrayList;
 import java.util.Collections;

@@ -32,10 +32,10 @@
 
 package org.opensearch.test;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.bootstrap.BootstrapContext;
 import org.opensearch.cluster.metadata.Metadata;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 
 import java.nio.file.Path;

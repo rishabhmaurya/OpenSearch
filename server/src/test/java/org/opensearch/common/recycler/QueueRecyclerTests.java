@@ -32,6 +32,9 @@
 
 package org.opensearch.common.recycler;
 
+import org.opensearch.mod.common.recycler.Recycler;
+import org.opensearch.mod.common.recycler.Recyclers;
+
 public class QueueRecyclerTests extends AbstractRecyclerTestCase {
 
     @Override

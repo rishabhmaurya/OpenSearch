@@ -32,11 +32,11 @@
 
 package org.opensearch.discovery.gce;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.cloud.gce.GceInstancesServiceImpl;
 import org.opensearch.cloud.gce.GceMetadataService;
 import org.opensearch.common.network.NetworkService;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.transport.MockTransportService;

@@ -34,11 +34,9 @@ package org.opensearch.action.admin.indices.validate.query;
 
 import org.opensearch.OpenSearchException;
 import org.opensearch.action.support.DefaultShardOperationFailedException;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.test.AbstractBroadcastResponseTestCase;
-import org.opensearch.action.admin.indices.validate.query.QueryExplanation;
-import org.opensearch.action.admin.indices.validate.query.ValidateQueryResponse;
 
 import java.io.IOException;
 import java.util.ArrayList;

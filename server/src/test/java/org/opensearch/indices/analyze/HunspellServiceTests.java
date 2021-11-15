@@ -32,7 +32,7 @@
 package org.opensearch.indices.analyze;
 
 import org.apache.lucene.analysis.hunspell.Dictionary;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 import org.opensearch.indices.analysis.HunspellService;
 import org.opensearch.test.OpenSearchTestCase;

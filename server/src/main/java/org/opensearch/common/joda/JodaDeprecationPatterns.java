@@ -32,8 +32,8 @@
 
 package org.opensearch.common.joda;
 
-import org.opensearch.common.time.DateFormatter;
-import org.opensearch.common.time.FormatNames;
+import org.opensearch.mod.common.time.DateFormatter;
+import org.opensearch.mod.common.time.FormatNames;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;

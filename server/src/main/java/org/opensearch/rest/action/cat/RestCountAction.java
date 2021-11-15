@@ -37,7 +37,7 @@ import org.opensearch.OpenSearchException;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.node.NodeClient;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.Table;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.rest.RestRequest;

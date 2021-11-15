@@ -33,7 +33,7 @@
 package org.opensearch.index.translog;
 
 import org.apache.lucene.store.AlreadyClosedException;
-import org.opensearch.common.io.Channels;
+import org.opensearch.mod.common.io.Channels;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.index.seqno.SequenceNumbers;
 

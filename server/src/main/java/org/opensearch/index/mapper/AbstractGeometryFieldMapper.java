@@ -38,7 +38,7 @@ import org.apache.lucene.search.Query;
 import org.opensearch.common.Explicit;
 import org.opensearch.common.ParseField;
 import org.opensearch.common.geo.GeoJsonGeometryFormat;
-import org.opensearch.common.xcontent.LoggingDeprecationHandler;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentParser;

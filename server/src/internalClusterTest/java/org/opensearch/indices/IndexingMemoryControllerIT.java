@@ -33,7 +33,7 @@ package org.opensearch.indices;
 
 import org.apache.logging.log4j.LogManager;
 import org.opensearch.action.admin.indices.forcemerge.ForceMergeResponse;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.codec.CodecService;

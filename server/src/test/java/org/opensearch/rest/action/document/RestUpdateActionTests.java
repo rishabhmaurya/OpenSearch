@@ -34,7 +34,7 @@ package org.opensearch.rest.action.document;
 
 import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.client.node.NodeClient;
-import org.opensearch.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesArray;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.VersionType;
 import org.opensearch.rest.RestRequest;

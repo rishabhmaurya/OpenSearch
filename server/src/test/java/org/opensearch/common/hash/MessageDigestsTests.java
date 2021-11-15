@@ -32,6 +32,7 @@
 
 package org.opensearch.common.hash;
 
+import org.opensearch.mod.common.hash.MessageDigests;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.math.BigInteger;

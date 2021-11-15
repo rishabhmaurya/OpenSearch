@@ -38,7 +38,7 @@ import java.util.Collection;
 import java.util.List;
 import org.opensearch.action.index.IndexRequestBuilder;
 import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.indices.store.IndicesStoreIntegrationIT;
 import org.opensearch.plugins.Plugin;

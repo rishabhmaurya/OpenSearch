@@ -32,9 +32,13 @@
 
 package org.opensearch.common.util;
 
-import org.opensearch.common.lease.Releasables;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.indices.breaker.NoneCircuitBreakerService;
+import org.opensearch.mod.common.lease.Releasables;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.breaker.fromindices.breaker.NoneCircuitBreakerService;
+import org.opensearch.mod.common.util.BigArrays;
+import org.opensearch.mod.common.util.BigDoubleArray;
+import org.opensearch.mod.common.util.BinarySearcher;
+import org.opensearch.mod.common.util.DoubleArray;
 import org.opensearch.test.OpenSearchTestCase;
 import org.junit.Before;
 

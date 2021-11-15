@@ -32,9 +32,9 @@
 
 package org.opensearch.index.translog;
 
-import org.opensearch.common.unit.ByteSizeUnit;
-import org.opensearch.common.unit.ByteSizeValue;
-import org.opensearch.common.util.BigArrays;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.util.BigArrays;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.shard.ShardId;
 

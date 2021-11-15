@@ -32,8 +32,8 @@
 
 package org.opensearch.action.search;
 
-import org.opensearch.Version;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.common.util.concurrent.AtomicArray;
 import org.opensearch.index.query.IdsQueryBuilder;
 import org.opensearch.index.query.MatchAllQueryBuilder;

@@ -35,7 +35,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.apache.logging.log4j.core.filter.RegexFilter;
-import org.opensearch.common.regex.Regex;
+import org.opensearch.mod.common.regex.Regex;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;

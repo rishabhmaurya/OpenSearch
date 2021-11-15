@@ -32,14 +32,13 @@
 
 package org.opensearch.action.admin.cluster.node.info;
 
-import org.opensearch.Build;
-import org.opensearch.Version;
+import org.opensearch.mod.Build;
+import org.opensearch.mod.Version;
 import org.opensearch.cluster.node.DiscoveryNode;
-import org.opensearch.monitor.jvm.JvmInfo;
+import org.opensearch.mod.monitor.jvm.JvmInfo;
 import org.opensearch.monitor.os.OsInfo;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.VersionUtils;
-import org.opensearch.action.admin.cluster.node.info.NodeInfo;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;

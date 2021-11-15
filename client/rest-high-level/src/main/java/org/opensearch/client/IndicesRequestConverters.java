@@ -37,7 +37,6 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
-import org.opensearch.client.Request;
 import org.opensearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.opensearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.opensearch.action.admin.indices.cache.clear.ClearIndicesCacheRequest;
@@ -75,7 +74,7 @@ import org.opensearch.client.indices.ResizeRequest;
 import org.opensearch.client.indices.SimulateIndexTemplateRequest;
 import org.opensearch.client.indices.rollover.RolloverRequest;
 import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 
 import java.io.IOException;
 import java.util.Locale;

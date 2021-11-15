@@ -33,7 +33,7 @@
 package org.opensearch.similarity;
 
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.OpenSearchIntegTestCase;
 
 import static org.opensearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;

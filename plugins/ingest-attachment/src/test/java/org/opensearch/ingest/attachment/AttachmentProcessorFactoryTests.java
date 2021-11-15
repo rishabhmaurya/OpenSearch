@@ -32,7 +32,7 @@
 
 package org.opensearch.ingest.attachment;
 
-import org.opensearch.OpenSearchParseException;
+import org.opensearch.mod.OpenSearchParseException;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.ArrayList;

@@ -32,7 +32,7 @@
 package org.opensearch.persistent.decider;
 
 import org.opensearch.cluster.ClusterState;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.persistent.PersistentTasksDecidersTestCase;
 
 public class EnableAssignmentDeciderTests extends PersistentTasksDecidersTestCase {

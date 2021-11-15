@@ -33,12 +33,11 @@
 package org.opensearch.action.bulk;
 
 import org.opensearch.action.index.IndexRequest;
-import org.opensearch.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesArray;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.rest.action.document.RestBulkAction;
 import org.opensearch.test.OpenSearchTestCase;
 import org.hamcrest.Matchers;
-import org.opensearch.action.bulk.BulkRequestParser;
 
 import java.io.IOException;
 import java.util.ArrayList;

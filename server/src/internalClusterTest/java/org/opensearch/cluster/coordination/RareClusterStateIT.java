@@ -32,8 +32,8 @@
 
 package org.opensearch.cluster.coordination;
 
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.Version;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.Version;
 
 import org.opensearch.action.ActionFuture;
 import org.opensearch.action.ActionRequest;
@@ -53,8 +53,8 @@ import org.opensearch.cluster.routing.RoutingTable;
 import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.cluster.routing.allocation.AllocationService;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.collect.ImmutableOpenMap;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.collect.ImmutableOpenMap;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.discovery.Discovery;
 import org.opensearch.index.Index;

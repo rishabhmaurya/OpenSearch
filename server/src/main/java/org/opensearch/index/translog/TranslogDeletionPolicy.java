@@ -33,8 +33,8 @@
 package org.opensearch.index.translog;
 
 import org.apache.lucene.util.Counter;
-import org.opensearch.Assertions;
-import org.opensearch.common.lease.Releasable;
+import org.opensearch.mod.Assertions;
+import org.opensearch.mod.common.lease.Releasable;
 import org.opensearch.index.seqno.RetentionLease;
 import org.opensearch.index.seqno.RetentionLeases;
 import org.opensearch.index.seqno.SequenceNumbers;

@@ -31,9 +31,10 @@
 
 package org.opensearch.common.geo;
 
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.unit.DistanceUnit;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.unit.DistanceUnit;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;

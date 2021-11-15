@@ -34,6 +34,8 @@ package org.opensearch.common.compress;
 
 import org.apache.lucene.util.LineFileDocs;
 import org.apache.lucene.util.TestUtil;
+import org.opensearch.mod.common.compress.Compressor;
+import org.opensearch.mod.common.compress.DeflateCompressor;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.ByteArrayInputStream;

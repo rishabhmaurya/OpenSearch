@@ -32,9 +32,9 @@
 
 package org.opensearch.action.admin.indices.rollover;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.test.AbstractSerializingTestCase;

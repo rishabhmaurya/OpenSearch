@@ -33,11 +33,11 @@
 package org.opensearch.cluster.node;
 
 import org.opensearch.common.Nullable;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.network.InetAddresses;
 import org.opensearch.common.network.NetworkAddress;
-import org.opensearch.common.regex.Regex;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.regex.Regex;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.transport.TransportAddress;
 
 import java.util.HashMap;

@@ -33,7 +33,7 @@
 package org.opensearch.action.admin.indices.segments;
 
 import org.opensearch.action.support.IndicesOptions;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.engine.Segment;
 import org.opensearch.index.MergePolicyConfig;
 import org.opensearch.indices.IndexClosedException;

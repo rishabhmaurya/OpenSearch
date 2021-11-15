@@ -32,7 +32,7 @@
 
 package org.opensearch.cli;
 
-import org.opensearch.cli.Terminal;
+import org.opensearch.mod.cli.Terminal;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStreamWriter;

@@ -33,7 +33,7 @@ package org.opensearch.search.fetch.subphase;
 
 import org.apache.lucene.index.LeafReaderContext;
 import org.opensearch.common.document.DocumentField;
-import org.opensearch.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.logging.DeprecationLogger;
 import org.opensearch.index.mapper.DocValueFetcher;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.index.mapper.ValueFetcher;

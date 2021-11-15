@@ -31,7 +31,7 @@
 
 package org.opensearch.index.query;
 
-import org.opensearch.LegacyESVersion;
+import org.opensearch.mod.LegacyESVersion;
 import org.opensearch.common.geo.ShapeRelation;
 import org.opensearch.common.geo.builders.ShapeBuilder;
 import org.opensearch.test.geo.RandomShapeGenerator;

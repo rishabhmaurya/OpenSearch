@@ -32,9 +32,11 @@
 
 package org.opensearch.rest;
 
+import org.opensearch.action.ShardOperationFailedException;
 import org.opensearch.common.Booleans;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.path.PathTrie;
+import org.opensearch.mod.rest.RestStatus;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -271,5 +273,25 @@ public class RestUtils {
                      .stream()
                      .map(String::trim)
                      .toArray(size -> new String[size]);
+    }
+
+    public static RestStatus status(int successfulShards, int totalShards, ShardOperationFailedException... failures) {
+        if (failures.length == 0) {
+            if (successfulShards == 0 && totalShards > 0) {
+                return RestStatus.SERVICE_UNAVAILABLE;
+            }
+            return RestStatus.OK;
+        }
+        RestStatus status = RestStatus.OK;
+        if (successfulShards == 0 && totalShards > 0) {
+            for (ShardOperationFailedException failure : failures) {
+                RestStatus shardStatus = failure.status();
+                if (shardStatus.getStatus() >= status.getStatus()) {
+                    status = failure.status();
+                }
+            }
+            return status;
+        }
+        return status;
     }
 }

@@ -32,7 +32,7 @@
 
 package org.opensearch.search.dfs;
 
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.search.SearchException;
 import org.opensearch.search.SearchShardTarget;
 

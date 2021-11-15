@@ -34,8 +34,8 @@ package org.opensearch.action.admin.cluster.tasks;
 
 import org.opensearch.action.ActionResponse;
 import org.opensearch.cluster.service.PendingClusterTask;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
 import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;
 

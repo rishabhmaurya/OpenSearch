@@ -31,13 +31,11 @@
 
 package org.opensearch.test.rest.yaml;
 
-import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.mod.common.bytes.BytesReference;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.test.OpenSearchTestCase;
-import org.opensearch.test.rest.yaml.ObjectPath;
-import org.opensearch.test.rest.yaml.Stash;
 
 import java.io.IOException;
 import java.util.HashMap;

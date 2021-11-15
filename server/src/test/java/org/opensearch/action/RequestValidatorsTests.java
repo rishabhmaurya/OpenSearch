@@ -33,11 +33,10 @@
 package org.opensearch.action;
 
 import org.opensearch.action.admin.indices.mapping.put.PutMappingRequest;
-import org.opensearch.common.Randomness;
+import org.opensearch.mod.common.Randomness;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.hamcrest.OptionalMatchers;
 import org.hamcrest.Matchers;
-import org.opensearch.action.RequestValidators;
 
 import java.util.ArrayList;
 import java.util.Arrays;

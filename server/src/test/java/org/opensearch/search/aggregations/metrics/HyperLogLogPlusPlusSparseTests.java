@@ -33,12 +33,12 @@
 package org.opensearch.search.aggregations.metrics;
 
 import com.carrotsearch.hppc.BitMixer;
-import org.opensearch.common.breaker.CircuitBreaker;
-import org.opensearch.common.breaker.CircuitBreakingException;
-import org.opensearch.common.breaker.NoopCircuitBreaker;
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.util.BigArrays;
-import org.opensearch.indices.breaker.CircuitBreakerService;
+import org.opensearch.mod.common.breaker.CircuitBreaker;
+import org.opensearch.mod.common.breaker.CircuitBreakingException;
+import org.opensearch.mod.common.breaker.NoopCircuitBreaker;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.util.BigArrays;
+import org.opensearch.mod.common.breaker.fromindices.breaker.CircuitBreakerService;
 import org.opensearch.test.OpenSearchTestCase;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;

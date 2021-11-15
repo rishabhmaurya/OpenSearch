@@ -33,14 +33,13 @@
 package org.opensearch.action.admin.indices.template.post;
 
 import org.opensearch.action.ActionRequestValidationException;
-import org.opensearch.action.admin.indices.template.post.SimulateTemplateAction;
 import org.opensearch.action.admin.indices.template.put.PutComposableIndexTemplateAction;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.ComposableIndexTemplate;
 import org.opensearch.cluster.metadata.ComposableIndexTemplateTests;
 import org.opensearch.cluster.metadata.Template;
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.AbstractWireSerializingTestCase;
 
 import java.io.IOException;

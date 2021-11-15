@@ -48,16 +48,16 @@ import org.bouncycastle.openpgp.PGPUtil;
 import org.bouncycastle.openpgp.jcajce.JcaPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.jcajce.JcaKeyFingerprintCalculator;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentVerifierBuilderProvider;
-import org.opensearch.Build;
-import org.opensearch.Version;
+import org.opensearch.mod.Build;
+import org.opensearch.mod.Version;
 import org.opensearch.bootstrap.JarHell;
 import org.opensearch.cli.EnvironmentAwareCommand;
-import org.opensearch.cli.ExitCodes;
-import org.opensearch.cli.Terminal;
-import org.opensearch.cli.UserException;
+import org.opensearch.mod.cli.ExitCodes;
+import org.opensearch.mod.cli.Terminal;
+import org.opensearch.mod.cli.UserException;
 import org.opensearch.common.SuppressForbidden;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.hash.MessageDigests;
+import org.opensearch.mod.common.hash.MessageDigests;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.env.Environment;
 
@@ -102,7 +102,7 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import static org.opensearch.cli.Terminal.Verbosity.VERBOSE;
+import static org.opensearch.mod.cli.Terminal.Verbosity.VERBOSE;
 
 /**
  * A command for the plugin cli to install a plugin into opensearch.

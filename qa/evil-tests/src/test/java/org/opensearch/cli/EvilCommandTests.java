@@ -33,6 +33,8 @@
 package org.opensearch.cli;
 
 import joptsimple.OptionSet;
+import org.opensearch.mod.cli.Command;
+import org.opensearch.mod.cli.Terminal;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;

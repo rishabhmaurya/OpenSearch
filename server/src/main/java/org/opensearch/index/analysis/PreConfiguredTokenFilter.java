@@ -34,9 +34,9 @@ package org.opensearch.index.analysis;
 
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
-import org.opensearch.common.logging.DeprecationLogger;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
+import org.opensearch.mod.common.logging.DeprecationLogger;
 import org.opensearch.indices.analysis.PreBuiltCacheFactory;
 import org.opensearch.indices.analysis.PreBuiltCacheFactory.CachingStrategy;
 
@@ -82,7 +82,7 @@ public final class PreConfiguredTokenFilter extends PreConfiguredAnalysisCompone
      * Create a pre-configured token filter that may vary based on the OpenSearch version.
      */
     public static PreConfiguredTokenFilter openSearchVersion(String name, boolean useFilterForMultitermQueries,
-            BiFunction<TokenStream, org.opensearch.Version, TokenStream> create) {
+            BiFunction<TokenStream, Version, TokenStream> create) {
         return new PreConfiguredTokenFilter(name, useFilterForMultitermQueries, true, CachingStrategy.OPENSEARCH, create);
     }
 

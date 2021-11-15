@@ -32,7 +32,7 @@
 
 package org.opensearch.action.admin.cluster.tasks;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.gateway.GatewayService;
 import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.test.InternalTestCluster;

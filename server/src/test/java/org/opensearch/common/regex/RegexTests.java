@@ -31,6 +31,7 @@
 
 package org.opensearch.common.regex;
 
+import org.opensearch.mod.common.regex.Regex;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.Locale;

@@ -34,14 +34,14 @@ package org.opensearch.index.mapper;
 
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexableField;
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.Version;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.VersionUtil;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.time.DateFormatter;
-import org.opensearch.common.xcontent.LoggingDeprecationHandler;
-import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.time.DateFormatter;
+import org.opensearch.mod.common.xcontent.LoggingDeprecationHandler;
+import org.opensearch.mod.common.xcontent.XContentHelper;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.IndexSettings;
@@ -707,7 +707,7 @@ final class DocumentParser {
                     if (builder == null) {
                         boolean ignoreMalformed = IGNORE_MALFORMED_SETTING.get(context.indexSettings().getSettings());
                         builder = new DateFieldMapper.Builder(currentFieldName, DateFieldMapper.Resolution.MILLISECONDS,
-                            dateTimeFormatter, ignoreMalformed, Version.indexCreated(context.indexSettings().getSettings()));
+                            dateTimeFormatter, ignoreMalformed, VersionUtil.indexCreated(context.indexSettings().getSettings()));
                     }
                     return builder;
 

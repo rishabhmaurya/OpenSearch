@@ -32,7 +32,7 @@
 
 package org.opensearch.index.mapper;
 
-import org.opensearch.common.compress.CompressedXContent;
+import org.opensearch.mod.common.compress.CompressedXContent;
 import org.opensearch.test.OpenSearchSingleNodeTestCase;
 
 import java.io.IOException;

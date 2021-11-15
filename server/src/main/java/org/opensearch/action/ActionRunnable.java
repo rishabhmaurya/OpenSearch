@@ -34,8 +34,8 @@ package org.opensearch.action;
 
 import org.opensearch.common.CheckedConsumer;
 import org.opensearch.common.CheckedRunnable;
-import org.opensearch.common.CheckedSupplier;
-import org.opensearch.common.util.concurrent.AbstractRunnable;
+import org.opensearch.mod.common.CheckedSupplier;
+import org.opensearch.mod.common.util.concurrent.AbstractRunnable;
 
 /**
  * Base class for {@link Runnable}s that need to call {@link ActionListener#onFailure(Exception)} in case an uncaught

@@ -32,7 +32,7 @@
 
 package org.opensearch.index.reindex.remote;
 
-import org.opensearch.common.bytes.BytesArray;
+import org.opensearch.mod.common.bytes.BytesArray;
 import org.opensearch.index.reindex.RemoteInfo;
 import org.opensearch.test.OpenSearchTestCase;
 

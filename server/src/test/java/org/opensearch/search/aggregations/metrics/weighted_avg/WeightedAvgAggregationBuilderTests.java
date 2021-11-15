@@ -32,8 +32,8 @@
 
 package org.opensearch.search.aggregations.metrics.weighted_avg;
 
-import org.opensearch.common.io.stream.Writeable;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.io.stream.Writeable;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.search.SearchModule;

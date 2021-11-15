@@ -32,7 +32,7 @@
 package org.opensearch.index.shard;
 
 import org.opensearch.cli.LoggingAwareMultiCommand;
-import org.opensearch.cli.Terminal;
+import org.opensearch.mod.cli.Terminal;
 
 /**
  * Class encapsulating and dispatching commands from the {@code opensearch-shard} command line tool

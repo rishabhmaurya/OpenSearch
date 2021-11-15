@@ -34,7 +34,7 @@ package org.opensearch.indices.memory.breaker;
 
 import org.opensearch.action.index.IndexRequestBuilder;
 import org.opensearch.client.Client;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.indices.breaker.HierarchyCircuitBreakerService;
 import org.opensearch.search.sort.SortOrder;
 import org.opensearch.test.OpenSearchIntegTestCase;

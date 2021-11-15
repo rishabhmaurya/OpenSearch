@@ -32,8 +32,8 @@
 
 package org.opensearch.search.suggest;
 
-import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.text.Text;
+import org.opensearch.mod.common.bytes.BytesReference;
+import org.opensearch.mod.common.text.Text;
 import org.opensearch.common.xcontent.DeprecationHandler;
 import org.opensearch.common.xcontent.NamedObjectNotFoundException;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
@@ -58,8 +58,8 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import static org.opensearch.common.xcontent.XContentHelper.toXContent;
-import static org.opensearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
+import static org.opensearch.mod.common.xcontent.XContentHelper.toXContent;
+import static org.opensearch.mod.common.xcontent.XContentParserUtils.ensureExpectedToken;
 import static org.opensearch.test.XContentTestUtils.insertRandomFields;
 import static org.opensearch.test.hamcrest.OpenSearchAssertions.assertToXContentEquivalent;
 

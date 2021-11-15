@@ -32,12 +32,12 @@
 
 package org.opensearch.client.transport;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.client.Client;
 import org.opensearch.cluster.coordination.ClusterBootstrapService;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.network.NetworkModule;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.env.Environment;
 import org.opensearch.node.MockNode;

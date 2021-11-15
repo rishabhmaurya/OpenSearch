@@ -32,7 +32,7 @@
 
 package org.opensearch.search.sort;
 
-import org.opensearch.common.geo.GeoPoint;
+import org.opensearch.mod.common.geo.GeoPoint;
 import org.opensearch.script.Script;
 import org.opensearch.search.sort.ScriptSortBuilder.ScriptSortType;
 

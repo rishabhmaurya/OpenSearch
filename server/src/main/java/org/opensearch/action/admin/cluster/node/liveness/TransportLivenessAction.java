@@ -33,7 +33,7 @@
 package org.opensearch.action.admin.cluster.node.liveness;
 
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.inject.Inject;
+import org.opensearch.mod.common.inject.Inject;
 import org.opensearch.tasks.Task;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportChannel;

@@ -32,7 +32,7 @@
 
 package org.opensearch.analysis.common;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.env.Environment;
 import org.opensearch.index.analysis.AnalysisTestsHelper;
 import org.opensearch.test.OpenSearchTokenStreamTestCase;

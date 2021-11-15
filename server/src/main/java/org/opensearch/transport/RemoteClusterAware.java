@@ -34,8 +34,8 @@ package org.opensearch.transport;
 
 import org.opensearch.cluster.metadata.ClusterNameExpressionResolver;
 import org.opensearch.common.settings.ClusterSettings;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Setting;
+import org.opensearch.mod.common.settings.Settings;
 
 import java.util.ArrayList;
 import java.util.Arrays;

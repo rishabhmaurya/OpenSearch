@@ -32,7 +32,7 @@
 
 package org.opensearch.test.rest.yaml.section;
 
-import org.opensearch.LegacyESVersion;
+import org.opensearch.mod.LegacyESVersion;
 import org.opensearch.common.xcontent.yaml.YamlXContent;
 
 import static org.hamcrest.Matchers.equalTo;

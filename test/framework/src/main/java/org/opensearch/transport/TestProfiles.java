@@ -32,7 +32,7 @@
 
 package org.opensearch.transport;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 
 public final class TestProfiles {
 

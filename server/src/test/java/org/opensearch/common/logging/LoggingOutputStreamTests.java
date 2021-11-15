@@ -32,6 +32,7 @@
 
 package org.opensearch.common.logging;
 
+import org.opensearch.mod.common.logging.LoggingOutputStream;
 import org.opensearch.test.OpenSearchTestCase;
 import org.junit.Before;
 
@@ -41,8 +42,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.opensearch.common.logging.LoggingOutputStream.DEFAULT_BUFFER_LENGTH;
-import static org.opensearch.common.logging.LoggingOutputStream.MAX_BUFFER_LENGTH;
+import static org.opensearch.mod.common.logging.LoggingOutputStream.DEFAULT_BUFFER_LENGTH;
+import static org.opensearch.mod.common.logging.LoggingOutputStream.MAX_BUFFER_LENGTH;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;

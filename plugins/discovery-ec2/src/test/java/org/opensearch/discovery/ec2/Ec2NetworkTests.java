@@ -34,11 +34,11 @@ package org.opensearch.discovery.ec2;
 
 import com.sun.net.httpserver.HttpServer;
 
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.SuppressForbidden;
 import org.opensearch.common.network.NetworkService;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.rest.RestStatus;
 import org.opensearch.test.OpenSearchTestCase;
 
 import org.junit.AfterClass;

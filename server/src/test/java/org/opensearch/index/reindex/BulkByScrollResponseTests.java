@@ -34,11 +34,11 @@ package org.opensearch.index.reindex;
 
 import org.opensearch.OpenSearchException;
 import org.opensearch.ResourceNotFoundException;
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.bulk.BulkItemResponse.Failure;
 import org.opensearch.client.transport.NoNodeAvailableException;
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.index.reindex.BulkByScrollTask.Status;

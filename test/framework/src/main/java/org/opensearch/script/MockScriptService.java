@@ -32,7 +32,7 @@
 
 package org.opensearch.script;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.node.MockNode;
 
 import org.opensearch.plugins.Plugin;

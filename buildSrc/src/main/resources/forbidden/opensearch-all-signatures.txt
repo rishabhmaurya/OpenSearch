@@ -20,11 +20,11 @@ java.nio.file.FileSystems#getDefault() @ use org.opensearch.common.io.PathUtils.
 java.nio.file.Files#getFileStore(java.nio.file.Path) @ Use org.opensearch.env.Environment.getFileStore() instead, impacted by JDK-8034057
 java.nio.file.Files#isWritable(java.nio.file.Path) @ Use org.opensearch.env.Environment.isWritable() instead, impacted by JDK-8034057
 
-@defaultMessage Use org.opensearch.common.Randomness#get for reproducible sources of randomness
+@defaultMessage Use Randomness#get for reproducible sources of randomness
 java.util.Random#<init>()
 java.util.concurrent.ThreadLocalRandom
 
-java.security.MessageDigest#clone() @ use org.opensearch.common.hash.MessageDigests
+java.security.MessageDigest#clone() @ use MessageDigests
 
 @defaultMessage Don't use MethodHandles in slow ways, don't be lenient in tests.
 java.lang.invoke.MethodHandle#invoke(java.lang.Object[])

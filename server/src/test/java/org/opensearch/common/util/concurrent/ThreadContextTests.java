@@ -31,9 +31,11 @@
 
 package org.opensearch.common.util.concurrent;
 
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.logging.HeaderWarning;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.logging.HeaderWarning;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.util.concurrent.AbstractRunnable;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;

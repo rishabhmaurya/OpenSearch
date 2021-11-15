@@ -32,7 +32,7 @@
 
 package org.opensearch.qa.verify_version_constants;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.test.rest.OpenSearchRestTestCase;

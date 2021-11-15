@@ -33,10 +33,10 @@
 package org.opensearch.indices.recovery;
 
 import org.opensearch.OpenSearchException;
-import org.opensearch.OpenSearchWrapperException;
-import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.common.io.stream.StreamOutput;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.mod.OpenSearchWrapperException;
+import org.opensearch.mod.common.io.stream.StreamInput;
+import org.opensearch.mod.common.io.stream.StreamOutput;
+import org.opensearch.mod.common.unit.ByteSizeValue;
 import org.opensearch.index.shard.ShardId;
 
 import java.io.IOException;

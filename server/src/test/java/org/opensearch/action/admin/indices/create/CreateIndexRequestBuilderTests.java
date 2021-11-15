@@ -32,8 +32,8 @@
 
 package org.opensearch.action.admin.indices.create;
 
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentType;
@@ -41,8 +41,6 @@ import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.client.NoOpClient;
 import org.junit.After;
 import org.junit.Before;
-import org.opensearch.action.admin.indices.create.CreateIndexAction;
-import org.opensearch.action.admin.indices.create.CreateIndexRequestBuilder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

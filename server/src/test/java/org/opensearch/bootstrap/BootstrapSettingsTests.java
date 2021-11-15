@@ -32,7 +32,7 @@
 
 package org.opensearch.bootstrap;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.test.OpenSearchTestCase;
 
 public class BootstrapSettingsTests extends OpenSearchTestCase {

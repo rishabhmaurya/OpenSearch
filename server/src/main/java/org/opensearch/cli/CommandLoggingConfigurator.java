@@ -34,7 +34,7 @@ package org.opensearch.cli;
 
 import org.apache.logging.log4j.Level;
 import org.opensearch.common.logging.LogConfigurator;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 
 /**
  * Holder class for method to configure logging without OpenSearch configuration files for use in CLI tools that will not read such

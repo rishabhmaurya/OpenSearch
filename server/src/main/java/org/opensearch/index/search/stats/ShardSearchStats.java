@@ -32,11 +32,11 @@
 
 package org.opensearch.index.search.stats;
 
-import org.opensearch.common.collect.MapBuilder;
+import org.opensearch.mod.common.collect.MapBuilder;
 import org.opensearch.common.metrics.CounterMetric;
 import org.opensearch.common.metrics.MeanMetric;
-import org.opensearch.common.regex.Regex;
-import org.opensearch.common.util.CollectionUtils;
+import org.opensearch.mod.common.regex.Regex;
+import org.opensearch.mod.common.util.CollectionUtils;
 import org.opensearch.index.shard.SearchOperationListener;
 import org.opensearch.search.internal.ReaderContext;
 import org.opensearch.search.internal.SearchContext;

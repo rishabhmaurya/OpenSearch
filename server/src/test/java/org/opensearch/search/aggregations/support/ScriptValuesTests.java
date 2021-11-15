@@ -37,7 +37,7 @@ import java.util.Collections;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.Scorable;
 import org.apache.lucene.util.BytesRef;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.script.AggregationScript;
 import org.opensearch.search.aggregations.support.values.ScriptBytesValues;
 import org.opensearch.search.aggregations.support.values.ScriptDoubleValues;

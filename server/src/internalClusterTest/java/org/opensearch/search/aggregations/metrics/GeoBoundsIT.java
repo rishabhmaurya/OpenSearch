@@ -33,8 +33,8 @@
 package org.opensearch.search.aggregations.metrics;
 
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.common.geo.GeoPoint;
-import org.opensearch.common.util.BigArray;
+import org.opensearch.mod.common.geo.GeoPoint;
+import org.opensearch.mod.common.util.BigArray;
 import org.opensearch.search.aggregations.InternalAggregation;
 import org.opensearch.search.aggregations.bucket.global.Global;
 import org.opensearch.search.aggregations.bucket.terms.Terms;

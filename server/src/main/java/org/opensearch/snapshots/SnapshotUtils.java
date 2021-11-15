@@ -33,7 +33,7 @@ package org.opensearch.snapshots;
 
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
-import org.opensearch.common.regex.Regex;
+import org.opensearch.mod.common.regex.Regex;
 import org.opensearch.index.IndexNotFoundException;
 
 import java.util.ArrayList;

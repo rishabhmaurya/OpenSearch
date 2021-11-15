@@ -32,7 +32,7 @@
 package org.opensearch.index.mapper;
 
 import org.opensearch.common.Explicit;
-import org.opensearch.common.Strings;
+import org.opensearch.mod.common.Strings;
 import org.opensearch.common.collect.List;
 import org.opensearch.common.geo.builders.ShapeBuilder;
 import org.opensearch.common.xcontent.ToXContent;
@@ -40,7 +40,6 @@ import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.test.TestGeoShapeFieldMapperPlugin;
 import org.junit.Before;
-import org.opensearch.index.mapper.FieldMapperTestCase2;
 
 import java.io.IOException;
 import java.util.Collection;

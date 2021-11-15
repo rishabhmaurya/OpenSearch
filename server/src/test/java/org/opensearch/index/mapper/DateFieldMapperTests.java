@@ -36,10 +36,9 @@ import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.IndexableField;
 import org.opensearch.bootstrap.JavaVersion;
 import org.opensearch.common.collect.List;
-import org.opensearch.common.time.DateFormatter;
+import org.opensearch.mod.common.time.DateFormatter;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.index.termvectors.TermVectorsService;
-import org.opensearch.index.mapper.MapperTestCase;
 import org.opensearch.search.DocValueFormat;
 
 import java.io.IOException;

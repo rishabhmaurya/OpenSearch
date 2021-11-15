@@ -41,7 +41,7 @@ import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.action.support.WriteRequest.RefreshPolicy;
 import org.opensearch.cluster.metadata.MappingMetadata;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.indices.InvalidIndexTemplateException;
 import org.opensearch.test.OpenSearchIntegTestCase;

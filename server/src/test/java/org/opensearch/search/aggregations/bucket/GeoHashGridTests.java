@@ -32,15 +32,15 @@
 
 package org.opensearch.search.aggregations.bucket;
 
-import org.opensearch.LegacyESVersion;
-import org.opensearch.Version;
+import org.opensearch.mod.LegacyESVersion;
+import org.opensearch.mod.Version;
 import org.opensearch.common.geo.GeoBoundingBox;
 import org.opensearch.common.geo.GeoBoundingBoxTests;
-import org.opensearch.common.geo.GeoPoint;
-import org.opensearch.common.io.stream.BytesStreamOutput;
-import org.opensearch.common.io.stream.NamedWriteableAwareStreamInput;
-import org.opensearch.common.io.stream.NamedWriteableRegistry;
-import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.mod.common.geo.GeoPoint;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.io.stream.NamedWriteableAwareStreamInput;
+import org.opensearch.mod.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.mod.common.io.stream.StreamInput;
 import org.opensearch.search.aggregations.BaseAggregationTestCase;
 import org.opensearch.search.aggregations.bucket.geogrid.GeoGridAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.geogrid.GeoHashGridAggregationBuilder;

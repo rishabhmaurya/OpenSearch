@@ -33,8 +33,8 @@
 package org.opensearch.client.indices;
 
 import org.opensearch.client.Validatable;
-import org.opensearch.common.Strings;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.ToXContentFragment;
 import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;

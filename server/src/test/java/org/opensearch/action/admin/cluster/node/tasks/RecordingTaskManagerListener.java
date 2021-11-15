@@ -33,7 +33,7 @@
 package org.opensearch.action.admin.cluster.node.tasks;
 
 import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.regex.Regex;
+import org.opensearch.mod.common.regex.Regex;
 import org.opensearch.tasks.Task;
 import org.opensearch.tasks.TaskInfo;
 import org.opensearch.test.tasks.MockTaskManagerListener;

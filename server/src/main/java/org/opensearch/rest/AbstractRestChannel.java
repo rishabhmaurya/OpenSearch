@@ -32,9 +32,9 @@
 package org.opensearch.rest;
 
 import org.opensearch.common.Nullable;
-import org.opensearch.common.Strings;
-import org.opensearch.common.io.Streams;
-import org.opensearch.common.io.stream.BytesStreamOutput;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.io.Streams;
+import org.opensearch.mod.common.io.stream.BytesStreamOutput;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentType;

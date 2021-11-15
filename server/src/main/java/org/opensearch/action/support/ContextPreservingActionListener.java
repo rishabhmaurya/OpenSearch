@@ -32,12 +32,12 @@
 package org.opensearch.action.support;
 
 import org.opensearch.action.ActionListener;
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 
 import java.util.function.Supplier;
 
 /**
- * Restores the given {@link org.opensearch.common.util.concurrent.ThreadContext.StoredContext}
+ * Restores the given {@link ThreadContext.StoredContext}
  * once the listener is invoked
  */
 public final class ContextPreservingActionListener<R> implements ActionListener<R> {

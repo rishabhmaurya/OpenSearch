@@ -34,6 +34,7 @@ package org.opensearch.monitor.jvm;
 
 import org.apache.lucene.util.Constants;
 import org.opensearch.bootstrap.JavaVersion;
+import org.opensearch.mod.monitor.jvm.JvmInfo;
 import org.opensearch.test.OpenSearchTestCase;
 
 public class JvmInfoTests extends OpenSearchTestCase {

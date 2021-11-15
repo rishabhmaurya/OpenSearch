@@ -32,12 +32,14 @@
 
 package org.opensearch.common.util;
 
-import org.opensearch.common.breaker.CircuitBreaker;
-import org.opensearch.common.breaker.CircuitBreakingException;
-import org.opensearch.common.breaker.NoopCircuitBreaker;
-import org.opensearch.common.unit.ByteSizeUnit;
-import org.opensearch.common.unit.ByteSizeValue;
-import org.opensearch.indices.breaker.CircuitBreakerService;
+import org.opensearch.mod.common.breaker.CircuitBreaker;
+import org.opensearch.mod.common.breaker.CircuitBreakingException;
+import org.opensearch.mod.common.breaker.NoopCircuitBreaker;
+import org.opensearch.mod.common.unit.ByteSizeUnit;
+import org.opensearch.mod.common.unit.ByteSizeValue;
+import org.opensearch.mod.common.breaker.fromindices.breaker.CircuitBreakerService;
+import org.opensearch.mod.common.util.BigArrays;
+import org.opensearch.mod.common.util.BitArray;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.ArrayList;

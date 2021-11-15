@@ -38,8 +38,8 @@ import org.apache.logging.log4j.message.Message;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.logging.log4j.util.MessageSupplier;
 import org.apache.logging.log4j.util.Supplier;
-import org.opensearch.common.SuppressLoggerChecks;
-import org.opensearch.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.SuppressLoggerChecks;
+import org.opensearch.mod.common.logging.DeprecationLogger;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.loggerusage.OpenSearchLoggerUsageChecker.WrongLoggerUsage;
 

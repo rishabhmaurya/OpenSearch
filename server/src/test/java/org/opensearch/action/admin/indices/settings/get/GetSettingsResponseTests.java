@@ -32,14 +32,13 @@
 
 package org.opensearch.action.admin.indices.settings.get;
 
-import org.opensearch.common.collect.ImmutableOpenMap;
-import org.opensearch.common.io.stream.Writeable;
+import org.opensearch.mod.common.collect.ImmutableOpenMap;
+import org.opensearch.mod.common.io.stream.Writeable;
 import org.opensearch.common.settings.IndexScopedSettings;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.index.RandomCreateIndexGenerator;
 import org.opensearch.test.AbstractSerializingTestCase;
-import org.opensearch.action.admin.indices.settings.get.GetSettingsResponse;
 
 import java.io.IOException;
 import java.util.HashMap;

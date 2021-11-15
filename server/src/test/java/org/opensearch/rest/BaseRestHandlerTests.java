@@ -34,8 +34,8 @@ package org.opensearch.rest;
 
 import org.opensearch.client.node.NodeClient;
 import org.opensearch.common.Table;
-import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.bytes.BytesArray;
+import org.opensearch.mod.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.common.xcontent.json.JsonXContent;
@@ -48,7 +48,6 @@ import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.rest.RestRequest.Method;
 import org.opensearch.rest.RestHandler.Route;
 import org.opensearch.rest.RestHandler.ReplacedRoute;
-import org.opensearch.rest.RestHandler;
 
 import java.io.IOException;
 import java.util.Collections;

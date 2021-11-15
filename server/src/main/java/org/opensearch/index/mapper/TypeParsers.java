@@ -33,9 +33,9 @@
 package org.opensearch.index.mapper;
 
 import org.apache.lucene.index.IndexOptions;
-import org.opensearch.OpenSearchParseException;
-import org.opensearch.common.logging.DeprecationLogger;
-import org.opensearch.common.time.DateFormatter;
+import org.opensearch.mod.OpenSearchParseException;
+import org.opensearch.mod.common.logging.DeprecationLogger;
+import org.opensearch.mod.common.time.DateFormatter;
 import org.opensearch.common.xcontent.support.XContentMapValues;
 import org.opensearch.index.similarity.SimilarityProvider;
 

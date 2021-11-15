@@ -32,7 +32,7 @@
 
 package org.opensearch.action.admin.indices.resolve;
 
-import org.opensearch.Version;
+import org.opensearch.mod.Version;
 import org.opensearch.action.admin.indices.resolve.ResolveIndexAction.Request;
 import org.opensearch.action.admin.indices.resolve.ResolveIndexAction.ResolvedAlias;
 import org.opensearch.action.admin.indices.resolve.ResolveIndexAction.ResolvedDataStream;
@@ -45,10 +45,10 @@ import org.opensearch.cluster.metadata.IndexAbstractionResolver;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.metadata.Metadata;
-import org.opensearch.common.Strings;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.time.DateFormatter;
-import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.mod.common.Strings;
+import org.opensearch.mod.common.settings.Settings;
+import org.opensearch.mod.common.time.DateFormatter;
+import org.opensearch.mod.common.util.concurrent.ThreadContext;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.time.Clock;

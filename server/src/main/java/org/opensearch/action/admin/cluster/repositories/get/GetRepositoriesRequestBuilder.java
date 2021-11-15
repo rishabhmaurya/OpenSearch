@@ -34,7 +34,7 @@ package org.opensearch.action.admin.cluster.repositories.get;
 
 import org.opensearch.action.support.master.MasterNodeReadOperationRequestBuilder;
 import org.opensearch.client.OpenSearchClient;
-import org.opensearch.common.util.ArrayUtils;
+import org.opensearch.mod.common.util.ArrayUtils;
 
 /**
  * Get repository request builder

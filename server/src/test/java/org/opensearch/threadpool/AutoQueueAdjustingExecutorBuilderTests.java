@@ -32,7 +32,7 @@
 
 package org.opensearch.threadpool;
 
-import org.opensearch.common.settings.Settings;
+import org.opensearch.mod.common.settings.Settings;
 
 import static org.hamcrest.CoreMatchers.containsString;
 
