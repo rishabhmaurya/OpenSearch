@@ -42,6 +42,7 @@ import org.opensearch.common.unit.TimeValue;
 import org.opensearch.node.Node;
 import org.opensearch.threadpool.RunnableTaskExecutionListener;
 import org.opensearch.threadpool.TaskAwareRunnable;
+import org.opensearch.tracing.opentelemetry.OpenTelemetryContextWrapper;
 
 import java.util.List;
 import java.util.Optional;
@@ -128,7 +129,6 @@ public class OpenSearchExecutors {
     ) {
         return new PrioritizedOpenSearchThreadPoolExecutor(name, 1, 1, 0L, TimeUnit.MILLISECONDS, threadFactory, contextHolder, timer);
     }
-
     public static OpenSearchThreadPoolExecutor newScaling(
         String name,
         int min,
@@ -354,7 +354,7 @@ public class OpenSearchExecutors {
      * @return an {@link ExecutorService} that executes submitted tasks on the current thread
      */
     public static ExecutorService newDirectExecutorService() {
-        return DIRECT_EXECUTOR_SERVICE;
+        return OpenTelemetryContextWrapper.wrapTask(DIRECT_EXECUTOR_SERVICE);
     }
 
     public static String threadName(Settings settings, String namePrefix) {

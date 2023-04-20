@@ -38,6 +38,8 @@ import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.node.Node;
+import org.opensearch.tracing.opentelemetry.OpenTelemetryContextWrapper;
+import org.opensearch.tracing.opentelemetry.OpenTelemetryService;
 
 import java.util.Arrays;
 import java.util.List;
@@ -111,7 +113,7 @@ public final class ScalingExecutorBuilder extends ExecutorBuilder<ScalingExecuto
         final ThreadFactory threadFactory = OpenSearchExecutors.daemonThreadFactory(
             OpenSearchExecutors.threadName(settings.nodeName, name())
         );
-        final ExecutorService executor = OpenSearchExecutors.newScaling(
+         ExecutorService executor = OpenSearchExecutors.newScaling(
             settings.nodeName + "/" + name(),
             core,
             max,
@@ -120,6 +122,9 @@ public final class ScalingExecutorBuilder extends ExecutorBuilder<ScalingExecuto
             threadFactory,
             threadContext
         );
+        if (OpenTelemetryService.isThreadPoolAllowed(name())) {
+            executor = OpenTelemetryContextWrapper.wrapTask(executor);
+        }
         return new ThreadPool.ExecutorHolder(executor, info);
     }
 

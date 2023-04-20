@@ -45,13 +45,14 @@ import org.opensearch.common.unit.SizeValue;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.common.util.concurrent.OpenSearchRejectedExecutionException;
-import org.opensearch.common.util.concurrent.OpenSearchThreadPoolExecutor;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.common.util.concurrent.XRejectedExecutionHandler;
 import org.opensearch.common.xcontent.ToXContentFragment;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.node.Node;
 import org.opensearch.node.ReportingService;
+import org.opensearch.tracing.opentelemetry.OpenTelemetryContextWrapper;
+import org.opensearch.tracing.opentelemetry.OpenTelemetryService;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -215,7 +216,6 @@ public class ThreadPool implements ReportingService<ThreadPoolInfo>, Scheduler {
         final ExecutorBuilder<?>... customBuilders
     ) {
         assert Node.NODE_NAME_SETTING.exists(settings);
-
         final Map<String, ExecutorBuilder> builders = new HashMap<>();
         final int allocatedProcessors = OpenSearchExecutors.allocatedProcessors(settings);
         final int halfProcMaxAt5 = halfAllocatedProcessorsMaxFive(allocatedProcessors);
@@ -407,8 +407,13 @@ public class ThreadPool implements ReportingService<ThreadPoolInfo>, Scheduler {
         if (holder == null) {
             throw new IllegalArgumentException("no executor service found for [" + name + "]");
         }
+        if (OpenTelemetryService.isThreadPoolAllowed(Names.GENERIC)) {
+            return OpenTelemetryContextWrapper.wrapTask(holder.executor());
+        }
         return holder.executor();
     }
+
+
 
     /**
      * Schedules a one-shot command to run after a given delay. The command is run in the context of the calling thread.
@@ -687,7 +692,7 @@ public class ThreadPool implements ReportingService<ThreadPoolInfo>, Scheduler {
         public final Info info;
 
         ExecutorHolder(ExecutorService executor, Info info) {
-            assert executor instanceof OpenSearchThreadPoolExecutor || executor == DIRECT_EXECUTOR;
+//             assert executor instanceof OpenSearchThreadPoolExecutor || executor == DIRECT_EXECUTOR;
             this.executor = executor;
             this.info = info;
         }

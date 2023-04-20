@@ -143,15 +143,15 @@ public final class SegmentFileTransferHandler {
             }
 
             @Override
-            protected void executeChunkRequest(FileChunk request, ActionListener<Void> listener1) {
-                cancellableThreads.checkForCancel();
+            protected void executeChunkRequest(FileChunk request, ActionListener<Void> listener) {
+
                 chunkWriter.writeFileChunk(
                     request.md,
                     request.position,
                     request.content,
                     request.lastChunk,
                     translogOps.getAsInt(),
-                    ActionListener.runBefore(listener1, request::close)
+                    ActionListener.runBefore(listener, request::close)
                 );
             }
 
