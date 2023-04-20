@@ -84,7 +84,7 @@ public class OpenSearchThreadPoolExecutor extends ThreadPoolExecutor {
     }
 
     @SuppressForbidden(reason = "properly rethrowing errors, see OpenSearchExecutors.rethrowErrors")
-    OpenSearchThreadPoolExecutor(
+    protected OpenSearchThreadPoolExecutor(
         String name,
         int corePoolSize,
         int maximumPoolSize,

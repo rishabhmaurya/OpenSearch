@@ -32,6 +32,7 @@
 
 package org.opensearch.index.seqno;
 
+import io.opentelemetry.context.Context;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
@@ -63,6 +64,7 @@ import org.opensearch.indices.SystemIndices;
 import org.opensearch.tasks.Task;
 import org.opensearch.tasks.TaskId;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.tracing.opentelemetry.OTelContextPreservingActionListener;
 import org.opensearch.transport.TransportException;
 import org.opensearch.transport.TransportResponseHandler;
 import org.opensearch.transport.TransportService;
@@ -129,8 +131,9 @@ public class RetentionLeaseSyncAction extends TransportWriteAction<
         String primaryAllocationId,
         long primaryTerm,
         RetentionLeases retentionLeases,
-        ActionListener<ReplicationResponse> listener
+        ActionListener<ReplicationResponse> listener1
     ) {
+        final ActionListener<ReplicationResponse> listener = new OTelContextPreservingActionListener<>(listener1, Context.current());
         final ThreadContext threadContext = threadPool.getThreadContext();
         try (ThreadContext.StoredContext ignore = threadContext.stashContext()) {
             // we have to execute under the system context so that if security is enabled the sync is authorized

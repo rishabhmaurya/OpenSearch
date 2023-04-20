@@ -32,6 +32,7 @@
 
 package org.opensearch.indices.recovery;
 
+import io.opentelemetry.api.trace.Span;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.ExceptionsHelper;
@@ -57,6 +58,7 @@ import org.opensearch.index.shard.ShardId;
 import org.opensearch.indices.IndicesService;
 import org.opensearch.tasks.Task;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.tracing.opentelemetry.OpenTelemetryService;
 import org.opensearch.transport.TransportChannel;
 import org.opensearch.transport.TransportRequestHandler;
 import org.opensearch.transport.TransportService;
@@ -68,6 +70,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
+
+import static io.opentelemetry.api.common.AttributeKey.longKey;
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 /**
  * The source recovery accepts recovery requests from other peer shards and start the recovery process from this
@@ -157,9 +163,14 @@ public class PeerRecoverySourceService extends AbstractLifecycleComponent implem
     }
 
     private void recover(StartRecoveryRequest request, ActionListener<RecoveryResponse> listener) {
+        Span span = Span.current();
+        span.setAttribute(stringKey("index-name"), request.shardId().getIndexName());
+        span.setAttribute(longKey("shard-id"), request.shardId().id());
+        span.setAttribute(stringKey("source-node"), request.sourceNode().getId());
+        span.setAttribute(stringKey("target-node"), request.targetNode().getId());
+
         final IndexService indexService = indicesService.indexServiceSafe(request.shardId().getIndex());
         final IndexShard shard = indexService.getShard(request.shardId().id());
-
         final ShardRouting routingEntry = shard.routingEntry();
 
         if (routingEntry.primary() == false || routingEntry.active() == false) {
@@ -183,6 +194,7 @@ public class PeerRecoverySourceService extends AbstractLifecycleComponent implem
             request.shardId().id(),
             request.targetNode()
         );
+
         handler.recoverToTarget(ActionListener.runAfter(listener, () -> ongoingRecoveries.remove(shard, handler)));
     }
 
@@ -202,7 +214,12 @@ public class PeerRecoverySourceService extends AbstractLifecycleComponent implem
     class StartRecoveryTransportRequestHandler implements TransportRequestHandler<StartRecoveryRequest> {
         @Override
         public void messageReceived(final StartRecoveryRequest request, final TransportChannel channel, Task task) throws Exception {
-            recover(request, new ChannelActionListener<>(channel, Actions.START_RECOVERY, request));
+            BiFunction<Object[], ActionListener<?>, Void> recoverFunction = (args, actionListener) -> {
+                recover((StartRecoveryRequest) args[0], (ActionListener<RecoveryResponse>) actionListener);
+                return null;
+            };
+            OpenTelemetryService.callFunctionAndStartSpan("recover", recoverFunction,
+                new ChannelActionListener<>(channel, Actions.START_RECOVERY, request), request);
         }
     }
 

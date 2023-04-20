@@ -8,6 +8,7 @@
 
 package org.opensearch.indices.recovery;
 
+import io.opentelemetry.context.Context;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.LegacyESVersion;
@@ -22,6 +23,7 @@ import org.opensearch.common.util.CancellableThreads;
 import org.opensearch.common.util.concurrent.ConcurrentCollections;
 import org.opensearch.common.util.concurrent.OpenSearchRejectedExecutionException;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.tracing.opentelemetry.OTelContextPreservingActionListener;
 import org.opensearch.transport.ConnectTransportException;
 import org.opensearch.transport.RemoteTransportException;
 import org.opensearch.transport.SendRequestTransportException;
@@ -93,7 +95,9 @@ public final class RetryableTransportClient {
                     action,
                     request,
                     options,
-                    new ActionListenerResponseHandler<>(listener, reader, ThreadPool.Names.GENERIC)
+                    new ActionListenerResponseHandler<>(
+                        new OTelContextPreservingActionListener<>(listener, Context.current()),
+                        reader, ThreadPool.Names.GENERIC)
                 );
             }
 
