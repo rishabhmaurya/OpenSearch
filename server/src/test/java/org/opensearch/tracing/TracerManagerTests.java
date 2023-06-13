@@ -14,8 +14,10 @@ import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.FeatureFlags;
+import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.tracing.impl.OSTracerSettings;
 import org.opensearch.tracing.noop.NoopTracer;
 
 import java.util.HashSet;
@@ -42,22 +44,21 @@ public class TracerManagerTests extends OpenSearchTestCase {
     }
 
     public void testGetTracerWithTracingDisabledReturnsNoopTracer() {
-        Settings settings = Settings.builder().put(TracerSettings.TRACER_LEVEL_SETTING.getKey(), Level.DISABLED).build();
-        TracerSettings tracerSettings = new TracerSettings(settings, new ClusterSettings(settings, getClusterSettings()));
-        TracerManager.initTracerManager(tracerSettings, null, mock(ThreadPool.class));
+        Settings settings = Settings.builder().put(OSTracerSettings.TRACER_LEVEL_SETTING.getKey(), Level.DISABLED).build();
+        TracerSettings tracerSettings = new OSTracerSettings(settings, new ClusterSettings(settings, getClusterSettings()));
+        TracerManager.initTracerManager(tracerSettings, null, () -> null);
 
         Tracer tracer = TracerManager.getTracer();
         assertTrue(tracer instanceof NoopTracer);
     }
 
     public void testGetTracerWithTracingEnabledReturnsDefaultTracer() {
-        Settings settings = Settings.builder().put(TracerSettings.TRACER_LEVEL_SETTING.getKey(), Level.INFO).build();
-        TracerSettings tracerSettings = new TracerSettings(settings, new ClusterSettings(settings, getClusterSettings()));
-        TracerManager.initTracerManager(tracerSettings, () -> mock(Telemetry.class), mock(ThreadPool.class));
+        Settings settings = Settings.builder().put(OSTracerSettings.TRACER_LEVEL_SETTING.getKey(), Level.INFO).build();
+        TracerSettings tracerSettings = new OSTracerSettings(settings, new ClusterSettings(settings, getClusterSettings()));
+        TracerManager.initTracerManager(tracerSettings, () -> mock(Telemetry.class), () -> mock(Tracer.class));
 
         Tracer tracer = TracerManager.getTracer();
-        assertTrue(tracer instanceof DefaultTracer);
-
+        assertFalse(tracer instanceof NoopTracer);
     }
 
     private Set<Setting<?>> getClusterSettings() {

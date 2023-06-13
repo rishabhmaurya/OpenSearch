@@ -43,9 +43,11 @@ subprojects {
     configurations.all { Configuration conf ->
       dependencies.matching { it instanceof ProjectDependency }.all { ProjectDependency dep ->
         Project depProject = dep.dependencyProject
-        if (depProject != null
-          && (false == depProject.path.equals(':libs:opensearch-core') &&
-              false == depProject.path.equals(':libs:opensearch-common'))
+        if (depProject != null && (
+          false == depProject.path.equals(':libs:opensearch-core')
+          && false == depProject.path.equals(':libs:opensearch-common')
+          && false == depProject.path.equals(':libs:opensearch-tracer')
+        )
           && depProject.path.startsWith(':libs')) {
           throw new InvalidUserDataException("projects in :libs "
             + "may not depend on other projects libs except "

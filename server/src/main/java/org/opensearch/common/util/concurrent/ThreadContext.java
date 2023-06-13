@@ -69,7 +69,7 @@ import java.util.stream.Stream;
 import static org.opensearch.http.HttpTransportSettings.SETTING_HTTP_MAX_WARNING_HEADER_COUNT;
 import static org.opensearch.http.HttpTransportSettings.SETTING_HTTP_MAX_WARNING_HEADER_SIZE;
 import static org.opensearch.tasks.TaskResourceTrackingService.TASK_ID;
-import static org.opensearch.tracing.DefaultTracer.CURRENT_SPAN;
+import static org.opensearch.tracing.Tracer.CURRENT_SPAN;
 
 /**
  * A ThreadContext is a map of string headers and a transient map of keyed objects that are associated with

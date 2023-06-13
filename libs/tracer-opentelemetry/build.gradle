@@ -1,0 +1,50 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * The OpenSearch Contributors require contributions made to
+ * this file be licensed under the Apache-2.0 license or a
+ * compatible open source license.
+ */
+
+apply plugin: 'opensearch.build'
+apply plugin: 'opensearch.publish'
+
+dependencies {
+  api project(':libs:opensearch-tracer')
+  // logging
+  api "org.apache.logging.log4j:log4j-api:${versions.log4j}"
+
+  api "io.opentelemetry:opentelemetry-api:${versions.opentelemetry}"
+  api "io.opentelemetry:opentelemetry-context:${versions.opentelemetry}"
+  api "io.opentelemetry:opentelemetry-sdk:${versions.opentelemetry}"
+  api "io.opentelemetry:opentelemetry-sdk-common:${versions.opentelemetry}"
+  api "io.opentelemetry:opentelemetry-sdk-trace:${versions.opentelemetry}"
+  api "io.opentelemetry:opentelemetry-sdk-metrics:${versions.opentelemetry}"
+  api "io.opentelemetry:opentelemetry-semconv:${versions.opentelemetry}-alpha"
+  api "io.opentelemetry:opentelemetry-sdk-logs:${versions.opentelemetry}-alpha"
+  api "io.opentelemetry:opentelemetry-api-logs:${versions.opentelemetry}-alpha"
+
+  // exporters
+  api "io.opentelemetry:opentelemetry-exporter-common:${versions.opentelemetry}"
+  api "io.opentelemetry:opentelemetry-exporter-otlp:${versions.opentelemetry}"
+  api "io.opentelemetry:opentelemetry-exporter-otlp-common:${versions.opentelemetry}"
+}
+
+thirdPartyAudit {
+  ignoreViolations(
+    'io.opentelemetry.internal.shaded.jctools.queues.MpscArrayQueueConsumerIndexField',
+    'io.opentelemetry.internal.shaded.jctools.queues.MpscArrayQueueProducerIndexField',
+    'io.opentelemetry.internal.shaded.jctools.queues.MpscArrayQueueProducerLimitField',
+    'io.opentelemetry.internal.shaded.jctools.util.UnsafeAccess',
+    'io.opentelemetry.internal.shaded.jctools.util.UnsafeRefArrayAccess'
+  )
+
+  ignoreMissingClasses(
+    'io.opentelemetry.api.events.EventEmitter',
+    'io.opentelemetry.api.events.EventEmitterBuilder',
+    'io.opentelemetry.api.events.EventEmitterProvider',
+    'io.opentelemetry.extension.incubator.metrics.ExtendedDoubleHistogramBuilder',
+    'io.opentelemetry.extension.incubator.metrics.ExtendedLongHistogramBuilder',
+    'io.opentelemetry.extension.incubator.metrics.HistogramAdviceConfigurer'
+  )
+}

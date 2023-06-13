@@ -36,6 +36,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.Constants;
 import org.opensearch.ExceptionsHelper;
+import org.opensearch.tracing.impl.OSTracerSettings;
 import org.opensearch.common.SetOnce;
 import org.opensearch.common.settings.SettingsException;
 import org.opensearch.common.unit.ByteSizeUnit;
@@ -64,7 +65,7 @@ import org.opensearch.tasks.TaskResourceTrackingService;
 import org.opensearch.tasks.consumer.TopNSearchTasksLogger;
 import org.opensearch.threadpool.RunnableTaskExecutionListener;
 import org.opensearch.index.store.RemoteSegmentStoreDirectoryFactory;
-import org.opensearch.tracing.TracerModule;
+import org.opensearch.tracing.impl.TracerModule;
 import org.opensearch.tracing.TracerSettings;
 import org.opensearch.watcher.ResourceWatcherService;
 import org.opensearch.core.Assertions;
@@ -1014,10 +1015,10 @@ public class Node implements Closeable {
             );
 
             if (FeatureFlags.isEnabled(TRACER)) {
-                final TracerSettings tracerSettings = new TracerSettings(settings, clusterService.getClusterSettings());
+                final TracerSettings tracerSettings = new OSTracerSettings(settings, clusterService.getClusterSettings());
                 List<TracerPlugin> tracerPlugins = pluginsService.filterPlugins(TracerPlugin.class);
-                TracerModule tracerModule = new TracerModule(settings, tracerPlugins, tracerSettings);
-                TracerManager.initTracerManager(tracerSettings, tracerModule.getTelemetrySupplier(), threadPool);
+                TracerModule tracerModule = new TracerModule(settings, tracerPlugins, tracerSettings, threadPool);
+                TracerManager.initTracerManager(tracerSettings, tracerModule.getTelemetrySupplier(), tracerModule.getDefaultTracer());
                 resourcesToClose.add(TracerManager::closeTracer);
             }
 
