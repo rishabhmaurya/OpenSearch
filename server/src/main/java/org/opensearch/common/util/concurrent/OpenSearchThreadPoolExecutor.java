@@ -34,6 +34,7 @@ package org.opensearch.common.util.concurrent;
 
 import org.opensearch.common.SuppressForbidden;
 import org.opensearch.core.concurrency.OpenSearchRejectedExecutionException;
+import org.opensearch.telemetry.tracing.listeners.TraceEventsService;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -52,6 +53,9 @@ public class OpenSearchThreadPoolExecutor extends ThreadPoolExecutor {
     private volatile ShutdownListener listener;
 
     private final Object monitor = new Object();
+
+    private TraceEventsService traceEventsService;
+
     /**
      * Name used in error reporting.
      */
@@ -96,9 +100,25 @@ public class OpenSearchThreadPoolExecutor extends ThreadPoolExecutor {
         XRejectedExecutionHandler handler,
         ThreadContext contextHolder
     ) {
+        this(name, corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory, handler, contextHolder, null);
+    }
+
+    OpenSearchThreadPoolExecutor(
+        String name,
+        int corePoolSize,
+        int maximumPoolSize,
+        long keepAliveTime,
+        TimeUnit unit,
+        BlockingQueue<Runnable> workQueue,
+        ThreadFactory threadFactory,
+        XRejectedExecutionHandler handler,
+        ThreadContext contextHolder,
+        TraceEventsService traceEventsService
+    ) {
         super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory, handler);
         this.name = name;
         this.contextHolder = contextHolder;
+        this.traceEventsService = traceEventsService;
     }
 
     @Override
@@ -199,10 +219,18 @@ public class OpenSearchThreadPoolExecutor extends ThreadPoolExecutor {
     }
 
     protected Runnable wrapRunnable(Runnable command) {
-        return contextHolder.preserveContext(command);
+        if (traceEventsService != null) {
+            return traceEventsService.wrapRunnable(contextHolder.preserveContext(command));
+        } else {
+            return contextHolder.preserveContext(command);
+        }
     }
 
     protected Runnable unwrap(Runnable runnable) {
-        return contextHolder.unwrap(runnable);
+        if (traceEventsService != null) {
+            return traceEventsService.unwrapRunnable(contextHolder.unwrap(runnable));
+        } else {
+            return contextHolder.unwrap(runnable);
+        }
     }
 }

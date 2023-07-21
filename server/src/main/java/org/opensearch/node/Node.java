@@ -56,6 +56,8 @@ import org.opensearch.monitor.fs.FsInfo;
 import org.opensearch.monitor.fs.FsProbe;
 import org.opensearch.plugins.ExtensionAwarePlugin;
 import org.opensearch.plugins.SearchPipelinePlugin;
+import org.opensearch.telemetry.tracing.listeners.TraceEventListener;
+import org.opensearch.telemetry.tracing.listeners.TraceEventsService;
 import org.opensearch.telemetry.tracing.NoopTracerFactory;
 import org.opensearch.telemetry.tracing.TracerFactory;
 import org.opensearch.search.backpressure.SearchBackpressureService;
@@ -65,6 +67,7 @@ import org.opensearch.tasks.TaskCancellationMonitoringService;
 import org.opensearch.tasks.TaskCancellationMonitoringSettings;
 import org.opensearch.tasks.TaskResourceTrackingService;
 import org.opensearch.tasks.consumer.TopNSearchTasksLogger;
+import org.opensearch.telemetry.tracing.TracerUtil;
 import org.opensearch.threadpool.RunnableTaskExecutionListener;
 import org.opensearch.index.store.RemoteSegmentStoreDirectoryFactory;
 import org.opensearch.telemetry.TelemetryModule;
@@ -258,6 +261,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 import static org.opensearch.common.util.FeatureFlags.SEARCH_PIPELINE;
 import static org.opensearch.common.util.FeatureFlags.TELEMETRY;
 import static org.opensearch.env.NodeEnvironment.collectFileCacheDataPath;
@@ -852,6 +856,8 @@ public class Node implements Closeable {
                 pluginsService.filterPlugins(ActionPlugin.class).stream().flatMap(p -> p.getTaskHeaders().stream()),
                 Stream.of(Task.X_OPAQUE_ID)
             ).collect(Collectors.toSet());
+
+            final TraceEventsService traceEventsService = new TraceEventsService();
             final TransportService transportService = newTransportService(
                 settings,
                 transport,
@@ -859,7 +865,8 @@ public class Node implements Closeable {
                 networkModule.getTransportInterceptor(),
                 localNodeFactory,
                 settingsModule.getClusterSettings(),
-                taskHeaders
+                taskHeaders,
+                traceEventsService
             );
             TopNSearchTasksLogger taskConsumer = new TopNSearchTasksLogger(settings, settingsModule.getClusterSettings());
             transportService.getTaskManager().registerTaskResourceConsumer(taskConsumer);
@@ -1029,13 +1036,17 @@ public class Node implements Closeable {
                 searchModule.getIndexSearcherExecutor(threadPool)
             );
 
-            if (FeatureFlags.isEnabled(TELEMETRY)) {
-                final TelemetrySettings telemetrySettings = new TelemetrySettings(settings, clusterService.getClusterSettings());
+            if (FeatureFlags.isEnabled(TELEMETRY)) { // TODO - revert
+                final TelemetrySettings telemetrySettings = new TelemetrySettings(settings,
+                    clusterService.getClusterSettings(), traceEventsService);
                 List<TelemetryPlugin> telemetryPlugins = pluginsService.filterPlugins(TelemetryPlugin.class);
                 TelemetryModule telemetryModule = new TelemetryModule(telemetryPlugins, telemetrySettings);
-                tracerFactory = new TracerFactory(telemetrySettings, telemetryModule.getTelemetry(), threadPool.getThreadContext());
+                tracerFactory = new TracerFactory(telemetrySettings, telemetryModule.getTelemetry(), threadPool.getThreadContext(), traceEventsService);
+                initializeTraceEventService(traceEventsService, telemetryModule, telemetryPlugins);
+                TracerUtil.setTraceEventService(traceEventsService);
             } else {
                 tracerFactory = new NoopTracerFactory();
+                TracerUtil.setTraceEventService(traceEventsService);
             }
             resourcesToClose.add(tracerFactory::close);
 
@@ -1101,6 +1112,7 @@ public class Node implements Closeable {
                 b.bind(SearchPhaseController.class)
                     .toInstance(new SearchPhaseController(namedWriteableRegistry, searchService::aggReduceContextBuilder));
                 b.bind(Transport.class).toInstance(transport);
+                b.bind(TraceEventsService.class).toInstance(traceEventsService);
                 b.bind(TransportService.class).toInstance(transportService);
                 b.bind(NetworkService.class).toInstance(networkService);
                 b.bind(UpdateHelper.class).toInstance(new UpdateHelper(scriptService));
@@ -1197,9 +1209,11 @@ public class Node implements Closeable {
         TransportInterceptor interceptor,
         Function<BoundTransportAddress, DiscoveryNode> localNodeFactory,
         ClusterSettings clusterSettings,
-        Set<String> taskHeaders
+        Set<String> taskHeaders,
+        TraceEventsService traceEventsService
     ) {
-        return new TransportService(settings, transport, threadPool, interceptor, localNodeFactory, clusterSettings, taskHeaders);
+        return new TransportService(settings, transport, threadPool, interceptor, localNodeFactory, clusterSettings, taskHeaders,
+            traceEventsService);
     }
 
     protected void processRecoverySettings(ClusterSettings clusterSettings, RecoverySettings recoverySettings) {
@@ -1607,6 +1621,21 @@ public class Node implements Closeable {
             return new NoneCircuitBreakerService();
         } else {
             throw new IllegalArgumentException("Unknown circuit breaker type [" + type + "]");
+        }
+    }
+
+    private static void initializeTraceEventService(TraceEventsService traceEventsService,
+                                                            TelemetryModule telemetryModule, List<TelemetryPlugin> telemetryPlugins) {
+        final Map<String, TraceEventListener> traceEventListeners;
+        if (telemetryModule.getTelemetry().isPresent()) {
+            traceEventListeners = telemetryPlugins.stream()
+                .flatMap(plugin -> plugin.getTraceEventListeners(telemetryModule.getTelemetry().get()).entrySet().stream())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        } else {
+            traceEventListeners = Collections.emptyMap();
+        }
+        for (Map.Entry<String, TraceEventListener> entry : traceEventListeners.entrySet()) {
+            traceEventsService.registerTraceEventListener(entry.getKey(), entry.getValue());
         }
     }
 
