@@ -18,6 +18,8 @@ import org.opensearch.telemetry.tracing.Tracer;
 import org.opensearch.telemetry.tracing.listeners.TraceEventsService;
 
 /**
+ * One of the pre-defined TraceEventListener for recording the thread usage using {@link ThreadResourceRecorder} and
+ * emitting metrics using {@link MetricEmitter}.
  * When a {@link Tracer} is wrapped with {@link TraceEventsService#wrapAndSetTracer(Tracer)}
  * and all Runnable associated with a trace are wrapped with {@link TraceEventsService#wrapRunnable(Runnable)},
  * this class records the resource consumption of the complete trace using provided {@link ThreadResourceRecorder} and emits corresponding metrics using
