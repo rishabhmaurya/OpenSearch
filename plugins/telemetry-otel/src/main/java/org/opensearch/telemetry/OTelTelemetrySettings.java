@@ -94,14 +94,4 @@ public final class OTelTelemetrySettings {
         Setting.Property.NodeScope,
         Setting.Property.Final
     );
-
-    /**
-     * Metric reader interval
-     */
-    public static final Setting<TimeValue> OTEL_TRACER_METRIC_READER_INTERVAL_SETTING = Setting.timeSetting(
-        "telemetry.otel.tracer.metric.reader.interval",
-        TimeValue.timeValueSeconds(60),
-        Setting.Property.NodeScope,
-        Setting.Property.Final
-    );
 }
