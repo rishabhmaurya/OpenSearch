@@ -27,7 +27,7 @@ public class MetricPoint {
      * @throws IllegalArgumentException if any of the input parameters are null
      */
     public MetricPoint(Map<String, Measurement<Number>> measurements, Map<String, Object> attributes, long observationTime) {
-        if (measurements == null || measurements.isEmpty()) {
+        if (measurements == null) {
             throw new IllegalArgumentException("Measurements cannot be null");
         }
 

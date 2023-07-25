@@ -10,12 +10,17 @@ package org.opensearch.telemetry.diagnostics;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.opensearch.telemetry.metrics.Measurement;
 import org.opensearch.telemetry.metrics.MetricPoint;
 import org.opensearch.telemetry.metrics.MetricEmitter;
 import org.opensearch.telemetry.tracing.listeners.TraceEventListener;
 import org.opensearch.telemetry.tracing.Span;
 import org.opensearch.telemetry.tracing.Tracer;
 import org.opensearch.telemetry.tracing.listeners.TraceEventsService;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * One of the pre-defined TraceEventListener for recording the thread usage using {@link ThreadResourceRecorder} and
@@ -25,12 +30,15 @@ import org.opensearch.telemetry.tracing.listeners.TraceEventsService;
  * this class records the resource consumption of the complete trace using provided {@link ThreadResourceRecorder} and emits corresponding metrics using
  * {@link MetricEmitter}.
  * The span created by {@link org.opensearch.telemetry.tracing.TracingTelemetry#createSpan(String, Span)} must be wrapped with {@link DiagnosticSpan}
- * using {@link TraceEventsService#wrapSpan(Span)}
+ * using {@link TraceEventsService#wrapWithDiagnosticSpan(Span)}
  */
 public class DiagnosticsEventListener implements TraceEventListener {
     private static final Logger logger = LogManager.getLogger(DiagnosticsEventListener.class);
     private final ThreadResourceRecorder<?> threadResourceRecorder;
     private final MetricEmitter metricEmitter;
+
+    public final static String START_SPAN_TIME = "start_span_time";
+    public final static String ELAPSED_TIME = "elapsed_time";
 
     /**
      * Constructs a new DiagnosticsTraceEventListener with the specified tracer, thread resource recorder,
@@ -55,7 +63,9 @@ public class DiagnosticsEventListener implements TraceEventListener {
         if (!ensureDiagnosticSpan(span)) {
             return;
         }
-        threadResourceRecorder.startRecording((DiagnosticSpan) span, t);
+        DiagnosticSpan diagnosticSpan = (DiagnosticSpan) span;
+        threadResourceRecorder.startRecording(diagnosticSpan, t, true);
+        diagnosticSpan.putMetric(START_SPAN_TIME, new MetricPoint(Collections.emptyMap(), null, System.currentTimeMillis()));
     }
 
     /**
@@ -70,13 +80,9 @@ public class DiagnosticsEventListener implements TraceEventListener {
         if (!ensureDiagnosticSpan(span)) {
             return;
         }
-        MetricPoint diffMetric = threadResourceRecorder.endRecording((DiagnosticSpan) span, t, true);
-        MetricPoint endMetric = new MetricPoint(
-            diffMetric.getMeasurements(),
-            ((DiagnosticSpan) span).getAttributes(),
-            diffMetric.getObservationTime()
-        );
-        metricEmitter.emitMetric(endMetric);
+        DiagnosticSpan diagnosticSpan = (DiagnosticSpan) span;
+        MetricPoint diffMetric = threadResourceRecorder.endRecording(diagnosticSpan, t, true);
+        metricEmitter.emitMetric(addElapsedTimeMeasurement(diagnosticSpan, diffMetric));
     }
 
     /**
@@ -91,7 +97,7 @@ public class DiagnosticsEventListener implements TraceEventListener {
         if (!ensureDiagnosticSpan(span)) {
             return;
         }
-        threadResourceRecorder.startRecording((DiagnosticSpan) span, t);
+        threadResourceRecorder.startRecording((DiagnosticSpan) span, t, false);
     }
 
     /**
@@ -127,5 +133,17 @@ public class DiagnosticsEventListener implements TraceEventListener {
             logger.debug("Non diagnostic span detected while processing DiagnosticEventListener for span  {} {}", span, new Throwable());
             return false;
         }
+    }
+
+    private MetricPoint addElapsedTimeMeasurement(DiagnosticSpan span, MetricPoint diffMetric) {
+        long elapsedTime = System.currentTimeMillis() - span.removeMetric(START_SPAN_TIME).getObservationTime();
+        Measurement<Number> elapsedTimeMeasurement = new Measurement<>(ELAPSED_TIME, elapsedTime);
+        Map<String, Measurement<Number>> diffMeasurements = new HashMap<>(diffMetric.getMeasurements());
+        diffMeasurements.put(ELAPSED_TIME, elapsedTimeMeasurement);
+        return  new MetricPoint(
+            diffMeasurements,
+            span.getAttributes(),
+            diffMetric.getObservationTime()
+        );
     }
 }

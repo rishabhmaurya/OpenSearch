@@ -24,6 +24,7 @@ public class DiagnosticSpan implements Span {
     private final Map<String, Object> baggage;
     private final Map<String, MetricPoint> metricMap;
 
+    private final static String SPAN_NAME = "span_name";
     /**
      * Constructs a DiagnosticSpan object with the specified underlying span.
      *
@@ -33,6 +34,7 @@ public class DiagnosticSpan implements Span {
         this.delegateSpan = span;
         this.baggage = new HashMap<>();
         this.metricMap = new HashMap<>();
+        baggage.put(SPAN_NAME, span.getSpanName());
     }
 
     /**

@@ -6,14 +6,11 @@
  * compatible open source license.
  */
 
-package org.opensearch.telemetry.tracing.listeners.wrappers;
+package org.opensearch.telemetry.tracing.listeners;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.telemetry.tracing.listeners.RunnableEventListener;
-import org.opensearch.telemetry.tracing.listeners.TraceEventListener;
 import org.opensearch.telemetry.tracing.Span;
-import org.opensearch.telemetry.tracing.listeners.TraceEventsService;
 
 /**
  * Runnable implementation that wraps another Runnable and adds trace event listener functionality.
@@ -31,7 +28,7 @@ public class TraceEventsRunnable implements Runnable {
      * @param delegate            the underlying Runnable to be executed
      * @param traceEventsService  traceEventListenerService
      */
-    public TraceEventsRunnable(Runnable delegate, TraceEventsService traceEventsService) {
+     TraceEventsRunnable(Runnable delegate, TraceEventsService traceEventsService) {
         this.delegate = delegate;
         this.traceEventsService = traceEventsService;
     }
@@ -47,9 +44,7 @@ public class TraceEventsRunnable implements Runnable {
                 Span span = traceEventsService.getTracer().getCurrentSpan();
                 // repeat it for all the spans in the hierarchy
                 while (span != null) {
-                    if (span.hasEnded()) {
-                        logger.debug("TraceEventsRunnable is invoked post span completion", new Throwable());
-                    } else {
+                    if (!span.hasEnded()) {
                         Span finalSpan = span;
                         traceEventsService.executeListeners(
                             span,
@@ -68,9 +63,7 @@ public class TraceEventsRunnable implements Runnable {
             if (traceEventsService.isTracingEnabled()) {
                 Span span = traceEventsService.getTracer().getCurrentSpan();
                 while (span != null) {
-                    if (span.hasEnded()) {
-                        logger.debug("TraceEventsRunnable is invoked post span completion", new Throwable());
-                    } else {
+                    if (!span.hasEnded()) {
                         Span finalSpan = span;
                         traceEventsService.executeListeners(
                             span,
