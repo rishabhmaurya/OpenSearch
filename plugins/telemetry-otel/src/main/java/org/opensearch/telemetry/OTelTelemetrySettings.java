@@ -16,6 +16,7 @@ import java.security.PrivilegedExceptionAction;
 import org.opensearch.SpecialPermission;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.unit.TimeValue;
+import org.opensearch.telemetry.metrics.OTelMetricExporterFactory;
 import org.opensearch.telemetry.tracing.exporter.OTelSpanExporterFactory;
 
 /**
@@ -78,6 +79,18 @@ public final class OTelTelemetrySettings {
                 throw new IllegalStateException("Unable to load span exporter class:" + className, ex.getCause());
             }
         },
+        Setting.Property.NodeScope,
+        Setting.Property.Final
+    );
+
+    /**
+     * Metric Exporter type setting.
+     */
+    @SuppressWarnings("unchecked")
+    public static final Setting<String> OTEL_TRACER_METRIC_EXPORTER_NAME_SETTING = Setting.simpleString(
+        "telemetry.otel.tracer.metric.exporter.name",
+        "otlp_grpc", // TODO revert to logging
+        OTelMetricExporterFactory.MetricExporterType::containsKey,
         Setting.Property.NodeScope,
         Setting.Property.Final
     );
