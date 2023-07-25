@@ -19,7 +19,7 @@ import org.opensearch.telemetry.tracing.listeners.TraceEventListener;
  * It abstracts out the diff logic between gauge {@link MetricPoint} reported by {@link ThreadResourceRecorder#startRecording} and
  * {@link ThreadResourceRecorder#endRecording} when endRecording is invoked.
  * Implementation of this class should be thread-safe.
- * It maintains the state between {@link #startRecording(DiagnosticSpan, Thread)} and {@link #endRecording(DiagnosticSpan, Thread, boolean)}
+ * It maintains the state between {@link #startRecording(DiagnosticSpan, Thread, boolean)} and {@link #endRecording(DiagnosticSpan, Thread, boolean)}
  * using {@link DiagnosticSpan#putMetric(String, MetricPoint)} assuming {@link Span} context propagation is taken care by tracing framework.
  * @param <T> the type of ThreadResourceObserver
  */
@@ -42,10 +42,11 @@ public abstract class ThreadResourceRecorder<T extends ThreadResourceObserver> {
      * Starts recording the metric for the given Span and thread.
      * The observation is obtained from the associated ThreadResourceObserver.
      *
-     * @param span the DiagnosticSpan to record the metric for
-     * @param t    the thread for which to record the metric
+     * @param span           the DiagnosticSpan to record the metric for
+     * @param t              the thread for which to record the metric
+     * @param startSpanEvent true if it is invoked as a result of start span trace event
      */
-    public void startRecording(DiagnosticSpan span, Thread t) {
+    public void startRecording(DiagnosticSpan span, Thread t, boolean startSpanEvent) {
         MetricPoint observation = observer.observe(t);
         span.putMetric(String.valueOf(t.getId()), observation);
     }

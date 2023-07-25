@@ -14,8 +14,6 @@ import org.opensearch.telemetry.diagnostics.DiagnosticSpan;
 import org.opensearch.telemetry.diagnostics.DiagnosticsEventListener;
 import org.opensearch.telemetry.tracing.Span;
 import org.opensearch.telemetry.tracing.Tracer;
-import org.opensearch.telemetry.tracing.listeners.wrappers.TraceEventsRunnable;
-import org.opensearch.telemetry.tracing.listeners.wrappers.TracerWrapper;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,11 +24,9 @@ import static java.util.Collections.unmodifiableMap;
 
 /**
  * The TraceEventService manages trace event listeners and provides their registration and de-registration functionality.
- * It allows components to register themselves as consumers of trace event listeners and notifies them when a new
- * trace event listener is registered or deregistered or a trace related settings has changed.
  *
  * It also provides wrapper utility to wrap {@link Tracer} using {@link #wrapAndSetTracer(Tracer)}, Runnable using {@link #wrapRunnable(Runnable)}
- * and {@link Span} using {@link #wrapSpan(Span)}.
+ * and {@link Span} using {@link #wrapWithDiagnosticSpan(Span)}.
  *
  * This is the core service for trace event listeners and must be instantiated at application start.
  * Once the telemetry and tracing is instantiated, this service should be used to wrap Tracer, Span and Runnables. Wrap will not have any effect until
@@ -39,7 +35,7 @@ import static java.util.Collections.unmodifiableMap;
  * The application must ensure that this service is updated with the latest set of TraceEventListener and latest value of {@link #tracingEnabled} and {@link #diagnosisEnabled}
  * are set, or it may produce undesirable results.
  */
-public class TraceEventsService {
+public final class TraceEventsService {
 
     private volatile Map<String, TraceEventListener> traceEventListeners;
     private volatile Tracer tracer;
@@ -194,7 +190,7 @@ public class TraceEventsService {
      * @param span the Span to wrap
      * @return the wrapped DiagnosticSpan
      */
-    public static DiagnosticSpan wrapSpan(Span span) {
+    public static DiagnosticSpan wrapWithDiagnosticSpan(Span span) {
         return new DiagnosticSpan(span);
     }
 
@@ -203,7 +199,7 @@ public class TraceEventsService {
      * @param span associated span
      * @param listenerMethod the listener method to be invoked
      */
-    public void executeListeners(Span span, Consumer<TraceEventListener> listenerMethod) {
+    void executeListeners(Span span, Consumer<TraceEventListener> listenerMethod) {
         if (span == null || traceEventListeners == null) {
             return;
         }

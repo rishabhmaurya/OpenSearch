@@ -6,15 +6,13 @@
  * compatible open source license.
  */
 
-package org.opensearch.telemetry.tracing.listeners.wrappers;
+package org.opensearch.telemetry.tracing.listeners;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.telemetry.tracing.listeners.SpanEventListener;
 import org.opensearch.telemetry.tracing.Span;
 import org.opensearch.telemetry.tracing.SpanScope;
 import org.opensearch.telemetry.tracing.Tracer;
-import org.opensearch.telemetry.tracing.listeners.TraceEventsService;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -41,7 +39,7 @@ public class TracerWrapper implements Tracer {
      * @param delegate the underlying Tracer implementation
      * @param traceEventsService  traceEventListenerService
      */
-    public TracerWrapper(Tracer delegate, TraceEventsService traceEventsService) {
+    TracerWrapper(Tracer delegate, TraceEventsService traceEventsService) {
         assert delegate != null;
         this.tracer = delegate;
         this.traceEventsService = traceEventsService;
