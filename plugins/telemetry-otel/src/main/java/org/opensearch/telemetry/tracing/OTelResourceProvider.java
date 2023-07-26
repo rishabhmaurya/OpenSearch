@@ -58,24 +58,30 @@ public final class OTelResourceProvider {
      * Creates OpenTelemetry instance with provided configuration
      * @param settings cluster settings
      * @param spanExporter span exporter instance
+     * @param metricReader MetricReader to be used in MeterProvider
      * @param contextPropagators context propagator instance
      * @param sampler sampler instance
      * @return Opentelemetry instance
      */
-    public static OpenTelemetry get(Settings settings, SpanExporter spanExporter, MetricReader metricReader,
-                                    ContextPropagators contextPropagators, Sampler sampler) {
+    public static OpenTelemetry get(
+        Settings settings,
+        SpanExporter spanExporter,
+        MetricReader metricReader,
+        ContextPropagators contextPropagators,
+        Sampler sampler
+    ) {
         Resource resource = Resource.create(Attributes.of(ResourceAttributes.SERVICE_NAME, "OpenSearch"));
         SdkTracerProvider sdkTracerProvider = SdkTracerProvider.builder()
             .addSpanProcessor(spanProcessor(settings, spanExporter))
             .setResource(resource)
             .setSampler(sampler)
             .build();
-        SdkMeterProvider sdkMeterProvider = SdkMeterProvider.builder()
-            .registerMetricReader(metricReader)
-            .setResource(resource)
-            .build();
-        return OpenTelemetrySdk.builder().setTracerProvider(sdkTracerProvider)
-            .setPropagators(contextPropagators).setMeterProvider(sdkMeterProvider).buildAndRegisterGlobal();
+        SdkMeterProvider sdkMeterProvider = SdkMeterProvider.builder().registerMetricReader(metricReader).setResource(resource).build();
+        return OpenTelemetrySdk.builder()
+            .setTracerProvider(sdkTracerProvider)
+            .setPropagators(contextPropagators)
+            .setMeterProvider(sdkMeterProvider)
+            .buildAndRegisterGlobal();
     }
 
     private static BatchSpanProcessor spanProcessor(Settings settings, SpanExporter spanExporter) {
