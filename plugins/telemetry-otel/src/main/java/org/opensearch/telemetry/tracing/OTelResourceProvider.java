@@ -14,8 +14,7 @@ import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
-import io.opentelemetry.sdk.metrics.export.MetricExporter;
-import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
+import io.opentelemetry.sdk.metrics.export.MetricReader;
 import io.opentelemetry.sdk.resources.Resource;
 
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
@@ -49,7 +48,7 @@ public final class OTelResourceProvider {
         return get(
             settings,
             OTelSpanExporterFactory.create(settings),
-            OTelMetricExporterFactory.create(settings),
+            OTelMetricExporterFactory.createPeriodicMetricReader(settings),
             ContextPropagators.create(W3CTraceContextPropagator.getInstance()),
             Sampler.alwaysOn()
         );
@@ -63,7 +62,7 @@ public final class OTelResourceProvider {
      * @param sampler sampler instance
      * @return Opentelemetry instance
      */
-    public static OpenTelemetry get(Settings settings, SpanExporter spanExporter, MetricExporter metricExporter,
+    public static OpenTelemetry get(Settings settings, SpanExporter spanExporter, MetricReader metricReader,
                                     ContextPropagators contextPropagators, Sampler sampler) {
         Resource resource = Resource.create(Attributes.of(ResourceAttributes.SERVICE_NAME, "OpenSearch"));
         SdkTracerProvider sdkTracerProvider = SdkTracerProvider.builder()
@@ -72,7 +71,7 @@ public final class OTelResourceProvider {
             .setSampler(sampler)
             .build();
         SdkMeterProvider sdkMeterProvider = SdkMeterProvider.builder()
-            .registerMetricReader(PeriodicMetricReader.builder(metricExporter).build())
+            .registerMetricReader(metricReader)
             .setResource(resource)
             .build();
         return OpenTelemetrySdk.builder().setTracerProvider(sdkTracerProvider)
