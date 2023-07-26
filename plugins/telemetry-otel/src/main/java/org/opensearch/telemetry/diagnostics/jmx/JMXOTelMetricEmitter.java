@@ -28,6 +28,7 @@ public class JMXOTelMetricEmitter implements MetricEmitter {
     private static JMXOTelMetricEmitter INSTANCE;
     public static Map<String, LongHistogram> histograms = new HashMap<>();
     private static Meter meter;
+
     private JMXOTelMetricEmitter(OpenTelemetry telemetry) {
         JMXOTelMetricEmitter.meter = telemetry.getMeter(JMXOTelMetricEmitter.class.getName());
         for (JMXMetricType metricType : JMXMetricType.values()) {
@@ -59,6 +60,7 @@ public class JMXOTelMetricEmitter implements MetricEmitter {
 
     private void recordToHistogram(Measurement<Number> measurement, Attributes oTelAttributes) {
         LongHistogram histogram = JMXOTelMetricEmitter.histograms.get(measurement.getName());
+        // assuming all measurement are of long type
         long value = measurement.getValue().longValue();
         histogram.record(value, oTelAttributes);
         // recording 0 value right after as it's the delta which we are emitting and not gauge

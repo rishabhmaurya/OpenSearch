@@ -6,12 +6,6 @@
  * compatible open source license.
  */
 
-// TODO - revisit this logic as it doesn't work as expected
-grant codeBase "${codebase.okhttp}" {
-    permission java.net.SocketPermission "127.0.0.1:4318", "connect,resolve";
-    permission java.net.SocketPermission "127.0.0.1:4317", "connect,resolve";
-};
-
 grant {
     permission java.lang.RuntimePermission "getClassLoader";
     permission java.lang.RuntimePermission "accessDeclaredMembers";

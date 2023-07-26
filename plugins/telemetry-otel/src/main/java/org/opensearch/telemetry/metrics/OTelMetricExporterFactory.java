@@ -12,14 +12,24 @@ import io.opentelemetry.exporter.logging.LoggingMetricExporter;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
+import io.opentelemetry.sdk.metrics.export.MetricReader;
+import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.telemetry.OTelTelemetrySettings;
 
 import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 public class OTelMetricExporterFactory {
+
+    private static final String METRIC_READER_THREAD_NAME = "otlp_metric_reader";
     public enum MetricExporterType {
         OTLP_GRPC {
             @Override
@@ -81,12 +91,34 @@ public class OTelMetricExporterFactory {
         public abstract String getName();
     }
 
-    public static MetricExporter create(Settings settings) {
+    private static MetricExporter createMetricExporter(Settings settings) {
         String metricExporterName = OTelTelemetrySettings.OTEL_TRACER_METRIC_EXPORTER_NAME_SETTING.get(settings);
         try {
             return MetricExporterType.createMetricExporter(metricExporterName, settings);
         } catch (PrivilegedActionException ex) {
             throw new IllegalStateException("MetricExporter creation failed", ex.getCause());
+        }
+    }
+
+    public static MetricReader createPeriodicMetricReader(Settings settings) {
+        long interval = OTelTelemetrySettings.OTEL_TRACER_METRIC_READER_INTERVAL_SETTING.get(settings).getSeconds();
+        ScheduledExecutorService pool = Executors.newScheduledThreadPool(1,
+            new PrivilegedThreadFactory(OpenSearchExecutors.daemonThreadFactory(METRIC_READER_THREAD_NAME)));
+        return PeriodicMetricReader.builder(createMetricExporter(settings)).setExecutor(pool).setInterval(interval,
+            TimeUnit.SECONDS).build();
+    }
+
+    private static class PrivilegedThreadFactory implements ThreadFactory {
+        private final ThreadFactory delegate;
+        public PrivilegedThreadFactory(ThreadFactory delegate) {
+            this.delegate = delegate;
+        }
+        @Override
+        public Thread newThread(Runnable r) {
+            return delegate.newThread(() -> AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                r.run();
+                return null;
+            }));
         }
     }
 }
