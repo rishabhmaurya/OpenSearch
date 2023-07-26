@@ -35,4 +35,3 @@ public class OTelMetricsTelemetry implements MetricsTelemetry {
         return openTelemetry;
     }
 }
-

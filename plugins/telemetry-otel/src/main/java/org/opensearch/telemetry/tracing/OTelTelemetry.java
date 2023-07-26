@@ -29,11 +29,19 @@ public class OTelTelemetry implements Telemetry {
         this.metricsTelemetry = metricsTelemetry;
     }
 
+    /**
+     * Getter for tracing telemetry
+     * @return TracingTelemetry
+     */
     @Override
     public TracingTelemetry getTracingTelemetry() {
         return tracingTelemetry;
     }
 
+    /**
+     * Getter for MetricsTelemetry
+     * @return MetricsTelemetry
+     */
     @Override
     public MetricsTelemetry getMetricsTelemetry() {
         return metricsTelemetry;

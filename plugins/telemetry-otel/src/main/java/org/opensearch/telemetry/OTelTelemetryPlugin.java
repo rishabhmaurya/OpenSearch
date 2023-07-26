@@ -68,11 +68,14 @@ public class OTelTelemetryPlugin extends Plugin implements TelemetryPlugin {
         if (!ensureOpenTelemetry(telemetry)) {
             return Collections.emptyMap();
         }
-        OpenTelemetry openTelemetry = ((OTelMetricsTelemetry)telemetry.getMetricsTelemetry()).getTelemetry();
-        return Map.of("ThreadDiagnosticsTraceEventListener", new DiagnosticsEventListener(
-            new JMXThreadResourceRecorder(new JMXMetricsObserverThread()),
-            JMXOTelMetricEmitter.getInstance(openTelemetry)
-        ));
+        OpenTelemetry openTelemetry = ((OTelMetricsTelemetry) telemetry.getMetricsTelemetry()).getTelemetry();
+        return Map.of(
+            "ThreadDiagnosticsTraceEventListener",
+            new DiagnosticsEventListener(
+                new JMXThreadResourceRecorder(new JMXMetricsObserverThread()),
+                JMXOTelMetricEmitter.getInstance(openTelemetry)
+            )
+        );
     }
 
     @Override
@@ -82,13 +85,14 @@ public class OTelTelemetryPlugin extends Plugin implements TelemetryPlugin {
 
     private Telemetry telemetry() {
         OpenTelemetry openTelemetry = OTelResourceProvider.get(settings);
-        return new OTelTelemetry(new OTelTracingTelemetry(openTelemetry),
-            new OTelMetricsTelemetry(openTelemetry));
+        return new OTelTelemetry(new OTelTracingTelemetry(openTelemetry), new OTelMetricsTelemetry(openTelemetry));
     }
 
     private boolean ensureOpenTelemetry(Telemetry telemetry) {
-       return (telemetry != null && telemetry.getMetricsTelemetry() != null
-            && telemetry instanceof OTelTelemetry && telemetry.getMetricsTelemetry() instanceof OTelMetricsTelemetry);
+        return (telemetry != null
+            && telemetry.getMetricsTelemetry() != null
+            && telemetry instanceof OTelTelemetry
+            && telemetry.getMetricsTelemetry() instanceof OTelMetricsTelemetry);
     }
 
 }
