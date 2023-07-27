@@ -56,6 +56,8 @@ import org.opensearch.monitor.fs.FsInfo;
 import org.opensearch.monitor.fs.FsProbe;
 import org.opensearch.plugins.ExtensionAwarePlugin;
 import org.opensearch.plugins.SearchPipelinePlugin;
+import org.opensearch.telemetry.tracing.listeners.TraceEventListener;
+import org.opensearch.telemetry.tracing.listeners.TraceEventsService;
 import org.opensearch.telemetry.tracing.NoopTracerFactory;
 import org.opensearch.telemetry.tracing.Tracer;
 import org.opensearch.telemetry.tracing.TracerFactory;
@@ -66,6 +68,7 @@ import org.opensearch.tasks.TaskCancellationMonitoringService;
 import org.opensearch.tasks.TaskCancellationMonitoringSettings;
 import org.opensearch.tasks.TaskResourceTrackingService;
 import org.opensearch.tasks.consumer.TopNSearchTasksLogger;
+import org.opensearch.telemetry.tracing.TracerUtil;
 import org.opensearch.threadpool.RunnableTaskExecutionListener;
 import org.opensearch.index.store.RemoteSegmentStoreDirectoryFactory;
 import org.opensearch.telemetry.TelemetryModule;
@@ -380,6 +383,7 @@ public class Node implements Closeable {
     private final LocalNodeFactory localNodeFactory;
     private final NodeService nodeService;
     private final Tracer tracer;
+    private final TraceEventsService traceEventsService;
     final NamedWriteableRegistry namedWriteableRegistry;
     private final AtomicReference<RunnableTaskExecutionListener> runnableTaskListener;
     private FileCache fileCache;
@@ -519,7 +523,8 @@ public class Node implements Closeable {
             final List<ExecutorBuilder<?>> executorBuilders = pluginsService.getExecutorBuilders(settings);
 
             runnableTaskListener = new AtomicReference<>();
-            final ThreadPool threadPool = new ThreadPool(settings, runnableTaskListener, executorBuilders.toArray(new ExecutorBuilder[0]));
+            traceEventsService = new TraceEventsService();
+            final ThreadPool threadPool = new ThreadPool(settings, runnableTaskListener, traceEventsService, executorBuilders.toArray(new ExecutorBuilder[0]));
             resourcesToClose.add(() -> ThreadPool.terminate(threadPool, 10, TimeUnit.SECONDS));
             final ResourceWatcherService resourceWatcherService = new ResourceWatcherService(settings, threadPool);
             resourcesToClose.add(resourceWatcherService);
@@ -852,6 +857,7 @@ public class Node implements Closeable {
                 pluginsService.filterPlugins(ActionPlugin.class).stream().flatMap(p -> p.getTaskHeaders().stream()),
                 Stream.of(Task.X_OPAQUE_ID)
             ).collect(Collectors.toSet());
+
             final TransportService transportService = newTransportService(
                 settings,
                 transport,
@@ -859,7 +865,8 @@ public class Node implements Closeable {
                 networkModule.getTransportInterceptor(),
                 localNodeFactory,
                 settingsModule.getClusterSettings(),
-                taskHeaders
+                taskHeaders,
+                traceEventsService
             );
             TopNSearchTasksLogger taskConsumer = new TopNSearchTasksLogger(settings, settingsModule.getClusterSettings());
             transportService.getTaskManager().registerTaskResourceConsumer(taskConsumer);
@@ -1030,15 +1037,19 @@ public class Node implements Closeable {
 
             TracerFactory tracerFactory;
             if (FeatureFlags.isEnabled(TELEMETRY)) {
-                final TelemetrySettings telemetrySettings = new TelemetrySettings(settings, clusterService.getClusterSettings());
+                final TelemetrySettings telemetrySettings = new TelemetrySettings(settings,
+                    clusterService.getClusterSettings(), traceEventsService);
                 List<TelemetryPlugin> telemetryPlugins = pluginsService.filterPlugins(TelemetryPlugin.class);
                 TelemetryModule telemetryModule = new TelemetryModule(telemetryPlugins, telemetrySettings);
-                tracerFactory = new TracerFactory(telemetrySettings, telemetryModule.getTelemetry(), threadPool.getThreadContext());
+                tracerFactory = new TracerFactory(telemetrySettings, telemetryModule.getTelemetry(), threadPool.getThreadContext(), traceEventsService);
+                initializeTraceEventService(traceEventsService, telemetryModule, telemetryPlugins);
+                TracerUtil.setTraceEventService(traceEventsService);
             } else {
                 tracerFactory = new NoopTracerFactory();
+                TracerUtil.setTraceEventService(traceEventsService);
             }
             tracer = tracerFactory.getTracer();
-            resourcesToClose.add(tracer::close);
+            resourcesToClose.add(tracer);
 
             final List<PersistentTasksExecutor<?>> tasksExecutors = pluginsService.filterPlugins(PersistentTaskPlugin.class)
                 .stream()
@@ -1102,6 +1113,7 @@ public class Node implements Closeable {
                 b.bind(SearchPhaseController.class)
                     .toInstance(new SearchPhaseController(namedWriteableRegistry, searchService::aggReduceContextBuilder));
                 b.bind(Transport.class).toInstance(transport);
+                b.bind(TraceEventsService.class).toInstance(traceEventsService);
                 b.bind(TransportService.class).toInstance(transportService);
                 b.bind(NetworkService.class).toInstance(networkService);
                 b.bind(UpdateHelper.class).toInstance(new UpdateHelper(scriptService));
@@ -1198,9 +1210,11 @@ public class Node implements Closeable {
         TransportInterceptor interceptor,
         Function<BoundTransportAddress, DiscoveryNode> localNodeFactory,
         ClusterSettings clusterSettings,
-        Set<String> taskHeaders
+        Set<String> taskHeaders,
+        TraceEventsService traceEventsService
     ) {
-        return new TransportService(settings, transport, threadPool, interceptor, localNodeFactory, clusterSettings, taskHeaders);
+        return new TransportService(settings, transport, threadPool, interceptor, localNodeFactory, clusterSettings, taskHeaders,
+            traceEventsService);
     }
 
     protected void processRecoverySettings(ClusterSettings clusterSettings, RecoverySettings recoverySettings) {
@@ -1608,6 +1622,21 @@ public class Node implements Closeable {
             return new NoneCircuitBreakerService();
         } else {
             throw new IllegalArgumentException("Unknown circuit breaker type [" + type + "]");
+        }
+    }
+
+    private static void initializeTraceEventService(TraceEventsService traceEventsService,
+                                                    TelemetryModule telemetryModule, List<TelemetryPlugin> telemetryPlugins) {
+        final Map<String, TraceEventListener> traceEventListeners;
+        if (telemetryModule.getTelemetry().isPresent()) {
+            traceEventListeners = telemetryPlugins.stream()
+                .flatMap(plugin -> plugin.getTraceEventListeners(telemetryModule.getTelemetry().get()).entrySet().stream())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        } else {
+            traceEventListeners = Collections.emptyMap();
+        }
+        for (Map.Entry<String, TraceEventListener> entry : traceEventListeners.entrySet()) {
+            traceEventsService.registerTraceEventListener(entry.getKey(), entry.getValue());
         }
     }
 

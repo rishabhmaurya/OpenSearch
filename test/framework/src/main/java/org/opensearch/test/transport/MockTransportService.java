@@ -57,6 +57,7 @@ import org.opensearch.indices.breaker.NoneCircuitBreakerService;
 import org.opensearch.node.Node;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.tasks.TaskManager;
+import org.opensearch.telemetry.tracing.listeners.TraceEventsService;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.test.tasks.MockTaskManager;
 import org.opensearch.threadpool.ThreadPool;
@@ -176,7 +177,8 @@ public final class MockTransportService extends TransportService {
                 version
             ),
             clusterSettings,
-            taskHeaders
+            taskHeaders,
+            new TraceEventsService()
         );
     }
 
@@ -207,7 +209,8 @@ public final class MockTransportService extends TransportService {
                 settings.get(Node.NODE_NAME_SETTING.getKey(), UUIDs.randomBase64UUID())
             ),
             clusterSettings,
-            Collections.emptySet()
+            Collections.emptySet(),
+            new TraceEventsService()
         );
     }
 
@@ -225,9 +228,10 @@ public final class MockTransportService extends TransportService {
         TransportInterceptor interceptor,
         Function<BoundTransportAddress, DiscoveryNode> localNodeFactory,
         @Nullable ClusterSettings clusterSettings,
-        Set<String> taskHeaders
+        Set<String> taskHeaders,
+        TraceEventsService traceEventsService
     ) {
-        this(settings, new StubbableTransport(transport), threadPool, interceptor, localNodeFactory, clusterSettings, taskHeaders);
+        this(settings, new StubbableTransport(transport), threadPool, interceptor, localNodeFactory, clusterSettings, taskHeaders, traceEventsService);
     }
 
     private MockTransportService(
@@ -237,7 +241,8 @@ public final class MockTransportService extends TransportService {
         TransportInterceptor interceptor,
         Function<BoundTransportAddress, DiscoveryNode> localNodeFactory,
         @Nullable ClusterSettings clusterSettings,
-        Set<String> taskHeaders
+        Set<String> taskHeaders,
+        TraceEventsService traceEventsService
     ) {
         super(
             settings,
@@ -247,7 +252,8 @@ public final class MockTransportService extends TransportService {
             localNodeFactory,
             clusterSettings,
             taskHeaders,
-            new StubbableConnectionManager(new ClusterConnectionManager(settings, transport))
+            new StubbableConnectionManager(new ClusterConnectionManager(settings, transport)),
+            traceEventsService
         );
         this.original = transport.getDelegate();
     }
