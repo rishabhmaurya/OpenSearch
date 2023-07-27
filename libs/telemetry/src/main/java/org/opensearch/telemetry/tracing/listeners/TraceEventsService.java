@@ -130,8 +130,8 @@ public final class TraceEventsService {
 
     /**
      * Wraps the given Runnable with trace event listeners registered with {@link TraceEventsService}
-     * Note: Runnable should be wrapped using this method only after context has been restored so that when
-     * {@link TraceEventsRunnable#run()} is called, it has the right context with current Span information.
+     * Note: Runnable should be wrapped using this method only after thread context has been restored so that when
+     * {@link TraceEventsRunnable#run()} is called, it has the right thread context with current Span information.
      * @param runnable the Runnable to wrap
      * @return the wrapped TraceEventsRunnable
      */
@@ -199,7 +199,7 @@ public final class TraceEventsService {
      * @param span associated span
      * @param listenerMethod the listener method to be invoked
      */
-    void executeListeners(Span span, Consumer<TraceEventListener> listenerMethod) {
+    public void executeListeners(Span span, Consumer<TraceEventListener> listenerMethod) {
         if (span == null || traceEventListeners == null) {
             return;
         }

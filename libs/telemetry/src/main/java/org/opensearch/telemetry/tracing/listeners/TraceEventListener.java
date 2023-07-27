@@ -11,4 +11,4 @@ package org.opensearch.telemetry.tracing.listeners;
 /**
  * Combines both RunnableEventListener and SpanEventListener. Usually both are used in conjunction.
  */
-public interface /**/ TraceEventListener extends RunnableEventListener, SpanEventListener {}
+public interface TraceEventListener extends RunnableEventListener, SpanEventListener {}
