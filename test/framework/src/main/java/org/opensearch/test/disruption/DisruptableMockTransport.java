@@ -41,6 +41,7 @@ import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.core.common.transport.BoundTransportAddress;
 import org.opensearch.core.common.transport.TransportAddress;
+import org.opensearch.telemetry.tracing.listeners.TraceEventsService;
 import org.opensearch.test.transport.MockTransport;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.CloseableConnection;
@@ -93,7 +94,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
         @Nullable ClusterSettings clusterSettings,
         Set<String> taskHeaders
     ) {
-        return new TransportService(settings, this, threadPool, interceptor, localNodeFactory, clusterSettings, taskHeaders);
+        return new TransportService(settings, this, threadPool, interceptor, localNodeFactory, clusterSettings, taskHeaders, new TraceEventsService());
     }
 
     @Override
