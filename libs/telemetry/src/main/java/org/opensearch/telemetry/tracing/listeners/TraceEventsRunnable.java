@@ -40,39 +40,14 @@ public class TraceEventsRunnable implements Runnable {
     @Override
     public void run() {
         try {
-            if (traceEventsService.isTracingEnabled()) {
-                Span span = traceEventsService.getTracer().getCurrentSpan();
-                // repeat it for all the spans in the hierarchy
-                while (span != null) {
-                    if (!span.hasEnded()) {
-                        Span finalSpan = span;
-                        traceEventsService.executeListeners(
-                            span,
-                            traceEventListener -> traceEventListener.onRunnableStart(finalSpan, Thread.currentThread())
-                        );
-                    }
-                    span = span.getParentSpan();
-                }
-            }
+           invokeOnRunnableStart(traceEventsService);
         } catch (Exception e) {
             logger.debug("Error in onRunnableStart", e);
         } finally {
             delegate.run();
         }
         try {
-            if (traceEventsService.isTracingEnabled()) {
-                Span span = traceEventsService.getTracer().getCurrentSpan();
-                while (span != null) {
-                    if (!span.hasEnded()) {
-                        Span finalSpan = span;
-                        traceEventsService.executeListeners(
-                            span,
-                            traceEventListener -> traceEventListener.onRunnableComplete(finalSpan, Thread.currentThread())
-                        );
-                    }
-                    span = span.getParentSpan();
-                }
-            }
+            invokeOnRunnableComplete(traceEventsService);
         } catch (Exception e) {
             logger.debug("Error in onRunnableEnd", e);
         }
@@ -85,5 +60,38 @@ public class TraceEventsRunnable implements Runnable {
      */
     public Runnable unwrap() {
         return delegate;
+    }
+
+    public static void invokeOnRunnableStart(TraceEventsService traceEventsService) {
+        if (traceEventsService.isTracingEnabled()) {
+            Span span = traceEventsService.getTracer().getCurrentSpan();
+            // repeat it for all the spans in the hierarchy
+            while (span != null) {
+                if (!span.hasEnded()) {
+                    Span finalSpan = span;
+                    traceEventsService.executeListeners(
+                        span,
+                        traceEventListener -> traceEventListener.onRunnableStart(finalSpan, Thread.currentThread())
+                    );
+                }
+                span = span.getParentSpan();
+            }
+        }
+    }
+
+    public static void invokeOnRunnableComplete(TraceEventsService traceEventsService) {
+        if (traceEventsService.isTracingEnabled()) {
+            Span span = traceEventsService.getTracer().getCurrentSpan();
+            while (span != null) {
+                if (!span.hasEnded()) {
+                    Span finalSpan = span;
+                    traceEventsService.executeListeners(
+                        span,
+                        traceEventListener -> traceEventListener.onRunnableComplete(finalSpan, Thread.currentThread())
+                    );
+                }
+                span = span.getParentSpan();
+            }
+        }
     }
 }
