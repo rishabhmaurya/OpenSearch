@@ -37,8 +37,15 @@ public class DiagnosticsEventListener implements TraceEventListener {
     private final ThreadResourceRecorder<?> threadResourceRecorder;
     private final MetricEmitter metricEmitter;
 
-    public final static String START_SPAN_TIME = "start_span_time";
-    public final static String ELAPSED_TIME = "elapsed_time";
+    /**
+     * Key used to store the start time of a span in the span attributes (timestamp in milliseconds).
+     */
+    protected final static String START_SPAN_TIME = "start_span_time";
+
+    /**
+     * Key used to store the elapsed time of a span in the span attributes (duration in milliseconds).
+     */
+    protected final static String ELAPSED_TIME = "elapsed_time";
 
     /**
      * Constructs a new DiagnosticsTraceEventListener with the specified tracer, thread resource recorder,
@@ -140,10 +147,6 @@ public class DiagnosticsEventListener implements TraceEventListener {
         Measurement<Number> elapsedTimeMeasurement = new Measurement<>(ELAPSED_TIME, elapsedTime);
         Map<String, Measurement<Number>> diffMeasurements = new HashMap<>(diffMetric.getMeasurements());
         diffMeasurements.put(ELAPSED_TIME, elapsedTimeMeasurement);
-        return  new MetricPoint(
-            diffMeasurements,
-            span.getAttributes(),
-            diffMetric.getObservationTime()
-        );
+        return new MetricPoint(diffMeasurements, span.getAttributes(), diffMetric.getObservationTime());
     }
 }

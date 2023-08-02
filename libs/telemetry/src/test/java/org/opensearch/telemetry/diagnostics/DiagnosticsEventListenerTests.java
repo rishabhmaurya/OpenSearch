@@ -15,11 +15,7 @@ import org.opensearch.telemetry.metrics.MetricPoint;
 import org.opensearch.telemetry.tracing.Span;
 import org.opensearch.test.OpenSearchTestCase;
 
-import org.junit.Test;
-
 import java.util.Collections;
-
-import static org.mockito.Mockito.*;
 
 import org.mockito.Mockito;
 
@@ -44,25 +40,24 @@ public class DiagnosticsEventListenerTests extends OpenSearchTestCase {
         diagnosticsEventListener = new DiagnosticsEventListener(threadResourceRecorder, metricEmitter);
     }
 
-    @Test
     public void testOnSpanStart() {
         Thread t = Thread.currentThread();
         diagnosticsEventListener.onSpanStart(diagnosticSpan, t);
         // Verify expected interactions
-        verify(threadResourceRecorder).startRecording(eq(diagnosticSpan), eq(t), eq(true));
-        verify(diagnosticSpan).putMetric(eq(DiagnosticsEventListener.START_SPAN_TIME), any(MetricPoint.class));
+        Mockito.verify(threadResourceRecorder).startRecording(Mockito.eq(diagnosticSpan), Mockito.eq(t), Mockito.eq(true));
+        Mockito.verify(diagnosticSpan).putMetric(Mockito.eq(DiagnosticsEventListener.START_SPAN_TIME), any(MetricPoint.class));
     }
 
-    @Test
     public void testOnSpanComplete() {
         Thread t = Thread.currentThread();
         MetricPoint diffMetric = new MetricPoint(Collections.emptyMap(), null, System.currentTimeMillis());
         MetricPoint startMetric = new MetricPoint(Collections.emptyMap(), null, System.currentTimeMillis());
-        when(threadResourceRecorder.endRecording(any(DiagnosticSpan.class), eq(t), eq(true))).thenReturn(diffMetric);
-        when(diagnosticSpan.removeMetric(anyString())).thenReturn(startMetric);
+        Mockito.when(threadResourceRecorder.endRecording(any(DiagnosticSpan.class), Mockito.eq(t), Mockito.eq(true)))
+            .thenReturn(diffMetric);
+        Mockito.when(diagnosticSpan.removeMetric(Mockito.anyString())).thenReturn(startMetric);
         ArgumentCaptor<MetricPoint> metricCaptor = ArgumentCaptor.forClass(MetricPoint.class);
         diagnosticsEventListener.onSpanComplete(diagnosticSpan, t);
-        verify(metricEmitter).emitMetric(metricCaptor.capture());
+        Mockito.verify(metricEmitter).emitMetric(metricCaptor.capture());
 
         // Check if diffMetric contains "elapsed_time" measurement
         MetricPoint emittedMetric = metricCaptor.getValue();
@@ -70,25 +65,23 @@ public class DiagnosticsEventListenerTests extends OpenSearchTestCase {
         assertNotNull(elapsedTimeMeasurement);
     }
 
-    @Test
     public void testOnRunnableStart() {
         Thread t = Thread.currentThread();
         diagnosticsEventListener.onRunnableStart(diagnosticSpan, t);
-        verify(threadResourceRecorder).startRecording(eq(diagnosticSpan), eq(t), eq(false));
+        Mockito.verify(threadResourceRecorder).startRecording(Mockito.eq(diagnosticSpan), Mockito.eq(t), Mockito.eq(false));
     }
 
-    @Test
     public void testOnRunnableComplete() {
         Thread t = Thread.currentThread();
         MetricPoint diffMetric = new MetricPoint(Collections.emptyMap(), null, System.currentTimeMillis());
-        when(threadResourceRecorder.endRecording(any(DiagnosticSpan.class), eq(t), eq(false))).thenReturn(diffMetric);
+        Mockito.when(threadResourceRecorder.endRecording(any(DiagnosticSpan.class), Mockito.eq(t), Mockito.eq(false)))
+            .thenReturn(diffMetric);
 
         diagnosticsEventListener.onRunnableComplete(diagnosticSpan, t);
 
-        verify(metricEmitter).emitMetric(eq(diffMetric));
+        Mockito.verify(metricEmitter).emitMetric(Mockito.eq(diffMetric));
     }
 
-    @Test
     public void testIsEnabled() {
         boolean isEnabled = diagnosticsEventListener.isEnabled(diagnosticSpan);
         assertTrue(isEnabled);

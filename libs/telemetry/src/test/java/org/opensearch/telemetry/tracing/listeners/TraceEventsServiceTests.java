@@ -8,14 +8,20 @@
 
 package org.opensearch.telemetry.tracing.listeners;
 
-import org.junit.Test;
 import org.opensearch.telemetry.diagnostics.DiagnosticSpan;
 import org.opensearch.telemetry.tracing.Span;
 import org.opensearch.telemetry.tracing.Tracer;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.Map;
-import static org.mockito.Mockito.*;
+
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 
 public class TraceEventsServiceTests extends OpenSearchTestCase {
 
@@ -45,7 +51,6 @@ public class TraceEventsServiceTests extends OpenSearchTestCase {
         traceEventsService.registerTraceEventListener("listener2", traceEventListener2);
     }
 
-    @Test
     public void testRegisterAndDeregisterTraceEventListener() {
         Map<String, TraceEventListener> traceEventListeners = traceEventsService.getTraceEventListeners();
         assertEquals(2, traceEventListeners.size());
@@ -58,7 +63,6 @@ public class TraceEventsServiceTests extends OpenSearchTestCase {
         assertNotNull(traceEventListeners.get("listener2"));
     }
 
-    @Test
     public void testWrapRunnable() {
         // Tracing is not enabled, the original runnable should be returned
         traceEventsService.setTracingEnabled(false);
@@ -71,7 +75,6 @@ public class TraceEventsServiceTests extends OpenSearchTestCase {
         assertTrue(wrappedRunnable instanceof TraceEventsRunnable);
     }
 
-    @Test
     public void testUnwrapRunnable() {
         // Runnable is not wrapped, should return the same runnable
         traceEventsService.setTracingEnabled(false);
@@ -85,14 +88,12 @@ public class TraceEventsServiceTests extends OpenSearchTestCase {
         assertSame(runnable, unwrappedRunnable);
     }
 
-    @Test
     public void testWrapAndSetTracer() {
         traceEventsService.setTracingEnabled(true);
         traceEventsService.wrapAndSetTracer(tracer);
         assertTrue(traceEventsService.getTracer() instanceof TracerWrapper);
     }
 
-    @Test
     public void testUnwrapTracer() {
         traceEventsService.setTracingEnabled(true);
         TracerWrapper wrappedTracer = traceEventsService.wrapAndSetTracer(tracer);
@@ -100,7 +101,6 @@ public class TraceEventsServiceTests extends OpenSearchTestCase {
         assertSame(tracer, unwrappedTracer);
     }
 
-    @Test
     public void testExecuteListeners() {
         when(traceEventListener1.isEnabled(any(Span.class))).thenReturn(true);
         when(traceEventListener2.isEnabled(any(Span.class))).thenReturn(false);
@@ -120,7 +120,6 @@ public class TraceEventsServiceTests extends OpenSearchTestCase {
         verify(traceEventListener2, never()).onRunnableComplete(any(Span.class), any(Thread.class));
     }
 
-    @Test
     public void testExecuteListeners_ExceptionInListener() {
         doThrow(new RuntimeException("Listener 1 exception")).when(traceEventListener1).isEnabled(any());
 

@@ -8,7 +8,6 @@
 
 package org.opensearch.telemetry.tracing.listeners;
 
-import org.junit.Test;
 import org.opensearch.telemetry.tracing.Span;
 import org.opensearch.telemetry.tracing.SpanScope;
 import org.opensearch.telemetry.tracing.Tracer;
@@ -16,7 +15,15 @@ import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.Collections;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.anyMap;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 public class TracerWrapperTests extends OpenSearchTestCase {
 
@@ -47,7 +54,6 @@ public class TracerWrapperTests extends OpenSearchTestCase {
         traceEventsService.registerTraceEventListener("listener2", traceEventListener2);
     }
 
-    @Test
     public void testStartSpan_WithTracingEnabled_InvokeOnSpanStartAndOnSpanComplete() {
         TracerWrapper tracerWrapper = new TracerWrapper(tracer, traceEventsService);
         when(traceEventListener1.isEnabled(any(Span.class))).thenReturn(true);
@@ -64,7 +70,6 @@ public class TracerWrapperTests extends OpenSearchTestCase {
         verify(traceEventListener2).onSpanComplete(eq(span), any(Thread.class));
     }
 
-    @Test
     public void testStartSpan_WithTracingDisabled_NoInteractionsWithListeners() {
         when(traceEventsService.isTracingEnabled()).thenReturn(false);
 
@@ -77,7 +82,6 @@ public class TracerWrapperTests extends OpenSearchTestCase {
         verifyNoInteractions(traceEventListener2);
     }
 
-    @Test
     public void testUnwrap() {
         TracerWrapper tracerWrapper = new TracerWrapper(tracer, traceEventsService);
         Tracer unwrappedTracer = tracerWrapper.unwrap();

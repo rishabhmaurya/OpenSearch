@@ -28,7 +28,7 @@ public class TraceEventsRunnable implements Runnable {
      * @param delegate            the underlying Runnable to be executed
      * @param traceEventsService  traceEventListenerService
      */
-     TraceEventsRunnable(Runnable delegate, TraceEventsService traceEventsService) {
+    TraceEventsRunnable(Runnable delegate, TraceEventsService traceEventsService) {
         this.delegate = delegate;
         this.traceEventsService = traceEventsService;
     }
@@ -40,7 +40,7 @@ public class TraceEventsRunnable implements Runnable {
     @Override
     public void run() {
         try {
-           invokeOnRunnableStart(traceEventsService);
+            invokeOnRunnableStart(traceEventsService);
         } catch (Exception e) {
             logger.debug("Error in onRunnableStart", e);
         } finally {
@@ -62,6 +62,11 @@ public class TraceEventsRunnable implements Runnable {
         return delegate;
     }
 
+    /**
+     * Invokes all registered trace event listeners registered with traceEventsService onRunnable start event.
+     * Exposing this function as invoking runnable events can be useful for other consumers.
+     * @param traceEventsService trace events service
+     */
     public static void invokeOnRunnableStart(TraceEventsService traceEventsService) {
         if (traceEventsService.isTracingEnabled()) {
             Span span = traceEventsService.getTracer().getCurrentSpan();
@@ -79,6 +84,11 @@ public class TraceEventsRunnable implements Runnable {
         }
     }
 
+    /**
+     * Invokes all registered trace event listeners registered with traceEventsService OnRunnable complete event.
+     * Exposing this function as invoking runnable events can be useful for other consumers.
+     * @param traceEventsService trace events service
+     */
     public static void invokeOnRunnableComplete(TraceEventsService traceEventsService) {
         if (traceEventsService.isTracingEnabled()) {
             Span span = traceEventsService.getTracer().getCurrentSpan();

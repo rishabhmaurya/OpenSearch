@@ -8,10 +8,7 @@
 
 package org.opensearch.telemetry.diagnostics;
 
-import static org.mockito.Mockito.*;
-
-import org.junit.Before;
-import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.util.Collections;
 
@@ -36,36 +33,33 @@ public class ThreadResourceRecorderTests extends OpenSearchTestCase {
         }
     }
 
-    @Before
+    @Override
     public void setUp() throws Exception {
         super.setUp();
-
-        observer = mock(ThreadResourceObserver.class);
-        span = mock(DiagnosticSpan.class);
-        thread = mock(Thread.class);
+        observer = Mockito.mock(ThreadResourceObserver.class);
+        span = Mockito.mock(DiagnosticSpan.class);
+        thread = Mockito.mock(Thread.class);
     }
 
-    @Test
     public void testStartRecording() {
         MetricPoint observation = new MetricPoint(Collections.emptyMap(), null, System.currentTimeMillis());
-        when(observer.observe(thread)).thenReturn(observation);
+        Mockito.when(observer.observe(thread)).thenReturn(observation);
 
         ThreadResourceRecorder<ThreadResourceObserver> recorder = new TestThreadResourceRecorder(observer);
 
         recorder.startRecording(span, thread, true);
 
-        verify(span).putMetric(eq(String.valueOf(thread.getId())), eq(observation));
+        Mockito.verify(span).putMetric(Mockito.eq(String.valueOf(thread.getId())), Mockito.eq(observation));
     }
 
-    @Test
     public void testEndRecording() {
         MetricPoint startMetric = new MetricPoint(Collections.emptyMap(), null, System.currentTimeMillis());
         MetricPoint endMetric = new MetricPoint(Collections.emptyMap(), null, System.currentTimeMillis() + 1000);
-        when(observer.observe(thread)).thenReturn(endMetric);
+        Mockito.when(observer.observe(thread)).thenReturn(endMetric);
 
         ThreadResourceRecorder<ThreadResourceObserver> recorder = new TestThreadResourceRecorder(observer);
 
-        when(span.removeMetric(String.valueOf(thread.getId()))).thenReturn(startMetric);
+        Mockito.when(span.removeMetric(String.valueOf(thread.getId()))).thenReturn(startMetric);
 
         MetricPoint diffMetric = recorder.endRecording(span, thread, true);
 
