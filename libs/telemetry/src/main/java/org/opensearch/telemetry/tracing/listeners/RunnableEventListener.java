@@ -23,7 +23,7 @@ public interface RunnableEventListener {
      *              null span implies there is no active span
      * @param t    the thread executing the runnable
      */
-    void onRunnableStart(Span span, Thread t);
+    void onRunnableStart(final Span span, Thread t);
 
     /**
      * Called when a runnable completes execution on a given span
@@ -32,7 +32,7 @@ public interface RunnableEventListener {
      *             null span implies there is no active span
      * @param t    the thread executing the runnable
      */
-    void onRunnableComplete(Span span, Thread t);
+    void onRunnableComplete(final Span span, Thread t);
 
     /**
      * Checks whether the listener is enabled for the given span.
@@ -40,5 +40,5 @@ public interface RunnableEventListener {
      * @param span the span associated with the execution context
      * @return true if the listener is enabled for the span, false otherwise
      */
-    boolean isEnabled(Span span);
+    boolean isEnabled(final Span span);
 }

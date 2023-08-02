@@ -35,7 +35,7 @@ import static java.util.Collections.unmodifiableMap;
  * The application must ensure that this service is updated with the latest set of TraceEventListener and latest value of {@link #tracingEnabled} and {@link #diagnosisEnabled}
  * are set, or it may produce undesirable results.
  */
-public final class TraceEventsService {
+public class TraceEventsService {
 
     private volatile Map<String, TraceEventListener> traceEventListeners;
     private volatile Tracer tracer;

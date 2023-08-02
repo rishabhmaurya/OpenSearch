@@ -21,7 +21,7 @@ public interface SpanEventListener {
      * @param span the span that has started
      * @param t    the thread associated with the span
      */
-    void onSpanStart(Span span, Thread t);
+    void onSpanStart(final Span span, Thread t);
 
     /**
      * Called when a span completes.
@@ -29,7 +29,7 @@ public interface SpanEventListener {
      * @param span the span that has completed
      * @param t    the thread associated with the span
      */
-    void onSpanComplete(Span span, Thread t);
+    void onSpanComplete(final Span span, Thread t);
 
     /**
      * Checks whether the listener is enabled for the given span.
@@ -37,5 +37,5 @@ public interface SpanEventListener {
      * @param span the span to check
      * @return true if the listener is enabled for the span, false otherwise
      */
-    boolean isEnabled(Span span);
+    boolean isEnabled(final Span span);
 }
