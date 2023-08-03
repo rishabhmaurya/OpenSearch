@@ -15,7 +15,7 @@ import org.opensearch.telemetry.tracing.listeners.TraceEventListener;
 import org.opensearch.telemetry.tracing.listeners.TraceEventsRunnable;
 import org.opensearch.telemetry.tracing.listeners.TraceEventsService;
 import org.opensearch.transport.TransportException;
-import org.opensearch.transport.TransportResponse;
+import org.opensearch.core.transport.TransportResponse;
 import org.opensearch.transport.TransportResponseHandler;
 
 import java.io.IOException;
