@@ -40,12 +40,12 @@ public class DiagnosticsEventListener implements TraceEventListener {
     /**
      * Key used to store the start time of a span in the span attributes (timestamp in milliseconds).
      */
-    protected final static String START_SPAN_TIME = "start_span_time";
+    public final static String START_SPAN_TIME = "start_span_time";
 
     /**
      * Key used to store the elapsed time of a span in the span attributes (duration in milliseconds).
      */
-    protected final static String ELAPSED_TIME = "elapsed_time";
+    public final static String ELAPSED_TIME = "elapsed_time";
 
     /**
      * Constructs a new DiagnosticsTraceEventListener with the specified tracer, thread resource recorder,
