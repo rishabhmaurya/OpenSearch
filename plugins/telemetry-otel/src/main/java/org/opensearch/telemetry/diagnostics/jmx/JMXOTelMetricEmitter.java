@@ -32,7 +32,7 @@ import static org.opensearch.telemetry.diagnostics.DiagnosticsEventListener.ELAP
 public class JMXOTelMetricEmitter implements MetricEmitter {
 
     private static JMXOTelMetricEmitter INSTANCE;
-    private static final Map<String, LongHistogram> histograms = new HashMap<>();
+    static final Map<String, LongHistogram> histograms = new HashMap<>();
 
     private static Meter meter;
 
