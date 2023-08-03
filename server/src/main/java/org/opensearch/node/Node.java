@@ -68,7 +68,6 @@ import org.opensearch.tasks.TaskCancellationMonitoringService;
 import org.opensearch.tasks.TaskCancellationMonitoringSettings;
 import org.opensearch.tasks.TaskResourceTrackingService;
 import org.opensearch.tasks.consumer.TopNSearchTasksLogger;
-import org.opensearch.telemetry.tracing.TracerUtil;
 import org.opensearch.threadpool.RunnableTaskExecutionListener;
 import org.opensearch.index.store.RemoteSegmentStoreDirectoryFactory;
 import org.opensearch.telemetry.TelemetryModule;
@@ -1044,10 +1043,8 @@ public class Node implements Closeable {
                 TelemetryModule telemetryModule = new TelemetryModule(telemetryPlugins, telemetrySettings);
                 tracerFactory = new TracerFactory(telemetrySettings, telemetryModule.getTelemetry(), threadPool.getThreadContext(), traceEventsService);
                 initializeTraceEventService(traceEventsService, telemetryModule, telemetryPlugins);
-                TracerUtil.setTraceEventService(traceEventsService);
             } else {
                 tracerFactory = new NoopTracerFactory();
-                TracerUtil.setTraceEventService(traceEventsService);
             }
             tracer = tracerFactory.getTracer();
             resourcesToClose.add(tracer);
