@@ -8,7 +8,6 @@
 
 package org.opensearch.test.telemetry;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import org.opensearch.plugins.Plugin;
@@ -36,12 +35,13 @@ public class MockTelemetryPlugin extends Plugin implements TelemetryPlugin {
     }
 
     @Override
-    public String getName() {
-        return MOCK_TRACER_NAME;
+    public Map<String, TraceEventListener> getTraceEventListeners(Telemetry telemetry) {
+        // TODO revisit
+        return null;
     }
 
     @Override
-    public Map<String, TraceEventListener> getTraceEventListeners(Telemetry telemetry) {
-        return Collections.emptyMap();
+    public String getName() {
+        return MOCK_TRACER_NAME;
     }
 }
