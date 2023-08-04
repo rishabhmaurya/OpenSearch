@@ -8,11 +8,12 @@
 
 package org.opensearch.telemetry;
 
+import io.opentelemetry.api.OpenTelemetry;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.TelemetryPlugin;
-import org.opensearch.telemetry.metrics.MetricsTelemetry;
+import org.opensearch.telemetry.metrics.OTelMetricsTelemetry;
 import org.opensearch.telemetry.tracing.OTelResourceProvider;
 import org.opensearch.telemetry.tracing.OTelTelemetry;
 import org.opensearch.telemetry.tracing.OTelTracingTelemetry;
@@ -47,7 +48,9 @@ public class OTelTelemetryPlugin extends Plugin implements TelemetryPlugin {
             OTelTelemetrySettings.TRACER_EXPORTER_BATCH_SIZE_SETTING,
             OTelTelemetrySettings.TRACER_EXPORTER_DELAY_SETTING,
             OTelTelemetrySettings.TRACER_EXPORTER_MAX_QUEUE_SIZE_SETTING,
-            OTelTelemetrySettings.OTEL_TRACER_SPAN_EXPORTER_CLASS_SETTING
+            OTelTelemetrySettings.OTEL_TRACER_SPAN_EXPORTER_CLASS_SETTING,
+            OTelTelemetrySettings.OTEL_TRACER_METRIC_EXPORTER_NAME_SETTING,
+            OTelTelemetrySettings.OTEL_TRACER_METRIC_READER_INTERVAL_SETTING
         );
     }
 
@@ -67,8 +70,15 @@ public class OTelTelemetryPlugin extends Plugin implements TelemetryPlugin {
     }
 
     private Telemetry telemetry() {
-        return new OTelTelemetry(new OTelTracingTelemetry(OTelResourceProvider.get(settings)), new MetricsTelemetry() {
-        });
+        OpenTelemetry openTelemetry = OTelResourceProvider.get(settings);
+        return new OTelTelemetry(new OTelTracingTelemetry(openTelemetry), new OTelMetricsTelemetry(openTelemetry));
+    }
+
+    private boolean ensureOpenTelemetry(Telemetry telemetry) {
+        return (telemetry != null
+            && telemetry.getMetricsTelemetry() != null
+            && telemetry instanceof OTelTelemetry
+            && telemetry.getMetricsTelemetry() instanceof OTelMetricsTelemetry);
     }
 
 }
