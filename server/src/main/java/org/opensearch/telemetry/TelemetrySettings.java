@@ -11,6 +11,7 @@ package org.opensearch.telemetry;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.telemetry.tracing.listeners.TraceEventsService;
 
 /**
  * Wrapper class to encapsulate tracing related settings
@@ -23,20 +24,41 @@ public class TelemetrySettings {
         Setting.Property.Dynamic
     );
 
+    public static final Setting<Boolean> DIAGNOSIS_ENABLED_SETTING = Setting.boolSetting(
+        "telemetry.diagnosis.enabled",
+        false,
+        Setting.Property.NodeScope,
+        Setting.Property.Dynamic
+    );
+
     private volatile boolean tracingEnabled;
+    private volatile boolean diagnosisEnabled;
 
-    public TelemetrySettings(Settings settings, ClusterSettings clusterSettings) {
-        this.tracingEnabled = TRACER_ENABLED_SETTING.get(settings);
+    private final TraceEventsService traceEventsService;
 
+    public TelemetrySettings(Settings settings, ClusterSettings clusterSettings, TraceEventsService traceEventsService) {
+        this.traceEventsService = traceEventsService;
+        this.setTracingEnabled(TRACER_ENABLED_SETTING.get(settings));
+        this.setDiagnosisEnabled(DIAGNOSIS_ENABLED_SETTING.get(settings));
         clusterSettings.addSettingsUpdateConsumer(TRACER_ENABLED_SETTING, this::setTracingEnabled);
+        clusterSettings.addSettingsUpdateConsumer(DIAGNOSIS_ENABLED_SETTING, this::setDiagnosisEnabled);
     }
 
     public void setTracingEnabled(boolean tracingEnabled) {
         this.tracingEnabled = tracingEnabled;
+        traceEventsService.setTracingEnabled(tracingEnabled);
+    }
+
+    public void setDiagnosisEnabled(boolean diagnosisEnabled) {
+        this.diagnosisEnabled = diagnosisEnabled;
+        traceEventsService.setDiagnosisEnabled(diagnosisEnabled);
     }
 
     public boolean isTracingEnabled() {
         return tracingEnabled;
     }
 
+    public boolean isDiagnosisEnabled() {
+        return diagnosisEnabled;
+    }
 }

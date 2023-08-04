@@ -13,11 +13,13 @@ import org.apache.logging.log4j.Logger;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.telemetry.Telemetry;
 import org.opensearch.telemetry.TelemetrySettings;
+import org.opensearch.telemetry.tracing.listeners.TraceEventsService;
 import org.opensearch.telemetry.tracing.noop.NoopTracer;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Optional;
+
 
 /**
  * TracerManager represents a single global class that is used to access tracers.
@@ -31,10 +33,13 @@ public class TracerFactory implements Closeable {
 
     private final TelemetrySettings telemetrySettings;
     private final Tracer tracer;
+    private final TraceEventsService traceEventsService;
 
-    public TracerFactory(TelemetrySettings telemetrySettings, Optional<Telemetry> telemetry, ThreadContext threadContext) {
+    public TracerFactory(TelemetrySettings telemetrySettings, Optional<Telemetry> telemetry, ThreadContext threadContext,
+                         TraceEventsService traceEventsService) {
         this.telemetrySettings = telemetrySettings;
-        this.tracer = tracer(telemetry, threadContext);
+        this.traceEventsService = traceEventsService;
+        this.tracer = traceEventsService.wrapAndSetTracer(tracer(telemetry, threadContext));
     }
 
     /**
