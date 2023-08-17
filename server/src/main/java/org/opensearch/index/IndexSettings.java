@@ -1409,6 +1409,7 @@ public final class IndexSettings {
     }
 
     public MergePolicy getDataStreamMergePolicy() {
+        logger.info("Using LogByteSizeMergePolicy for index " + this.index.getName());
         return mergePolicyConfig.getLogByteSizeMergePolicy();
     }
 
