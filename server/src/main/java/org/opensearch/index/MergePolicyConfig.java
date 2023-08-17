@@ -33,6 +33,7 @@
 package org.opensearch.index;
 
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.index.LogByteSizeMergePolicy;
 import org.apache.lucene.index.MergePolicy;
 import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.TieredMergePolicy;
@@ -127,6 +128,9 @@ import org.opensearch.core.common.unit.ByteSizeValue;
 
 public final class MergePolicyConfig {
     private final OpenSearchTieredMergePolicy mergePolicy = new OpenSearchTieredMergePolicy();
+
+    private final LogByteSizeMergePolicy logByteMergePolicy = new LogByteSizeMergePolicy();
+
     private final Logger logger;
     private final boolean mergesEnabled;
 
@@ -223,6 +227,17 @@ public final class MergePolicyConfig {
         mergePolicy.setMaxMergedSegmentMB(maxMergedSegment.getMbFrac());
         mergePolicy.setSegmentsPerTier(segmentsPerTier);
         mergePolicy.setDeletesPctAllowed(deletesPctAllowed);
+
+        logByteMergePolicy.setMergeFactor(maxMergeAtOnce);
+
+        logByteMergePolicy.setMinMergeMB(floorSegment.getMbFrac());
+        logByteMergePolicy.setMaxMergeMB(maxMergedSegment.getMbFrac());
+        // logByteMergePolicy.setMaxMergeDocs(); not required
+        logByteMergePolicy.setMaxMergeMBForForcedMerge(Long.MAX_VALUE);
+        // logByteMergePolicy.setCalibrateSizeByDeletes();
+        // logByteMergePolicy.setNoCFSRatio();
+        // logByteMergePolicy.setMaxCFSSegmentSizeMB();
+
         if (logger.isTraceEnabled()) {
             logger.trace(
                 "using [tiered] merge mergePolicy with expunge_deletes_allowed[{}], floor_segment[{}],"
@@ -287,6 +302,10 @@ public final class MergePolicyConfig {
 
     MergePolicy getMergePolicy() {
         return mergesEnabled ? mergePolicy : NoMergePolicy.INSTANCE;
+    }
+
+    MergePolicy getLogByteSizeMergePolicy() {
+        return mergesEnabled ? logByteMergePolicy : NoMergePolicy.INSTANCE;
     }
 
     private static double parseNoCFSRatio(String noCFSRatio) {

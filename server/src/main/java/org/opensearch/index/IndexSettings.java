@@ -1408,6 +1408,10 @@ public final class IndexSettings {
         return mergePolicyConfig.getMergePolicy();
     }
 
+    public MergePolicy getDataStreamMergePolicy() {
+        return mergePolicyConfig.getLogByteSizeMergePolicy();
+    }
+
     public <T> T getValue(Setting<T> setting) {
         return scopedSettings.get(setting);
     }
