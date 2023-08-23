@@ -1423,12 +1423,12 @@ public final class IndexSettings {
      * Returns the merge policy that should be used for this index.
      */
     public MergePolicy getMergePolicy() {
-        return mergePolicyConfig.getMergePolicy();
+        return new InfoMergePolicy(logger, mergePolicyConfig.getMergePolicy());
     }
 
     public MergePolicy getDataStreamMergePolicy() {
         logger.info("Using" + datastreamMergePolicy.toString() + " for index " + this.index.getName());
-        return datastreamMergePolicy;
+        return new InfoMergePolicy(logger, datastreamMergePolicy);
     }
 
     public <T> T getValue(Setting<T> setting) {
@@ -1643,7 +1643,6 @@ public final class IndexSettings {
             );
         }
     }
-
 
     public Optional<UnaryOperator<MergePolicy>> getMergeOnFlushPolicy() {
         return Optional.ofNullable(mergeOnFlushPolicy);

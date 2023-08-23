@@ -114,25 +114,21 @@ public class InfoMergePolicy extends FilterMergePolicy {
         return in;
     }
 
-
     private void printInfo(MergeSpecification spec) throws IOException {
         if (spec == null) {
             return;
         }
-        for (OneMerge merge : spec.merges) {
-            // if (merge.getMergeInfo() != null) {
-                //long size = merge.getMergeInfo().sizeInBytes();
-                long estimatedMergeBytes = merge.estimatedMergeBytes;
-                //long delCount = merge.getMergeInfo().getDelCount();
-                long totalBytesSize = merge.totalBytesSize();
-                long totalNumDocs = merge.totalNumDocs();
-                logger.info("Merge Info:\n" +
-                    //"Size in Bytes: " + size + "\n" +
-                    "Estimated Merge Bytes: " + estimatedMergeBytes + "\n" +
-                    //"Deleted Count: " + delCount + "\n" +
-                    "Total Bytes Size: " + totalBytesSize + "\n" +
-                    "Total Number of Docs: " + totalNumDocs);
-            // }
+        int newMaxDoc = 0;
+        double newSize = 0;
+        for (OneMerge oneMerge : spec.merges) {
+            if (oneMerge.segments.size() > 0) {
+                for (SegmentCommitInfo sci : oneMerge.segments) {
+                    int numLiveDocs = sci.info.maxDoc() - sci.getDelCount();
+                    newSize += (double) sci.sizeInBytes() * numLiveDocs / sci.info.maxDoc();
+                    newMaxDoc += numLiveDocs;
+                }
+            }
         }
+        logger.info("Merge Info: Estimated Merge Bytes written : " + newSize);
     }
 }

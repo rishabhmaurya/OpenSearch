@@ -41,11 +41,13 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.LiveIndexWriterConfig;
 import org.apache.lucene.index.MergePolicy;
 import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
+import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.index.ShuffleForcedMergePolicy;
 import org.apache.lucene.index.SoftDeletesRetentionMergePolicy;
 import org.apache.lucene.index.StandardDirectoryReader;
@@ -66,6 +68,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.InfoStream;
+import org.apache.lucene.util.NumericUtils;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.common.Booleans;
@@ -76,6 +79,7 @@ import org.opensearch.common.lease.Releasable;
 import org.opensearch.common.lucene.LoggerInfoStream;
 import org.opensearch.common.lucene.Lucene;
 import org.opensearch.common.lucene.index.OpenSearchDirectoryReader;
+import org.opensearch.common.lucene.index.OpenSearchLeafReader;
 import org.opensearch.common.lucene.search.Queries;
 import org.opensearch.common.lucene.uid.Versions;
 import org.opensearch.common.lucene.uid.VersionsAndSeqNoResolver;
@@ -1771,6 +1775,7 @@ public class InternalEngine extends Engine {
                     } else {
                         refreshed = referenceManager.maybeRefresh();
                     }
+                    printSegInfo();
                 } finally {
                     store.decRef();
                 }
@@ -2138,6 +2143,35 @@ public class InternalEngine extends Engine {
         try {
             reader = internalReaderManager.acquire();
             return ((StandardDirectoryReader) reader.getDelegate()).getSegmentInfos();
+        } catch (IOException e) {
+            throw new EngineException(shardId, e.getMessage(), e);
+        } finally {
+            try {
+                internalReaderManager.release(reader);
+            } catch (IOException e) {
+                throw new EngineException(shardId, e.getMessage(), e);
+            }
+        }
+    }
+    private void printSegInfo() {
+        OpenSearchDirectoryReader reader = null;
+        if (!engineConfig.getIndexSettings().getIndex().getName().startsWith("log")) {
+            return;
+        }
+        try {
+            reader = internalReaderManager.acquire();
+            StringBuilder s = new StringBuilder();
+            s.append("SegmentInfo\n");
+            for(LeafReaderContext leafReaderContext : reader.leaves()) {
+                LeafReader leafReader = leafReaderContext.reader();
+                long minValue = NumericUtils.sortableBytesToLong(leafReader.getPointValues("@timestamp").getMinPackedValue(), 0);
+                long maxValue = NumericUtils.sortableBytesToLong(leafReader.getPointValues("@timestamp").getMaxPackedValue(), 0);
+                long docCount = leafReader.getPointValues("@timestamp").getDocCount();
+                // String segName = ((OpenSearchLeafReader) leafReader).;
+                // long segSize = ((SegmentReader) leafReader).getSegmentInfo().sizeInBytes();
+                s.append(docCount).append("; ").append(minValue).append("; ").append(maxValue).append("\n");
+            }
+            logger.info(s);
         } catch (IOException e) {
             throw new EngineException(shardId, e.getMessage(), e);
         } finally {
