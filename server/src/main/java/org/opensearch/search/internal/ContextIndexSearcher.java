@@ -37,6 +37,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BulkScorer;
 import org.apache.lucene.search.CollectionStatistics;
@@ -63,9 +64,11 @@ import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.CombinedBitSet;
+import org.apache.lucene.util.NumericUtils;
 import org.apache.lucene.util.SparseFixedBitSet;
 import org.opensearch.cluster.metadata.DataStream;
 import org.opensearch.common.lease.Releasable;
+import org.opensearch.common.lucene.index.OpenSearchLeafReader;
 import org.opensearch.common.lucene.search.TopDocsAndMaxScore;
 import org.opensearch.search.DocValueFormat;
 import org.opensearch.search.SearchService;
@@ -268,15 +271,18 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
 
     @Override
     protected void search(List<LeafReaderContext> leaves, Weight weight, Collector collector) throws IOException {
+        logger.info("Starting debug of a new query...");
         if (shouldReverseLeafReaderContexts()) {
             // reverse the segment search order if this flag is true.
             // Certain queries can benefit if we reverse the segment read order,
             // for example time series based queries if searched for desc sort order.
             for (int i = leaves.size() - 1; i >= 0; i--) {
+                logger.info("Executing leaf index: " + i);
                 searchLeaf(leaves.get(i), weight, collector);
             }
         } else {
             for (int i = 0; i < leaves.size(); i++) {
+                logger.info("Executing leaf index: " + i);
                 searchLeaf(leaves.get(i), weight, collector);
             }
         }
@@ -290,7 +296,7 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
      * the provided <code>ctx</code>.
      */
     private void searchLeaf(LeafReaderContext ctx, Weight weight, Collector collector) throws IOException {
-
+        printDebugInfo(ctx);
         // Check if at all we need to call this leaf for collecting results.
         if (canMatch(ctx) == false) {
             return;
@@ -351,6 +357,20 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
         // Note: this is called if collection ran successfully, including the above special cases of
         // CollectionTerminatedException and TimeExceededException, but no other exception.
         leafCollector.finish();
+    }
+
+    void printDebugInfo(LeafReaderContext ctx) throws IOException {
+        StringBuilder logInfo = new StringBuilder();
+        logInfo.append(ctx.toString()+ "; doc count: ");
+        logInfo.append(ctx.reader().numDocs());
+        FieldSortBuilder primarySortField = FieldSortBuilder.getPrimaryFieldSortOrNull(searchContext.request().source());
+        MinAndMax<?> minMax = FieldSortBuilder.getMinMaxOrNullForSegment(
+            this.searchContext.getQueryShardContext(),
+            ctx,
+            primarySortField
+        );
+        logInfo.append("; segment point value range - " + minMax.getMin() + "->" + minMax.getMax());
+        logger.info(logInfo.toString());
     }
 
     private Weight wrapWeight(Weight weight) {
