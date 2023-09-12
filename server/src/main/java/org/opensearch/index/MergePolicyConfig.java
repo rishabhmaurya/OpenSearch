@@ -33,6 +33,7 @@
 package org.opensearch.index;
 
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.index.LogByteSizeMergePolicy;
 import org.apache.lucene.index.MergePolicy;
 import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.TieredMergePolicy;
@@ -40,6 +41,9 @@ import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Setting.Property;
 import org.opensearch.core.common.unit.ByteSizeUnit;
 import org.opensearch.core.common.unit.ByteSizeValue;
+
+import static org.apache.lucene.index.LogMergePolicy.DEFAULT_MAX_MERGE_DOCS;
+import static org.apache.lucene.index.LogMergePolicy.DEFAULT_NO_CFS_RATIO;
 
 /**
  * A shard in opensearch is a Lucene index, and a Lucene index is broken
@@ -126,7 +130,10 @@ import org.opensearch.core.common.unit.ByteSizeValue;
  */
 
 public final class MergePolicyConfig {
-    private final OpenSearchTieredMergePolicy mergePolicy = new OpenSearchTieredMergePolicy();
+    private final OpenSearchTieredMergePolicy openSearchTieredMergePolicy = new OpenSearchTieredMergePolicy();
+
+    private final LogByteSizeMergePolicy logByteSizeMergePolicy = new LogByteSizeMergePolicy();
+
     private final Logger logger;
     private final boolean mergesEnabled;
 
@@ -137,6 +144,12 @@ public final class MergePolicyConfig {
     public static final double DEFAULT_SEGMENTS_PER_TIER = 10.0d;
     public static final double DEFAULT_RECLAIM_DELETES_WEIGHT = 2.0d;
     public static final double DEFAULT_DELETES_PCT_ALLOWED = 20.0d;
+
+    public static final ByteSizeValue DEFAULT_MAX_MERGE_SEGMENT_MB_FORCE_MERGE = new ByteSizeValue(
+        Long.MAX_VALUE / ByteSizeUnit.GB.toBytes(1),
+        ByteSizeUnit.GB
+    );
+
     public static final Setting<Double> INDEX_COMPOUND_FORMAT_SETTING = new Setting<>(
         "index.compound_format",
         Double.toString(TieredMergePolicy.DEFAULT_NO_CFS_RATIO),
@@ -194,6 +207,53 @@ public final class MergePolicyConfig {
         Property.Dynamic,
         Property.IndexScope
     );
+
+    // settings for LogByteSizeMergePolicy
+
+    public static final Setting<Integer> INDEX_LBS_MERGE_POLICY_MERGE_FACTOR_SETTING = Setting.intSetting(
+        "index.merge.policy.log_byte_size.merge_factor",
+        DEFAULT_MAX_MERGE_AT_ONCE, // keeping it same as default max merge at once for tiered merge policy
+        2,
+        Property.Dynamic,
+        Property.IndexScope
+    );
+
+    public static final Setting<ByteSizeValue> INDEX_LBS_MERGE_POLICY_MIN_MERGE_MB_SETTING = Setting.byteSizeSetting(
+        "index.merge.policy.log_byte_size.min_merge_mb",
+        DEFAULT_FLOOR_SEGMENT, // keeping it same as default floor segment for tiered merge policy
+        Property.Dynamic,
+        Property.IndexScope
+    );
+
+    public static final Setting<ByteSizeValue> INDEX_LBS_MAX_MERGE_SEGMENT_MB_SETTING = Setting.byteSizeSetting(
+        "index.merge.policy.log_byte_size.max_merge_segment_mb",
+        DEFAULT_MAX_MERGED_SEGMENT, // keeping default same as tiered merge policy
+        Property.Dynamic,
+        Property.IndexScope
+    );
+
+    public static final Setting<ByteSizeValue> INDEX_LBS_MAX_MERGE_SEGMENT_MB_FOR_FORCED_MERGE_SETTING = Setting.byteSizeSetting(
+        "index.merge.policy.log_byte_size.max_merge_segment_mb_forced_merge",
+        DEFAULT_MAX_MERGE_SEGMENT_MB_FORCE_MERGE,
+        Property.Dynamic,
+        Property.IndexScope
+    );
+
+    public static final Setting<Integer> INDEX_LBS_MAX_MERGED_DOCS_SETTING = Setting.intSetting(
+        "index.merge.policy.log_byte_size.max_merged_docs",
+        DEFAULT_MAX_MERGE_DOCS,
+        Property.Dynamic,
+        Property.IndexScope
+    );
+
+    public static final Setting<Double> INDEX_LBS_NO_CFS_RATIO_SETTING = new Setting<>(
+        "index.merge.policy.log_byte_size.no_cfs_ratio",
+        Double.toString(DEFAULT_NO_CFS_RATIO),
+        MergePolicyConfig::parseNoCFSRatio,
+        Property.Dynamic,
+        Property.IndexScope
+    );
+
     // don't convert to Setting<> and register... we only set this in tests and register via a plugin
     public static final String INDEX_MERGE_ENABLED = "index.merge.enabled";
 
@@ -216,13 +276,25 @@ public final class MergePolicyConfig {
             );
         }
         maxMergeAtOnce = adjustMaxMergeAtOnceIfNeeded(maxMergeAtOnce, segmentsPerTier);
-        mergePolicy.setNoCFSRatio(indexSettings.getValue(INDEX_COMPOUND_FORMAT_SETTING));
-        mergePolicy.setForceMergeDeletesPctAllowed(forceMergeDeletesPctAllowed);
-        mergePolicy.setFloorSegmentMB(floorSegment.getMbFrac());
-        mergePolicy.setMaxMergeAtOnce(maxMergeAtOnce);
-        mergePolicy.setMaxMergedSegmentMB(maxMergedSegment.getMbFrac());
-        mergePolicy.setSegmentsPerTier(segmentsPerTier);
-        mergePolicy.setDeletesPctAllowed(deletesPctAllowed);
+        openSearchTieredMergePolicy.setNoCFSRatio(indexSettings.getValue(INDEX_COMPOUND_FORMAT_SETTING));
+        openSearchTieredMergePolicy.setForceMergeDeletesPctAllowed(forceMergeDeletesPctAllowed);
+        openSearchTieredMergePolicy.setFloorSegmentMB(floorSegment.getMbFrac());
+        openSearchTieredMergePolicy.setMaxMergeAtOnce(maxMergeAtOnce);
+        openSearchTieredMergePolicy.setMaxMergedSegmentMB(maxMergedSegment.getMbFrac());
+        openSearchTieredMergePolicy.setSegmentsPerTier(segmentsPerTier);
+        openSearchTieredMergePolicy.setDeletesPctAllowed(deletesPctAllowed);
+
+        // Undocumented settings, works great with defaults
+
+        logByteSizeMergePolicy.setMergeFactor(indexSettings.getValue(INDEX_LBS_MERGE_POLICY_MERGE_FACTOR_SETTING));
+        logByteSizeMergePolicy.setMinMergeMB(indexSettings.getValue(INDEX_LBS_MERGE_POLICY_MIN_MERGE_MB_SETTING).getMbFrac());
+        logByteSizeMergePolicy.setMaxMergeMB(indexSettings.getValue(INDEX_LBS_MAX_MERGE_SEGMENT_MB_SETTING).getMbFrac());
+        logByteSizeMergePolicy.setMaxMergeMBForForcedMerge(
+            indexSettings.getValue(INDEX_LBS_MAX_MERGE_SEGMENT_MB_FOR_FORCED_MERGE_SETTING).getMbFrac()
+        );
+        logByteSizeMergePolicy.setMaxMergeDocs(indexSettings.getValue(INDEX_LBS_MAX_MERGED_DOCS_SETTING));
+        logByteSizeMergePolicy.setNoCFSRatio(indexSettings.getValue(INDEX_LBS_NO_CFS_RATIO_SETTING));
+
         if (logger.isTraceEnabled()) {
             logger.trace(
                 "using [tiered] merge mergePolicy with expunge_deletes_allowed[{}], floor_segment[{}],"
@@ -239,31 +311,55 @@ public final class MergePolicyConfig {
     }
 
     void setSegmentsPerTier(Double segmentsPerTier) {
-        mergePolicy.setSegmentsPerTier(segmentsPerTier);
+        openSearchTieredMergePolicy.setSegmentsPerTier(segmentsPerTier);
     }
 
     void setMaxMergedSegment(ByteSizeValue maxMergedSegment) {
-        mergePolicy.setMaxMergedSegmentMB(maxMergedSegment.getMbFrac());
+        openSearchTieredMergePolicy.setMaxMergedSegmentMB(maxMergedSegment.getMbFrac());
     }
 
     void setMaxMergesAtOnce(Integer maxMergeAtOnce) {
-        mergePolicy.setMaxMergeAtOnce(maxMergeAtOnce);
+        openSearchTieredMergePolicy.setMaxMergeAtOnce(maxMergeAtOnce);
     }
 
     void setFloorSegmentSetting(ByteSizeValue floorSegementSetting) {
-        mergePolicy.setFloorSegmentMB(floorSegementSetting.getMbFrac());
+        openSearchTieredMergePolicy.setFloorSegmentMB(floorSegementSetting.getMbFrac());
     }
 
     void setExpungeDeletesAllowed(Double value) {
-        mergePolicy.setForceMergeDeletesPctAllowed(value);
+        openSearchTieredMergePolicy.setForceMergeDeletesPctAllowed(value);
     }
 
     void setNoCFSRatio(Double noCFSRatio) {
-        mergePolicy.setNoCFSRatio(noCFSRatio);
+        openSearchTieredMergePolicy.setNoCFSRatio(noCFSRatio);
     }
 
     void setDeletesPctAllowed(Double deletesPctAllowed) {
-        mergePolicy.setDeletesPctAllowed(deletesPctAllowed);
+        openSearchTieredMergePolicy.setDeletesPctAllowed(deletesPctAllowed);
+    }
+
+    void setLBSMergeFactor(int mergeFactor) {
+        logByteSizeMergePolicy.setMergeFactor(mergeFactor);
+    }
+
+    void setLBSMaxMergeSegment(ByteSizeValue maxMergeSegment) {
+        logByteSizeMergePolicy.setMaxMergeMB(maxMergeSegment.getMbFrac());
+    }
+
+    void setLBSMinMergedMB(ByteSizeValue minMergedMB) {
+        logByteSizeMergePolicy.setMinMergeMB(minMergedMB.getMbFrac());
+    }
+
+    void setLBSMaxMergeMBForForcedMerge(ByteSizeValue maxMergeMBForcedMerge) {
+        logByteSizeMergePolicy.setMaxMergeMBForForcedMerge(maxMergeMBForcedMerge.getMbFrac());
+    }
+
+    void setLBSMaxMergeDocs(int maxMergeDocs) {
+        logByteSizeMergePolicy.setMaxMergeDocs(maxMergeDocs);
+    }
+
+    void setLBSNoCFSRatio(Double noCFSRatio) {
+        logByteSizeMergePolicy.setNoCFSRatio(noCFSRatio);
     }
 
     private int adjustMaxMergeAtOnceIfNeeded(int maxMergeAtOnce, double segmentsPerTier) {
@@ -286,7 +382,11 @@ public final class MergePolicyConfig {
     }
 
     MergePolicy getMergePolicy() {
-        return mergesEnabled ? mergePolicy : NoMergePolicy.INSTANCE;
+        return mergesEnabled ? openSearchTieredMergePolicy : NoMergePolicy.INSTANCE;
+    }
+
+    MergePolicy getLogByteSizeMergePolicy() {
+        return mergesEnabled ? logByteSizeMergePolicy : NoMergePolicy.INSTANCE;
     }
 
     private static double parseNoCFSRatio(String noCFSRatio) {

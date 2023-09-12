@@ -31,6 +31,7 @@
 
 package org.opensearch.index;
 
+import org.apache.lucene.index.LogByteSizeMergePolicy;
 import org.apache.lucene.index.NoMergePolicy;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.core.common.unit.ByteSizeUnit;
@@ -72,6 +73,7 @@ public class MergePolicySettingsTests extends OpenSearchTestCase {
             indexSettings(Settings.builder().put(MergePolicyConfig.INDEX_MERGE_ENABLED, false).build())
         );
         assertTrue(mp.getMergePolicy() instanceof NoMergePolicy);
+        assertTrue(mp.getLogByteSizeMergePolicy() instanceof NoMergePolicy);
     }
 
     public void testUpdateSettings() throws IOException {
@@ -87,6 +89,55 @@ public class MergePolicySettingsTests extends OpenSearchTestCase {
         assertThat((indexSettings.getMergePolicy()).getNoCFSRatio(), equalTo(1.0));
         indexSettings.updateIndexMetadata(newIndexMeta("index", build("false")));
         assertThat((indexSettings.getMergePolicy()).getNoCFSRatio(), equalTo(0.0));
+    }
+
+    public void testDefaultMergePolicy() throws IOException {
+        IndexSettings indexSettings = indexSettings(EMPTY_SETTINGS);
+        assertTrue(indexSettings.getMergePolicy() instanceof OpenSearchTieredMergePolicy);
+        assertTrue(indexSettings.getDataStreamMergePolicy() instanceof OpenSearchTieredMergePolicy);
+    }
+
+    public void testUpdateSettingsForLogByteSizeMergePolicy() throws IOException {
+        IndexSettings indexSettings = indexSettings(
+            Settings.builder().put(IndexSettings.INDEX_DATASTREAM_MERGE_POLICY.getKey(), "log_byte_size").build()
+        );
+
+        assertThat(indexSettings.getDataStreamMergePolicy().getNoCFSRatio(), equalTo(0.1));
+        indexSettings = indexSettings(
+            Settings.builder()
+                .put(IndexSettings.INDEX_DATASTREAM_MERGE_POLICY.getKey(), "log_byte_size")
+                .put(MergePolicyConfig.INDEX_LBS_NO_CFS_RATIO_SETTING.getKey(), 0.9)
+                .build()
+        );
+        assertThat((indexSettings.getDataStreamMergePolicy()).getNoCFSRatio(), equalTo(0.9));
+        indexSettings = indexSettings(
+            Settings.builder()
+                .put(IndexSettings.INDEX_DATASTREAM_MERGE_POLICY.getKey(), "log_byte_size")
+                .put(MergePolicyConfig.INDEX_LBS_NO_CFS_RATIO_SETTING.getKey(), 0.1)
+                .build()
+        );
+        assertThat((indexSettings.getDataStreamMergePolicy()).getNoCFSRatio(), equalTo(0.1));
+        indexSettings = indexSettings(
+            Settings.builder()
+                .put(IndexSettings.INDEX_DATASTREAM_MERGE_POLICY.getKey(), "log_byte_size")
+                .put(MergePolicyConfig.INDEX_LBS_NO_CFS_RATIO_SETTING.getKey(), 0.0)
+                .build()
+        );
+        assertThat((indexSettings.getDataStreamMergePolicy()).getNoCFSRatio(), equalTo(0.0));
+        indexSettings = indexSettings(
+            Settings.builder()
+                .put(IndexSettings.INDEX_DATASTREAM_MERGE_POLICY.getKey(), "log_byte_size")
+                .put(MergePolicyConfig.INDEX_LBS_NO_CFS_RATIO_SETTING.getKey(), "true")
+                .build()
+        );
+        assertThat((indexSettings.getDataStreamMergePolicy()).getNoCFSRatio(), equalTo(1.0));
+        indexSettings = indexSettings(
+            Settings.builder()
+                .put(IndexSettings.INDEX_DATASTREAM_MERGE_POLICY.getKey(), "log_byte_size")
+                .put(MergePolicyConfig.INDEX_LBS_NO_CFS_RATIO_SETTING.getKey(), "false")
+                .build()
+        );
+        assertThat((indexSettings.getDataStreamMergePolicy()).getNoCFSRatio(), equalTo(0.0));
     }
 
     public void testTieredMergePolicySettingsUpdate() throws IOException {
@@ -254,6 +305,112 @@ public class MergePolicySettingsTests extends OpenSearchTestCase {
             MergePolicyConfig.DEFAULT_DELETES_PCT_ALLOWED,
             0
         );
+    }
+
+    public void testLogByteSizeMergePolicySettingsUpdate() throws IOException {
+
+        IndexSettings indexSettings = indexSettings(
+            Settings.builder().put(IndexSettings.INDEX_DATASTREAM_MERGE_POLICY.getKey(), "log_byte_size").build()
+        );
+        assertEquals(
+            ((LogByteSizeMergePolicy) indexSettings.getDataStreamMergePolicy()).getMergeFactor(),
+            MergePolicyConfig.DEFAULT_MAX_MERGE_AT_ONCE
+        );
+
+        indexSettings.updateIndexMetadata(
+            newIndexMeta(
+                "index",
+                Settings.builder()
+                    .put(IndexSettings.INDEX_DATASTREAM_MERGE_POLICY.getKey(), "log_byte_size")
+                    .put(
+                        MergePolicyConfig.INDEX_LBS_MERGE_POLICY_MERGE_FACTOR_SETTING.getKey(),
+                        MergePolicyConfig.DEFAULT_MAX_MERGE_AT_ONCE + 1
+                    )
+                    .build()
+            )
+        );
+        assertEquals(
+            ((LogByteSizeMergePolicy) indexSettings.getDataStreamMergePolicy()).getMergeFactor(),
+            MergePolicyConfig.DEFAULT_MAX_MERGE_AT_ONCE + 1
+        );
+
+        indexSettings.updateIndexMetadata(
+            newIndexMeta(
+                "index",
+                Settings.builder()
+                    .put(IndexSettings.INDEX_DATASTREAM_MERGE_POLICY.getKey(), "log_byte_size")
+                    .put(
+                        MergePolicyConfig.INDEX_LBS_MERGE_POLICY_MIN_MERGE_MB_SETTING.getKey(),
+                        new ByteSizeValue(MergePolicyConfig.DEFAULT_FLOOR_SEGMENT.getMb() + 1, ByteSizeUnit.MB)
+                    )
+                    .build()
+            )
+        );
+
+        assertEquals(
+            ((LogByteSizeMergePolicy) indexSettings.getDataStreamMergePolicy()).getMinMergeMB(),
+            new ByteSizeValue(MergePolicyConfig.DEFAULT_FLOOR_SEGMENT.getMb() + 1, ByteSizeUnit.MB).getMbFrac(),
+            0.001
+        );
+
+        indexSettings.updateIndexMetadata(
+            newIndexMeta(
+                "index",
+                Settings.builder()
+                    .put(IndexSettings.INDEX_DATASTREAM_MERGE_POLICY.getKey(), "log_byte_size")
+                    .put(
+                        MergePolicyConfig.INDEX_LBS_MAX_MERGE_SEGMENT_MB_SETTING.getKey(),
+                        new ByteSizeValue(MergePolicyConfig.DEFAULT_MAX_MERGED_SEGMENT.getMb() + 100, ByteSizeUnit.MB)
+                    )
+                    .build()
+            )
+        );
+
+        assertEquals(
+            ((LogByteSizeMergePolicy) indexSettings.getDataStreamMergePolicy()).getMaxMergeMB(),
+            new ByteSizeValue(MergePolicyConfig.DEFAULT_MAX_MERGED_SEGMENT.getMb() + 100, ByteSizeUnit.MB).getMbFrac(),
+            0.001
+        );
+
+        indexSettings.updateIndexMetadata(
+            newIndexMeta(
+                "index",
+                Settings.builder()
+                    .put(IndexSettings.INDEX_DATASTREAM_MERGE_POLICY.getKey(), "log_byte_size")
+                    .put(
+                        MergePolicyConfig.INDEX_LBS_MAX_MERGE_SEGMENT_MB_FOR_FORCED_MERGE_SETTING.getKey(),
+                        new ByteSizeValue(MergePolicyConfig.DEFAULT_MAX_MERGE_SEGMENT_MB_FORCE_MERGE.getMb() + 1, ByteSizeUnit.MB)
+                    )
+                    .build()
+            )
+        );
+        assertEquals(
+            ((LogByteSizeMergePolicy) indexSettings.getDataStreamMergePolicy()).getMaxMergeMBForForcedMerge(),
+            new ByteSizeValue(MergePolicyConfig.DEFAULT_MAX_MERGE_SEGMENT_MB_FORCE_MERGE.getMb() + 1, ByteSizeUnit.MB).getMbFrac(),
+            0.001
+        );
+
+        indexSettings.updateIndexMetadata(
+            newIndexMeta(
+                "index",
+                Settings.builder()
+                    .put(IndexSettings.INDEX_DATASTREAM_MERGE_POLICY.getKey(), "log_byte_size")
+                    .put(MergePolicyConfig.INDEX_LBS_MAX_MERGED_DOCS_SETTING.getKey(), 10000000)
+                    .build()
+            )
+        );
+        assertEquals(((LogByteSizeMergePolicy) indexSettings.getDataStreamMergePolicy()).getMaxMergeDocs(), 10000000);
+
+        indexSettings.updateIndexMetadata(
+            newIndexMeta(
+                "index",
+                Settings.builder()
+                    .put(IndexSettings.INDEX_DATASTREAM_MERGE_POLICY.getKey(), "log_byte_size")
+                    .put(MergePolicyConfig.INDEX_LBS_NO_CFS_RATIO_SETTING.getKey(), 0.1)
+                    .build()
+            )
+        );
+        assertEquals(indexSettings.getDataStreamMergePolicy().getNoCFSRatio(), 0.1, 0.0);
     }
 
     public Settings build(String value) {

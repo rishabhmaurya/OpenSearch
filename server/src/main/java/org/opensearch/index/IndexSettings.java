@@ -83,6 +83,12 @@ import static org.opensearch.index.store.remote.directory.RemoteSnapshotDirector
 @PublicApi(since = "1.0.0")
 public final class IndexSettings {
     private static final String MERGE_ON_FLUSH_DEFAULT_POLICY = "default";
+
+    private static final String DATASTREAM_TIERED_MERGE_POLICY = "tiered";
+    private static final String DATASTREAM_DEFAULT_POLICY = DATASTREAM_TIERED_MERGE_POLICY;
+
+    private static final String DATASTREAM_LOG_BYTE_SIZE_MERGE_POLICY = "log_byte_size";
+
     private static final String MERGE_ON_FLUSH_MERGE_POLICY = "merge-on-flush";
 
     public static final Setting<List<String>> DEFAULT_FIELD_SETTING = Setting.listSetting(
@@ -570,6 +576,13 @@ public final class IndexSettings {
         Property.Dynamic
     );
 
+    public static final Setting<String> INDEX_DATASTREAM_MERGE_POLICY = Setting.simpleString(
+        "index.datastream_merge.policy",
+        DATASTREAM_DEFAULT_POLICY,
+        Property.IndexScope,
+        Property.Dynamic
+    );
+
     public static final Setting<String> SEARCHABLE_SNAPSHOT_REPOSITORY = Setting.simpleString(
         "index.searchable_snapshot.repository",
         Property.IndexScope,
@@ -727,6 +740,8 @@ public final class IndexSettings {
      */
     private volatile UnaryOperator<MergePolicy> mergeOnFlushPolicy;
 
+    private volatile MergePolicy dataStreamMergePolicy;
+
     /**
      * Returns the default search fields for this index.
      */
@@ -856,6 +871,8 @@ public final class IndexSettings {
         maxFullFlushMergeWaitTime = scopedSettings.get(INDEX_MERGE_ON_FLUSH_MAX_FULL_FLUSH_MERGE_WAIT_TIME);
         mergeOnFlushEnabled = scopedSettings.get(INDEX_MERGE_ON_FLUSH_ENABLED);
         setMergeOnFlushPolicy(scopedSettings.get(INDEX_MERGE_ON_FLUSH_POLICY));
+        setDataStreamDefaultPolicy(scopedSettings.get(INDEX_DATASTREAM_MERGE_POLICY));
+
         defaultSearchPipeline = scopedSettings.get(DEFAULT_SEARCH_PIPELINE);
 
         scopedSettings.addSettingsUpdateConsumer(MergePolicyConfig.INDEX_COMPOUND_FORMAT_SETTING, mergePolicyConfig::setNoCFSRatio);
@@ -863,6 +880,34 @@ public final class IndexSettings {
             MergePolicyConfig.INDEX_MERGE_POLICY_DELETES_PCT_ALLOWED_SETTING,
             mergePolicyConfig::setDeletesPctAllowed
         );
+
+        scopedSettings.addSettingsUpdateConsumer(
+            MergePolicyConfig.INDEX_LBS_MERGE_POLICY_MERGE_FACTOR_SETTING,
+            mergePolicyConfig::setLBSMergeFactor
+        );
+
+        scopedSettings.addSettingsUpdateConsumer(
+            MergePolicyConfig.INDEX_LBS_MERGE_POLICY_MIN_MERGE_MB_SETTING,
+            mergePolicyConfig::setLBSMinMergedMB
+        );
+
+        scopedSettings.addSettingsUpdateConsumer(
+            MergePolicyConfig.INDEX_LBS_MAX_MERGE_SEGMENT_MB_SETTING,
+            mergePolicyConfig::setLBSMaxMergeSegment
+        );
+
+        scopedSettings.addSettingsUpdateConsumer(
+            MergePolicyConfig.INDEX_LBS_MAX_MERGE_SEGMENT_MB_FOR_FORCED_MERGE_SETTING,
+            mergePolicyConfig::setLBSMaxMergeMBForForcedMerge
+        );
+
+        scopedSettings.addSettingsUpdateConsumer(
+            MergePolicyConfig.INDEX_LBS_MAX_MERGED_DOCS_SETTING,
+            mergePolicyConfig::setLBSMaxMergeDocs
+        );
+
+        scopedSettings.addSettingsUpdateConsumer(MergePolicyConfig.INDEX_LBS_NO_CFS_RATIO_SETTING, mergePolicyConfig::setLBSNoCFSRatio);
+
         scopedSettings.addSettingsUpdateConsumer(
             MergePolicyConfig.INDEX_MERGE_POLICY_EXPUNGE_DELETES_ALLOWED_SETTING,
             mergePolicyConfig::setExpungeDeletesAllowed
@@ -931,6 +976,7 @@ public final class IndexSettings {
         scopedSettings.addSettingsUpdateConsumer(INDEX_MERGE_ON_FLUSH_MAX_FULL_FLUSH_MERGE_WAIT_TIME, this::setMaxFullFlushMergeWaitTime);
         scopedSettings.addSettingsUpdateConsumer(INDEX_MERGE_ON_FLUSH_ENABLED, this::setMergeOnFlushEnabled);
         scopedSettings.addSettingsUpdateConsumer(INDEX_MERGE_ON_FLUSH_POLICY, this::setMergeOnFlushPolicy);
+        scopedSettings.addSettingsUpdateConsumer(INDEX_DATASTREAM_MERGE_POLICY, this::setDataStreamDefaultPolicy);
         scopedSettings.addSettingsUpdateConsumer(DEFAULT_SEARCH_PIPELINE, this::setDefaultSearchPipeline);
         scopedSettings.addSettingsUpdateConsumer(
             INDEX_REMOTE_TRANSLOG_BUFFER_INTERVAL_SETTING,
@@ -1435,6 +1481,10 @@ public final class IndexSettings {
         return mergePolicyConfig.getMergePolicy();
     }
 
+    public MergePolicy getDataStreamMergePolicy() {
+        return dataStreamMergePolicy;
+    }
+
     public <T> T getValue(Setting<T> setting) {
         return scopedSettings.get(setting);
     }
@@ -1637,6 +1687,25 @@ public final class IndexSettings {
                     + MERGE_ON_FLUSH_DEFAULT_POLICY
                     + ", "
                     + MERGE_ON_FLUSH_MERGE_POLICY
+            );
+        }
+    }
+
+    private void setDataStreamDefaultPolicy(String policy) {
+        if (policy.equals(DATASTREAM_TIERED_MERGE_POLICY)) {
+            this.dataStreamMergePolicy = mergePolicyConfig.getMergePolicy();
+        } else if (policy.equals(DATASTREAM_LOG_BYTE_SIZE_MERGE_POLICY)) {
+            this.dataStreamMergePolicy = mergePolicyConfig.getLogByteSizeMergePolicy();
+        } else {
+            throw new IllegalArgumentException(
+                "The "
+                    + IndexSettings.INDEX_DATASTREAM_MERGE_POLICY.getKey()
+                    + " has unsupported policy specified: "
+                    + policy
+                    + ". Please use one of: "
+                    + DATASTREAM_TIERED_MERGE_POLICY
+                    + ", "
+                    + DATASTREAM_LOG_BYTE_SIZE_MERGE_POLICY
             );
         }
     }

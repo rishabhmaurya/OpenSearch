@@ -202,6 +202,13 @@ public final class IndexScopedSettings extends AbstractScopedSettings {
                 IndexSettings.INDEX_MERGE_ON_FLUSH_ENABLED,
                 IndexSettings.INDEX_MERGE_ON_FLUSH_MAX_FULL_FLUSH_MERGE_WAIT_TIME,
                 IndexSettings.INDEX_MERGE_ON_FLUSH_POLICY,
+                IndexSettings.INDEX_DATASTREAM_MERGE_POLICY,
+                MergePolicyConfig.INDEX_LBS_MERGE_POLICY_MERGE_FACTOR_SETTING,
+                MergePolicyConfig.INDEX_LBS_MERGE_POLICY_MIN_MERGE_MB_SETTING,
+                MergePolicyConfig.INDEX_LBS_MAX_MERGE_SEGMENT_MB_SETTING,
+                MergePolicyConfig.INDEX_LBS_MAX_MERGE_SEGMENT_MB_FOR_FORCED_MERGE_SETTING,
+                MergePolicyConfig.INDEX_LBS_MAX_MERGED_DOCS_SETTING,
+                MergePolicyConfig.INDEX_LBS_NO_CFS_RATIO_SETTING,
                 IndexSettings.DEFAULT_SEARCH_PIPELINE,
 
                 // Settings for Searchable Snapshots
