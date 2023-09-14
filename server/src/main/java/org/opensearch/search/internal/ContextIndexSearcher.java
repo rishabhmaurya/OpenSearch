@@ -37,6 +37,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.PointValues;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BulkScorer;
 import org.apache.lucene.search.CollectionStatistics;
@@ -46,8 +47,10 @@ import org.apache.lucene.search.CollectorManager;
 import org.apache.lucene.search.ConjunctionUtils;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.Explanation;
+import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.LeafCollector;
+import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryCache;
 import org.apache.lucene.search.QueryCachingPolicy;
@@ -55,6 +58,7 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TermStatistics;
+import org.apache.lucene.search.TopFieldCollector;
 import org.apache.lucene.search.TopFieldDocs;
 import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.Weight;
@@ -63,6 +67,7 @@ import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.CombinedBitSet;
+import org.apache.lucene.util.DocIdSetBuilder;
 import org.apache.lucene.util.SparseFixedBitSet;
 import org.opensearch.common.lease.Releasable;
 import org.opensearch.common.lucene.search.TopDocsAndMaxScore;
@@ -78,6 +83,7 @@ import org.opensearch.search.query.QueryPhase;
 import org.opensearch.search.query.QuerySearchResult;
 import org.opensearch.search.sort.FieldSortBuilder;
 import org.opensearch.search.sort.MinAndMax;
+import org.opensearch.search.sort.SortOrder;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -314,9 +320,44 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
             searchContext.setSearchTimedOut(true);
             return;
         }
+
         // catch early terminated exception and rethrow?
         Bits liveDocs = ctx.reader().getLiveDocs();
         BitSet liveDocsBitSet = getSparseBitSetOrNull(liveDocs);
+        if (ctx.reader().getLiveDocs() == null
+            && searchContext.query() instanceof MatchAllDocsQuery && collector instanceof TopFieldCollector) {
+            if (searchContext.request() != null && searchContext.request().source() != null ) {
+                FieldSortBuilder primarySortField = FieldSortBuilder.getPrimaryFieldSortOrNull(searchContext.request().source());
+                if (primarySortField != null && primarySortField.missing() == null && Objects.equals(searchContext.trackTotalHitsUpTo(), SearchContext.TRACK_TOTAL_HITS_DISABLED)) {
+                    if (primarySortField.order() == SortOrder.DESC ) {
+                        int numHits = Math.min(searchContext.from() + searchContext.size(), ctx.reader().numDocs());
+
+                        if ((ctx.reader().numDocs() > 1000000) && (numHits < ctx.reader().numDocs()/1000)) {
+                            FieldDoc searchAfter = searchContext.searchAfter();
+                            if (searchAfter != null) {
+                                final Object searchAfterPrimary = searchAfter.fields[0];
+
+                            }
+
+                            PointValues pointValues = ctx.reader().getPointValues(primarySortField.getFieldName());
+                            final int[] nonCompetitiveDocsToSkip = {-1};
+                            final int[] competitiveDocsCollected = {0};
+                            DocIdSetBuilder result = new DocIdSetBuilder(liveDocs.length());
+                            CardinalityVisitor cardinalityVisitor = new CardinalityVisitor();
+                            // this can be expensive operation so should be restricted to be only used once per segment
+                            intersectLowerBound(cardinalityVisitor, pointValues.getPointTree());
+                            int lowerBoundCompetitiveDocs = cardinalityVisitor.getVisitedCount();
+                            nonCompetitiveDocsToSkip[0] = lowerBoundCompetitiveDocs - numHits;
+                            competitiveDocsCollected[0] = 0;
+                            // don't collect nonCompetitiveDocsToPass and start collecting when nonCompetitiveDocsToPass
+                            // is exhausted
+                            PointValues.IntersectVisitor visitor = null;
+                            pointValues.intersect(visitor);
+                        }
+                    }
+                }
+            }
+        }
         if (liveDocsBitSet == null) {
             BulkScorer bulkScorer = weight.bulkScorer(ctx);
             if (bulkScorer != null) {
@@ -538,5 +579,82 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
             logger.debug("Slice count using max target slice supplier [{}]", leafSlices.length);
         }
         return leafSlices;
+    }
+
+    private PointValues.Relation getRelation(byte[] minPackedValue, byte[] maxPackedValue) {
+        if (maxValueAsBytes != null) {
+            int cmp = bytesComparator.compare(minPackedValue, 0, maxValueAsBytes, 0);
+            if (cmp > 0 || (singleSort && cmp == 0)) return PointValues.Relation.CELL_OUTSIDE_QUERY;
+        }
+        if (minValueAsBytes != null) {
+            int cmp = bytesComparator.compare(maxPackedValue, 0, minValueAsBytes, 0);
+            if (cmp < 0 || (singleSort && cmp == 0)) return PointValues.Relation.CELL_OUTSIDE_QUERY;
+        }
+        if ((maxValueAsBytes != null
+            && bytesComparator.compare(maxPackedValue, 0, maxValueAsBytes, 0) > 0)
+            || (minValueAsBytes != null
+            && bytesComparator.compare(minPackedValue, 0, minValueAsBytes, 0) < 0)) {
+            return PointValues.Relation.CELL_CROSSES_QUERY;
+        }
+        return PointValues.Relation.CELL_INSIDE_QUERY;
+    }
+
+    /**
+     * Visits all documents which are strictly in the range with respect to relation defined in
+     * visitor. Doesn't fetch the doc values to compare, so faster than {@link
+     * PointValues.PointTree#intersect(PointValues.IntersectVisitor)}. This is slower than {@link
+     * PointValues#estimateDocCount(PointValues.IntersectVisitor)}.
+     *
+     * @param visitor CardinalityVisitor to comput the lower bound of matching documents
+     * @param pointTree uses the current node pointTree is at to search
+     */
+    private void intersectLowerBound(CardinalityVisitor visitor, PointValues.PointTree pointTree)
+        throws IOException {
+        PointValues.Relation r =
+            visitor.compare(pointTree.getMinPackedValue(), pointTree.getMaxPackedValue());
+        switch (r) {
+            case CELL_OUTSIDE_QUERY:
+                break;
+            case CELL_INSIDE_QUERY:
+                pointTree.visitDocIDs(visitor);
+                break;
+            case CELL_CROSSES_QUERY:
+                if (pointTree.moveToChild()) {
+                    do {
+                        intersectLowerBound(visitor, pointTree);
+                    } while (pointTree.moveToSibling());
+                    pointTree.moveToParent();
+                } else {
+                    // do nothing as we are finding lower bound of no of matches and will assume none of
+                    // documents are matching
+                    // leaf node crosses the query
+                }
+                break;
+            default:
+                throw new IllegalArgumentException("Unreachable code");
+        }
+    }
+
+    private class CardinalityVisitor implements PointValues.IntersectVisitor {
+        int visitedCount = 0;
+
+        @Override
+        public void visit(int docID) {
+            visitedCount += 1;
+        }
+
+        @Override
+        public void visit(int docID, byte[] packedValue) {
+            throw new IllegalStateException();
+        }
+
+        @Override
+        public PointValues.Relation compare(byte[] minPackedValue, byte[] maxPackedValue) {
+            return getRelation(minPackedValue, maxPackedValue);
+        }
+
+        public int getVisitedCount() {
+            return visitedCount;
+        }
     }
 }
