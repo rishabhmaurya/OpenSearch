@@ -51,6 +51,8 @@ import org.apache.lucene.index.SoftDeletesRetentionMergePolicy;
 import org.apache.lucene.index.StandardDirectoryReader;
 import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.misc.index.BPIndexReorderer;
+import org.apache.lucene.misc.index.BPReorderingMergePolicy;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.DocIdSetIterator;
@@ -2335,8 +2337,10 @@ public class InternalEngine extends Engine {
             // Disable merge on refresh
             iwc.setMaxFullFlushMergeWaitMillis(0);
         }
-
-        iwc.setMergePolicy(new OpenSearchMergePolicy(mergePolicy));
+        BPReorderingMergePolicy bpReorderingMergePolicy =
+            new BPReorderingMergePolicy(new OpenSearchMergePolicy(mergePolicy), new BPIndexReorderer());
+        
+        iwc.setMergePolicy(bpReorderingMergePolicy);
         iwc.setSimilarity(engineConfig.getSimilarity());
         iwc.setRAMBufferSizeMB(engineConfig.getIndexingBufferSize().getMbFrac());
         iwc.setCodec(engineConfig.getCodec());
