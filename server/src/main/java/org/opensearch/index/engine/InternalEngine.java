@@ -2339,7 +2339,7 @@ public class InternalEngine extends Engine {
         }
         BPReorderingMergePolicy bpReorderingMergePolicy =
             new BPReorderingMergePolicy(new OpenSearchMergePolicy(mergePolicy), new BPIndexReorderer());
-        
+
         iwc.setMergePolicy(bpReorderingMergePolicy);
         iwc.setSimilarity(engineConfig.getSimilarity());
         iwc.setRAMBufferSizeMB(engineConfig.getIndexingBufferSize().getMbFrac());
