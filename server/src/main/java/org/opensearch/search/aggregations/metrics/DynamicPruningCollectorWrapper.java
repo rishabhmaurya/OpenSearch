@@ -81,18 +81,16 @@ class DynamicPruningCollectorWrapper extends CardinalityAggregator.Collector {
             disi.advance(doc);
             int currDoc = disi.docID();
             assert currDoc == doc;
-            try(LeafReader reader = ctx.reader()) {
-                final Bits liveDocs = reader.getLiveDocs();
-                assert liveDocs == null || liveDocs.get(currDoc);
-                do {
-                    if (liveDocs == null || liveDocs.get(currDoc)) {
-                        delegateCollector.collect(currDoc, bucketOrd);
-                        disjunctionScorer.removeAllDISIsOnCurrentDoc();
-                    }
-                    currDoc = disi.nextDoc();
-                } while (currDoc != DocIdSetIterator.NO_MORE_DOCS);
-                throw new CollectionTerminatedException();
-            }
+            final Bits liveDocs = ctx.reader().getLiveDocs();
+            assert liveDocs == null || liveDocs.get(currDoc);
+            do {
+                if (liveDocs == null || liveDocs.get(currDoc)) {
+                    delegateCollector.collect(currDoc, bucketOrd);
+                    disjunctionScorer.removeAllDISIsOnCurrentDoc();
+                }
+                currDoc = disi.nextDoc();
+            } while (currDoc != DocIdSetIterator.NO_MORE_DOCS);
+            throw new CollectionTerminatedException();
         }
     }
 

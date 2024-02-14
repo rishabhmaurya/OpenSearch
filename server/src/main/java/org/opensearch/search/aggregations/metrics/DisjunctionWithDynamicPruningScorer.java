@@ -30,7 +30,7 @@ import java.util.List;
  * rest of the search space, so this term's subscorer DISI can be safely removed from list of subscorer to process.
  * <p>
  * 2. {@link #removeAllDISIsOnCurrentDoc()} breaks the invariant of Conjuction DISI i.e. the docIDs of all sub-scorers should be
- * <= current docID iterator is pointing to. When we remove elements from priority, it results in heapify action, which modifies
+ * less than or equal to current docID iterator is pointing to. When we remove elements from priority, it results in heapify action, which modifies
  * the top of the priority queye, which represents the current docID for subscorers here. To address this, we are wrapping the
  * iterator with {@link SlowDocIdPropagatorDISI} which keeps the iterator pointing to last docID before {@link #removeAllDISIsOnCurrentDoc()}
  * is called and updates this docID only when next() or advance() is called.
