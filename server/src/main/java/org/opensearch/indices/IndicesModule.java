@@ -170,7 +170,6 @@ public class IndicesModule extends AbstractModule {
         mappers.put(FieldAliasMapper.CONTENT_TYPE, new FieldAliasMapper.TypeParser());
         mappers.put(GeoPointFieldMapper.CONTENT_TYPE, new GeoPointFieldMapper.TypeParser());
         mappers.put(FlatObjectFieldMapper.CONTENT_TYPE, FlatObjectFieldMapper.PARSER);
-        mappers.put(ConstantKeywordFieldMapper.CONTENT_TYPE, new ConstantKeywordFieldMapper.TypeParser());
         mappers.put(DerivedFieldMapper.CONTENT_TYPE, DerivedFieldMapper.PARSER);
 
         for (MapperPlugin mapperPlugin : mapperPlugins) {

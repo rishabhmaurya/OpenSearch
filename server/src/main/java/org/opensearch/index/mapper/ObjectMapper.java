@@ -294,10 +294,10 @@ public class ObjectMapper extends Mapper implements Cloneable {
             } else if (fieldName.equals("derived")) {
                 if (fieldNode instanceof Collection && ((Collection) fieldNode).isEmpty()) {
                     // nothing to do here, empty (to support "derived: []" case)
-                } else if (fieldNode instanceof Map) {
-                    parseDerived(builder, (Map<String, Object>) fieldNode, parserContext);
-                } else {
+                } else if (!(fieldNode instanceof Map)) {
                     throw new OpenSearchParseException("derived must be a map type");
+                } else {
+                    parseDerived(builder, (Map<String, Object>) fieldNode, parserContext);
                 }
                 return true;
             } else if (fieldName.equals("properties")) {
