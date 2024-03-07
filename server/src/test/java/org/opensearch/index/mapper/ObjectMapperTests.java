@@ -447,44 +447,43 @@ public class ObjectMapperTests extends OpenSearchSingleNodeTestCase {
             .startObject("tweet")
             .startObject("derived")
             .startObject("derived_field_name1")
-            .field("type", "boolean")
+            .field("type", "text")
             .endObject()
             .startObject("derived_field_name2")
             .field("type", "keyword")
-            .startObject("script")
-            .field("source", "doc['test'].value")
-            .endObject()
+            .field("script", "{\"source\": \"doc['test'].value\"}")
             .endObject()
             .endObject()
             .startObject("properties")
             .startObject("field_name")
-            .field("type", "date")
+            .field("type", "text")
             .endObject()
             .endObject()
             .endObject()
             .endObject()
             .toString();
 
-        DocumentMapper documentMapper = createIndex("test").mapperService()
+        DocumentMapper documentMapper = createIndex("test")
+            .mapperService()
             .documentMapperParser()
             .parse("tweet", new CompressedXContent(mapping));
 
         Mapper mapper = documentMapper.root().getMapper("derived_field_name1");
         assertTrue(mapper instanceof DerivedFieldMapper);
         DerivedFieldMapper derivedFieldMapper = (DerivedFieldMapper) mapper;
-        assertEquals("boolean", derivedFieldMapper.getType());
+        assertEquals("text", derivedFieldMapper.getType());
         assertNull(derivedFieldMapper.getScript());
 
         mapper = documentMapper.root().getMapper("derived_field_name2");
         assertTrue(mapper instanceof DerivedFieldMapper);
         derivedFieldMapper = (DerivedFieldMapper) mapper;
         assertEquals("keyword", derivedFieldMapper.getType());
-        assertEquals(Script.parse("doc['test'].value"), derivedFieldMapper.getScript());
+        assertEquals(Script.parse("{\"source\": \"doc['test'].value\"}"), derivedFieldMapper.getScript());
 
         // Check that field in properties was parsed correctly as well
         mapper = documentMapper.root().getMapper("field_name");
         assertNotNull(mapper);
-        assertEquals("date", mapper.typeName());
+        assertEquals("text", mapper.typeName());
     }
 
     @Override
