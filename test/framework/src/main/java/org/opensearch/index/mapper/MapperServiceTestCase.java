@@ -241,8 +241,7 @@ public abstract class MapperServiceTestCase extends OpenSearchTestCase {
         return fieldMapping(buildField, false);
     }
 
-    protected final XContentBuilder fieldMapping(CheckedConsumer<XContentBuilder, IOException> buildField, Boolean isDerived)
-        throws IOException {
+    protected final XContentBuilder fieldMapping(CheckedConsumer<XContentBuilder, IOException> buildField, Boolean isDerived) throws IOException {
         if (isDerived) {
             return derivedMapping(b -> {
                 b.startObject("field");

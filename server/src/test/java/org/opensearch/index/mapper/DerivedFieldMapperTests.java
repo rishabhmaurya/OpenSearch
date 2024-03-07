@@ -22,10 +22,6 @@ public class DerivedFieldMapperTests extends MapperTestCase {
         return false;
     }
 
-    protected boolean supportsMeta() {
-        return false;
-    }
-
     // Overriding fieldMapping to make it create derived mappings by default.
     // This way, the parent tests are checking the right behavior for this Mapper.
     @Override
@@ -44,14 +40,11 @@ public class DerivedFieldMapperTests extends MapperTestCase {
 
     protected void registerParameters(ParameterChecker checker) throws IOException {
         // TODO Any conflicts or updates to check for here? Parameters index, store, doc_values and boost are not
-        // supported for DerivedFieldMapper (we explicitly set these values on initialization)
+        //  supported for DerivedFieldMapper (we explicitly set these values on initialization)
     }
 
-    // TODO: Can update this once the query implementation is completed
-    // This is also being left blank because the super assertExistsQuery is trying to parse
-    // an empty source and fails.
-    @Override
-    protected void assertExistsQuery(MapperService mapperService) {}
+    // TESTCASE: testDefaults() (no script provided and assuming field is not in the source either)
+    //  TODO: Might not need this (no default that really deviates it from testSerialization()
 
     public void testSerialization() throws IOException {
 
@@ -67,12 +60,10 @@ public class DerivedFieldMapperTests extends MapperTestCase {
 
     public void testParsesScript() throws IOException {
 
-        String scriptString = "doc['test'].value";
+        String scriptString = "{\"source\": \"doc['test'].value\"}";
         DocumentMapper defaultMapper = createDocumentMapper(fieldMapping(b -> {
             b.field("type", "keyword");
-            b.startObject("script");
-            b.field("source", scriptString);
-            b.endObject();
+            b.field("script", scriptString);
         }));
         Mapper mapper = defaultMapper.mappers().getMapper("field");
         assertTrue(mapper instanceof DerivedFieldMapper);
@@ -82,36 +73,36 @@ public class DerivedFieldMapperTests extends MapperTestCase {
         XContentBuilder builder = XContentFactory.jsonBuilder().startObject();
         mapper.toXContent(builder, ToXContent.EMPTY_PARAMS);
         builder.endObject();
+        assertEquals("{\"type\": \"keyword\",\"script\": {\"source\": \"emit(doc['test'].value)\"}}", builder.toString());
+    }
+
+    //  TODO: Is there a case where we want to allow the field to be defined in both 'derived' and 'properties'?
+    //    If the user wants to move a field they were testing as derived to be indexed they should be able to update
+    //    the mappings in index template to move the field from 'derived' to 'properties' and it should take affect
+    //    during the next index rollover (so even in this case, the field is only defined in one or the other).
+    public void testFieldInDerivedAndProperties() throws IOException {
+        MapperParsingException ex = expectThrows(
+            MapperParsingException.class,
+            () -> createDocumentMapper(topMapping(b -> {
+                b.startObject("derived");
+                b.startObject("field");
+                b.field("type", "keyword");
+                b.endObject();
+                b.endObject();
+                b.startObject("properties");
+                b.startObject("field");
+                b.field("type", "keyword");
+                b.endObject();
+                b.endObject();
+            }))
+        );
         assertEquals(
-            "{\"field\":{\"type\":\"keyword\",\"script\":{\"source\":\"doc['test'].value\",\"lang\":\"painless\"}}}",
-            builder.toString()
+            "Field [field] is defined more than once",
+            ex.getMessage()
         );
     }
 
-    // TODO: Is there a case where we want to allow the field to be defined in both 'derived' and 'properties'?
-    // If the user wants to move a field they were testing as derived to be indexed, they should be able to update
-    // the mappings in index template to move the field from 'derived' to 'properties' and it should take affect
-    // during the next index rollover (so even in this case, the field is only defined in one or the other).
-    public void testFieldInDerivedAndProperties() throws IOException {
-        MapperParsingException ex = expectThrows(MapperParsingException.class, () -> createDocumentMapper(topMapping(b -> {
-            b.startObject("derived");
-            b.startObject("field");
-            b.field("type", "keyword");
-            b.endObject();
-            b.endObject();
-            b.startObject("properties");
-            b.startObject("field");
-            b.field("type", "keyword");
-            b.endObject();
-            b.endObject();
-        })));
-        // TODO: Do we want to handle this as a different error? As it stands, it fails as a merge conflict which makes sense.
-        // If it didn't fail here, it would hit the MapperParsingException for the field being defined more than once
-        // when MappingLookup is initialized
-        assertEquals("Failed to parse mapping [_doc]: mapper [field] cannot be changed from type [derived] to [keyword]", ex.getMessage());
-    }
-
     // TODO TESTCASE: testWithFieldInSource() (derived field with that field present in source)
-    // This is more checking search behavior so may need to revisit this after query implementation
+    //  This is more checking search behavior so may need to revisit this after query implementation
 
 }
