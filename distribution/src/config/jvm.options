@@ -8,8 +8,8 @@
 ## size to the same value. For example, to set
 ## the heap to 4 GB, set:
 ##
-## -Xms4g
-## -Xmx4g
+-Xms16g
+-Xmx16g
 ##
 ## See https://opensearch.org/docs/opensearch/install/important-settings/
 ## for more information

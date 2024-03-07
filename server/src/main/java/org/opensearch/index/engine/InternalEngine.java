@@ -2337,10 +2337,9 @@ public class InternalEngine extends Engine {
             // Disable merge on refresh
             iwc.setMaxFullFlushMergeWaitMillis(0);
         }
-        BPReorderingMergePolicy bpReorderingMergePolicy =
-            new BPReorderingMergePolicy(new OpenSearchMergePolicy(mergePolicy), new BPIndexReorderer());
-
-        iwc.setMergePolicy(bpReorderingMergePolicy);
+        logger.info("Using BP Reorder");
+        iwc.setMergePolicy(new OpenSearchMergePolicy(new BPReorderingMergePolicy(mergePolicy, new BPIndexReorderer())));
+        // iwc.setMergePolicy(new OpenSearchMergePolicy(mergePolicy));
         iwc.setSimilarity(engineConfig.getSimilarity());
         iwc.setRAMBufferSizeMB(engineConfig.getIndexingBufferSize().getMbFrac());
         iwc.setCodec(engineConfig.getCodec());
