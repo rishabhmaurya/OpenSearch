@@ -34,6 +34,8 @@ package org.opensearch.search.fetch.subphase;
 
 import org.apache.lucene.index.LeafReaderContext;
 import org.opensearch.common.document.DocumentField;
+import org.opensearch.index.mapper.DerivedFieldMapper;
+import org.opensearch.index.mapper.DocumentMapper;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.index.mapper.ValueFetcher;
 import org.opensearch.index.query.QueryShardContext;
@@ -66,6 +68,10 @@ public class FieldFetcher {
             Collection<String> concreteFields = context.simpleMatchToIndexNames(fieldPattern);
             for (String field : concreteFields) {
                 MappedFieldType ft = context.getFieldType(field);
+                if (ft == null && context.getDerivedFieldsMapper() != null) {
+                    DocumentMapper derivedFieldsMapper = context.getDerivedFieldsMapper();
+                    ft = ((DerivedFieldMapper) derivedFieldsMapper.mappers().getMapper(field)).fieldType();
+                }
                 if (ft == null || context.isMetadataField(field)) {
                     continue;
                 }

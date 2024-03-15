@@ -15,6 +15,7 @@ import org.apache.lucene.document.KeywordField;
 import org.apache.lucene.document.LongField;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.MultiTermQuery;
 import org.apache.lucene.search.Query;
 import org.opensearch.common.Nullable;
@@ -27,6 +28,7 @@ import org.opensearch.index.query.DerivedFieldScript;
 import org.opensearch.index.query.QueryShardContext;
 import org.opensearch.script.Script;
 import org.opensearch.search.lookup.SearchLookup;
+import org.opensearch.search.lookup.SourceLookup;
 
 import java.io.IOException;
 import java.time.ZoneId;
@@ -43,7 +45,7 @@ import java.util.function.Function;
  */
 public class DerivedFieldMapper extends ParametrizedFieldMapper {
 
-    public static final String CONTENT_TYPE = "derived_field";
+    public static final String CONTENT_TYPE = "derived";
 
     /**
      * Default parameters for the boolean field mapper
@@ -191,13 +193,30 @@ public class DerivedFieldMapper extends ParametrizedFieldMapper {
             if (format != null) {
                 throw new IllegalArgumentException("Field [" + name() + "] of type [" + typeName() + "] doesn't support formats.");
             }
+            DerivedFieldScript.Factory factory = context.compile(script, DerivedFieldScript.CONTEXT);
+            DerivedFieldScript.LeafFactory derivedFieldScriptFactory = factory.newFactory(script.getParams(), context.lookup());
 
-            // TODO Return to this during Query implementation. The derived fields don't typically exist in _source but
-            //  we may want fetch the field name from source if a 'script' is not provided.
             return new SourceValueFetcher(name(), context) {
+                DerivedFieldScript derivedFieldScript;
+
+                @Override
+                public List<Object> fetchValues(SourceLookup lookup) {
+                    derivedFieldScript.setDocument(lookup.docId());
+                    // TODO: remove List.of() when derivedFieldScript.execute() returns list of objects.
+                    return List.of(derivedFieldScript.execute());
+                }
+
                 @Override
                 protected Object parseSourceValue(Object value) {
                     return value;
+                }
+
+                public void setNextReader(LeafReaderContext context) {
+                    try {
+                        derivedFieldScript = derivedFieldScriptFactory.newInstance(context);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
             };
         }
