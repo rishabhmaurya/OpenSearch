@@ -22,44 +22,39 @@ import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TwoPhaseIterator;
 import org.apache.lucene.search.Weight;
+import org.opensearch.index.mapper.DerivedFieldValueFetcher;
+import org.opensearch.search.lookup.LeafSearchLookup;
+import org.opensearch.search.lookup.SearchLookup;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
 /**
  * DerivedFieldQuery used for querying derived fields.
  */
-public class DerivedFieldQuery extends Query {
-    private final Query filter;
-    private final DerivedFieldScript.LeafFactory derivedFieldScriptFactory;
+public final class DerivedFieldQuery extends Query {
+    private final Query query;
+    private final DerivedFieldValueFetcher valueFetcher;
+    private final SearchLookup searchLookup;
+    private final Function<Object, IndexableField> indexableFieldGenerator;
     private final Analyzer indexAnalyzer;
-    private final Function<Object, IndexableField> fieldFunction;
-    private final QueryShardContext context;
 
     /**
-     * @param query                     query to execute against memory index
-     * @param derivedFieldScriptFactory derived field script's LeafFactory instance
-     * @param indexAnalyzer             index analyzer to use while building memory index
-     * @param fieldFunction             IndexableField generator
-     * @param context                   QueryShardContext
+     *
+     * @param query
+     * @param valueFetcher
+     * @param searchLookup
+     * @param indexableFieldGenerator
      */
-    public DerivedFieldQuery(Query query, DerivedFieldScript.LeafFactory derivedFieldScriptFactory,
-                             Analyzer indexAnalyzer, Function<Object, IndexableField> fieldFunction,
-                             QueryShardContext context) {
-        this.filter = query;
-        this.derivedFieldScriptFactory = derivedFieldScriptFactory;
+    public DerivedFieldQuery(Query query, DerivedFieldValueFetcher valueFetcher, SearchLookup searchLookup,
+                             Function<Object, IndexableField> indexableFieldGenerator, Analyzer indexAnalyzer) {
+        this.query = query;
+        this.valueFetcher = valueFetcher;
+        this.searchLookup = searchLookup;
+        this.indexableFieldGenerator = indexableFieldGenerator;
         this.indexAnalyzer = indexAnalyzer;
-        this.context = context;
-        this.fieldFunction = fieldFunction;
-        if (!context.documentMapper("").sourceMapper().enabled()) {
-            throw new IllegalArgumentException(
-                "DerivedFieldQuery error: unable to fetch fields from _source field: _source is disabled in the mappings "
-                    + "for index ["
-                    + context.index().getName()
-                    + "]"
-            );
-        }
     }
 
     @Override
@@ -69,31 +64,34 @@ public class DerivedFieldQuery extends Query {
 
     @Override
     public Query rewrite(IndexSearcher indexSearcher) throws IOException {
-        Query rewritten = indexSearcher.rewrite(filter);
-        if (rewritten == filter) {
+        Query rewritten = indexSearcher.rewrite(query);
+        if (rewritten == query) {
             return this;
         }
-        return new DerivedFieldQuery(rewritten, derivedFieldScriptFactory, indexAnalyzer, fieldFunction, context);
+        return new DerivedFieldQuery(rewritten, valueFetcher, searchLookup, indexableFieldGenerator, indexAnalyzer);
     }
 
     @Override
     public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost) throws IOException {
+
         return new ConstantScoreWeight(this, boost) {
             @Override
             public Scorer scorer(LeafReaderContext context) throws IOException {
                 DocIdSetIterator approximation = DocIdSetIterator.all(context.reader().maxDoc());
-                DerivedFieldScript derivedFieldScript = derivedFieldScriptFactory.newInstance(context);
+                valueFetcher.setNextReader(context);
+                LeafSearchLookup leafSearchLookup = searchLookup.getLeafSearchLookup(context);
                 TwoPhaseIterator twoPhase = new TwoPhaseIterator(approximation) {
                     @Override
                     public boolean matches() {
-                        derivedFieldScript.setDocument(approximation.docID());
-                        Object value = derivedFieldScript.execute();
+                        leafSearchLookup.source().setSegmentAndDocument(context, approximation.docID());
+                        List<Object> values = valueFetcher.fetchValues(leafSearchLookup.source());
                         // TODO: in case of errors from script, should it be ignored and treated as missing field
                         //  by using a configurable setting?
                         MemoryIndex memoryIndex = new MemoryIndex();
-                        // TODO add support for multi-field with use of emit() once available
-                        memoryIndex.addField(fieldFunction.apply(value), indexAnalyzer);
-                        float score = memoryIndex.search(filter);
+                        for (Object value : values) {
+                            memoryIndex.addField(indexableFieldGenerator.apply(value), indexAnalyzer);
+                        }
+                        float score = memoryIndex.search(query);
                         return score > 0.0f;
                     }
 
@@ -125,20 +123,20 @@ public class DerivedFieldQuery extends Query {
             return false;
         }
         DerivedFieldQuery other = (DerivedFieldQuery) o;
-        return Objects.equals(this.filter, other.filter)
-            && Objects.equals(this.derivedFieldScriptFactory, other.derivedFieldScriptFactory)
-            && Objects.equals(this.fieldFunction, other.fieldFunction)
-            && Objects.equals(this.indexAnalyzer, other.indexAnalyzer)
-            && Objects.equals(this.context, other.context);
+        return Objects.equals(this.query, other.query)
+            && Objects.equals(this.valueFetcher, other.valueFetcher)
+            && Objects.equals(this.searchLookup, other.searchLookup)
+            && Objects.equals(this.indexableFieldGenerator, other.indexableFieldGenerator)
+            && Objects.equals(this.indexAnalyzer, other.indexAnalyzer);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(classHash(), filter, derivedFieldScriptFactory, fieldFunction, indexAnalyzer, context);
+        return Objects.hash(classHash(), query, valueFetcher, searchLookup, indexableFieldGenerator, indexableFieldGenerator);
     }
 
     @Override
     public String toString(String f) {
-        return "DerivedFieldQuery (filter query: [ " + filter.toString(f) + "])";
+        return "DerivedFieldQuery (Query: [ " + query.toString(f) + "])";
     }
 }
