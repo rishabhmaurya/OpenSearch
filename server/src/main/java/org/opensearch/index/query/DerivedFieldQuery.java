@@ -91,7 +91,7 @@ public class DerivedFieldQuery extends Query {
                         // TODO: in case of errors from script, should it be ignored and treated as missing field
                         //  by using a configurable setting?
                         MemoryIndex memoryIndex = new MemoryIndex();
-                        // TODO add support for multi-field with use of emit()
+                        // TODO add support for multi-field with use of emit() once available
                         memoryIndex.addField(fieldFunction.apply(value), indexAnalyzer);
                         float score = memoryIndex.search(filter);
                         return score > 0.0f;
