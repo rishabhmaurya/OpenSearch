@@ -32,7 +32,8 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * DerivedFieldQuery used for querying derived fields.
+ * DerivedFieldQuery used for querying derived fields. It contains the logic to execute an input lucene query against
+ * DerivedField. It also accepts DerivedFieldValueFetcher and SearchLookup as an input.
  */
 public final class DerivedFieldQuery extends Query {
     private final Query query;
@@ -42,11 +43,12 @@ public final class DerivedFieldQuery extends Query {
     private final Analyzer indexAnalyzer;
 
     /**
-     *
-     * @param query
-     * @param valueFetcher
-     * @param searchLookup
-     * @param indexableFieldGenerator
+     * @param query lucene query to be executed against the derived field
+     * @param valueFetcher DerivedFieldValueFetcher ValueFetcher to fetch the value of a derived field from _source
+     *                     using LeafSearchLookup
+     * @param searchLookup SearchLookup to get the LeafSearchLookup look used by valueFetcher to fetch the _source
+     * @param indexableFieldGenerator used to generate lucene IndexableField from a given object fetched by valueFetcher
+     *                                to be used in lucene memory index.
      */
     public DerivedFieldQuery(Query query, DerivedFieldValueFetcher valueFetcher, SearchLookup searchLookup,
                              Function<Object, IndexableField> indexableFieldGenerator, Analyzer indexAnalyzer) {
@@ -76,7 +78,7 @@ public final class DerivedFieldQuery extends Query {
 
         return new ConstantScoreWeight(this, boost) {
             @Override
-            public Scorer scorer(LeafReaderContext context) throws IOException {
+            public Scorer scorer(LeafReaderContext context) {
                 DocIdSetIterator approximation = DocIdSetIterator.all(context.reader().maxDoc());
                 valueFetcher.setNextReader(context);
                 LeafSearchLookup leafSearchLookup = searchLookup.getLeafSearchLookup(context);
@@ -106,9 +108,6 @@ public final class DerivedFieldQuery extends Query {
 
             @Override
             public boolean isCacheable(LeafReaderContext ctx) {
-                // TODO: Change this to true when we can assume that scripts are pure functions
-                // ie. the return value is always the same given the same conditions and may not
-                // depend on the current timestamp, other documents, etc.
                 return false;
             }
         };

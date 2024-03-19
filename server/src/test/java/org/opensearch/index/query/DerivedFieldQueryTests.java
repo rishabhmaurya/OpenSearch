@@ -16,7 +16,6 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.TermQuery;
@@ -32,21 +31,20 @@ import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+
 public class DerivedFieldQueryTests extends OpenSearchTestCase {
 
-    private static String[][] raw_requests = new String[][]{
+    private static final String[][] raw_requests = new String[][]{
         {"40.135.0.0 GET /images/hm_bg.jpg HTTP/1.0", "200", "40.135.0.0"},
         {"232.0.0.0 GET /images/hm_bg.jpg HTTP/1.0", "400", "232.0.0.0"},
         {"26.1.0.0 GET /images/hm_bg.jpg HTTP/1.0", "200", "26.1.0.0"},
         {"247.37.0.0 GET /french/splash_inet.html HTTP/1.0", "400", "247.37.0.0"},
-        {"247.37.0.1 GET /french/splash_inet.html HTTP/1.0", "400", "247.37.0.1"}
+        {"247.37.0.0 GET /french/splash_inet.html HTTP/1.0", "400", "247.37.0.0"}
     };
 
     public void testDerivedField() throws IOException {
@@ -55,38 +53,28 @@ public class DerivedFieldQueryTests extends OpenSearchTestCase {
         for (String[] request : raw_requests) {
             Document document = new Document();
             document.add(new TextField("raw_request", request[0], Field.Store.YES));
-            document.add(new TextField("status", request[1], Field.Store.YES));
+            document.add(new KeywordField("status", request[1], Field.Store.YES));
             docs.add(document);
         }
 
         // Mock SearchLookup
         SearchLookup searchLookup = mock(SearchLookup.class);
+        SourceLookup sourceLookup = new SourceLookup();
+        LeafSearchLookup leafLookup = mock(LeafSearchLookup.class);
+        when(leafLookup.source()).thenReturn(sourceLookup);
 
         // Mock DerivedFieldScript.Factory
-        DerivedFieldScript.Factory factory = (params, lookup) -> new DerivedFieldScript.LeafFactory() {
-            final int[] docID = {0};
-
-            @Override
-            public DerivedFieldScript newInstance(LeafReaderContext ctx) throws IOException {
-                LeafSearchLookup leafLookup = mock(LeafSearchLookup.class);
-                when(searchLookup.getLeafSearchLookup(ctx)).thenReturn(leafLookup);
-                SourceLookup sourceLookup = mock(SourceLookup.class);
-                when(leafLookup.source()).thenReturn(sourceLookup);
-                when(leafLookup.asMap()).thenReturn(Collections.singletonMap("_source", sourceLookup));
-                return new DerivedFieldScript(params, lookup, ctx) {
-                    @Override
-                    public Object execute() {
-                        when(sourceLookup.loadSourceIfNeeded()).thenReturn(new HashMap<>() {{
-                            put("raw_request", raw_requests[docID[0]][0]);
-                            put("status", raw_requests[docID[0]][1]);
-                        }});
-                        return raw_requests[docID[0]++][2];
-                    }
-                };
-            }
+        DerivedFieldScript.Factory factory = (params, lookup) -> (DerivedFieldScript.LeafFactory) ctx -> {
+            when(searchLookup.getLeafSearchLookup(ctx)).thenReturn(leafLookup);
+            return new DerivedFieldScript(params, lookup, ctx) {
+                @Override
+                public Object execute() {
+                    return raw_requests[sourceLookup.docId()][2];
+                }
+            };
         };
 
-        // Create ValueFecther from mocked DerivedFieldScript.Factory
+        // Create ValueFetcher from mocked DerivedFieldScript.Factory
         DerivedFieldScript.LeafFactory leafFactory = factory.newFactory((new Script("")).getParams(), searchLookup);
         DerivedFieldValueFetcher valueFetcher = new DerivedFieldValueFetcher(leafFactory);
 
@@ -110,7 +98,7 @@ public class DerivedFieldQueryTests extends OpenSearchTestCase {
                 iw.close();
                 IndexSearcher searcher = new IndexSearcher(reader);
                 TopDocs topDocs = searcher.search(derivedFieldQuery, 10);
-                assertEquals(1, topDocs.totalHits.value);
+                assertEquals(2, topDocs.totalHits.value);
             }
         }
     }

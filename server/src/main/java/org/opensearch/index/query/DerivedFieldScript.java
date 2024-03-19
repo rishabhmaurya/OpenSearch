@@ -47,16 +47,14 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * Script for derived fields
+ * Definition of Script for DerivedField.
  *
  * @opensearch.internal
  */
 public abstract class DerivedFieldScript {
 
     public static final String[] PARAMETERS = {};
-
     public static final ScriptContext<Factory> CONTEXT = new ScriptContext<>("derived_field", Factory.class);
-
     private static final DeprecationLogger deprecationLogger = DeprecationLogger.getLogger(DynamicMap.class);
 
     private static final Map<String, Function<Object, Object>> PARAMS_FUNCTIONS = Map.of(
