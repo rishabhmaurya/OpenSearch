@@ -31,12 +31,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * Contains logic to get the FieldMapper for a given type of derived field. Also, for a given type of derived field,
- * it is used to create an IndexableField for the provided type and object. It is useful when indexing into
- * lucene MemoryIndex in {@link org.opensearch.index.query.DerivedFieldQuery}.
- */
-enum DerivedFieldSupportedTypes {
+public enum DerivedFieldSupportedTypes {
 
     BOOLEAN("boolean", (name, context) -> {
         BooleanFieldMapper.Builder builder = new BooleanFieldMapper.Builder(name);
