@@ -19,6 +19,7 @@ import org.opensearch.search.lookup.SourceLookup;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -159,7 +160,7 @@ public class FieldTypeInference {
         }
 
         private static int[] getSortedRandomNum(int sampleSize, int upperBound, int attempts) {
-            Set<Integer> generatedNumbers = new TreeSet<>();
+            Set<Integer> generatedNumbers = new TreeSet<>(Collections.reverseOrder());
             Random random = Randomness.get();
             int itr = 0;
             if (upperBound <= 10 * sampleSize) {
