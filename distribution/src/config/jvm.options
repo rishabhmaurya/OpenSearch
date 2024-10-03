@@ -85,5 +85,4 @@ ${error.file}
 
 # HDFS ForkJoinPool.common() support by SecurityManager
 -Djava.util.concurrent.ForkJoinPool.common.threadFactory=org.opensearch.secure_sm.SecuredForkJoinWorkerThreadFactory
--Dio.netty.tryReflectionSetAccessible=true
--XX:MaxDirectMemorySize=1g
+--add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED
