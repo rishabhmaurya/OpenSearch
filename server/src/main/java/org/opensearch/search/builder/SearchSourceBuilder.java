@@ -105,6 +105,7 @@ public final class SearchSourceBuilder implements Writeable, ToXContentObject, R
     public static final ParseField TIMEOUT_FIELD = new ParseField("timeout");
     public static final ParseField TERMINATE_AFTER_FIELD = new ParseField("terminate_after");
     public static final ParseField QUERY_FIELD = new ParseField("query");
+    public static final ParseField JOIN_FIELD = new ParseField("join");
     public static final ParseField POST_FILTER_FIELD = new ParseField("post_filter");
     public static final ParseField MIN_SCORE_FIELD = new ParseField("min_score");
     public static final ParseField VERSION_FIELD = new ParseField("version");
@@ -162,6 +163,10 @@ public final class SearchSourceBuilder implements Writeable, ToXContentObject, R
     }
 
     private QueryBuilder queryBuilder;
+    private Join join;
+    public Join getJoin() {
+        return join;
+    }
 
     private QueryBuilder postQueryBuilder;
 
@@ -1391,7 +1396,9 @@ public final class SearchSourceBuilder implements Writeable, ToXContentObject, R
                         searchPipelineSource = parser.mapOrdered();
                     } else if (DERIVED_FIELDS_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
                         derivedFieldsObject = parser.map();
-                    } else {
+                    } else if (JOIN_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
+                        join = JoinFieldParser.parse(parser);
+                } else {
                         throw new ParsingException(
                             parser.getTokenLocation(),
                             "Unknown key for a " + token + " in [" + currentFieldName + "].",
