@@ -6,14 +6,16 @@
  * compatible open source license.
  */
 
-package org.opensearch.search.query;
+package org.opensearch.search.stream;
 
 import org.opensearch.core.common.io.stream.StreamOutput;
-import org.opensearch.core.transport.TransportResponse;
 import org.opensearch.search.SearchPhaseResult;
 
 import java.io.IOException;
 
+/**
+ * Stream query response.
+ */
 public class StreamQueryResponse extends SearchPhaseResult {
     @Override
     public void writeTo(StreamOutput out) throws IOException {

@@ -124,7 +124,8 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.opensearch.action.admin.cluster.node.tasks.get.GetTaskAction.TASKS_ORIGIN;
-import static org.opensearch.action.search.SearchType.*;
+import static org.opensearch.action.search.SearchType.DFS_QUERY_THEN_FETCH;
+import static org.opensearch.action.search.SearchType.QUERY_THEN_FETCH;
 import static org.opensearch.search.sort.FieldSortBuilder.hasPrimaryFieldSort;
 
 /**
@@ -1324,7 +1325,8 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
                         task,
                         clusters,
                         searchRequestContext,
-                        tracer
+                        tracer,
+                        searchService.getStreamManager()
                     );
                     break;
                 default:

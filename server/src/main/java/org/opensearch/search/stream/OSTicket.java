@@ -15,19 +15,26 @@ import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.common.io.stream.Writeable;
 import org.opensearch.core.xcontent.ToXContentFragment;
 import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.search.SearchShardTarget;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * OpenSearch Ticket
+ */
 @ExperimentalApi
 public class OSTicket extends StreamTicket implements Writeable, ToXContentFragment {
 
-    public OSTicket(byte[] bytes) {
+    SearchShardTarget shard;
+
+    public OSTicket(byte[] bytes, SearchShardTarget shard) {
         super(bytes);
+        this.shard = shard;
     }
 
     public OSTicket(StreamInput in) throws IOException {
-        this(in.readByteArray());
+        this(in.readByteArray(), new SearchShardTarget(in));
     }
 
     @Override
@@ -39,5 +46,6 @@ public class OSTicket extends StreamTicket implements Writeable, ToXContentFragm
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeByteArray(this.getBytes());
+        shard.writeTo(out);
     }
 }

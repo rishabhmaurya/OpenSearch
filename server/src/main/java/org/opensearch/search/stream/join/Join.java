@@ -6,7 +6,7 @@
  * compatible open source license.
  */
 
-package org.opensearch.search.builder;
+package org.opensearch.search.stream.join;
 
 import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.core.xcontent.XContentParser;
@@ -16,6 +16,9 @@ import org.opensearch.search.fetch.subphase.FieldAndFormat;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Represents a join condition in a search query.
+ */
 @ExperimentalApi
 public class Join {
     private String index;
@@ -99,5 +102,3 @@ public class Join {
         setCondition(condition);
     }
 }
-
-

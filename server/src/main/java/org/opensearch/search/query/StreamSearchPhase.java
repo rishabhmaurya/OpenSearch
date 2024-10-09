@@ -9,9 +9,12 @@
 package org.opensearch.search.query;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.search.Collector;
@@ -19,21 +22,33 @@ import org.apache.lucene.search.Query;
 import org.opensearch.arrow.ArrowStreamProvider;
 import org.opensearch.arrow.StreamManager;
 import org.opensearch.arrow.StreamTicket;
-import org.opensearch.arrow.query.ArrowDocIdCollector;
+import org.opensearch.index.mapper.MappedFieldType;
+import org.opensearch.index.query.QueryShardContext;
 import org.opensearch.search.SearchContextSourcePrinter;
 import org.opensearch.search.aggregations.AggregationProcessor;
+import org.opensearch.search.fetch.subphase.FieldAndFormat;
 import org.opensearch.search.internal.ContextIndexSearcher;
 import org.opensearch.search.internal.SearchContext;
 import org.opensearch.search.profile.ProfileShardResult;
 import org.opensearch.search.profile.SearchProfileShardResults;
 import org.opensearch.search.stream.OSTicket;
 import org.opensearch.search.stream.StreamSearchResult;
+import org.opensearch.search.stream.collector.ArrowCollector;
+import org.opensearch.search.stream.collector.ArrowFieldAdaptor;
+import org.opensearch.search.stream.join.Join;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
+import static org.opensearch.search.stream.collector.ArrowFieldAdaptor.getArrowType;
+
+/**
+ * Produce stream from a shard search
+ */
 public class StreamSearchPhase extends QueryPhase {
 
     private static final Logger LOGGER = LogManager.getLogger(StreamSearchPhase.class);
@@ -59,7 +74,9 @@ public class StreamSearchPhase extends QueryPhase {
         }
     }
 
-
+    /**
+     * Default implementation of {@link QueryPhaseSearcher}.
+     */
     public static class DefaultStreamSearchPhaseSearcher extends DefaultQueryPhaseSearcher {
 
         @Override
@@ -108,35 +125,79 @@ public class StreamSearchPhase extends QueryPhase {
             boolean timeoutSet
         ) {
 
+            // TODO bowen safe check doc values using index reader
+
+            String searchIndex = searchContext.shardTarget().getIndex();
+            List<FieldAndFormat> fields = searchContext.fetchFieldsContext().fields();
+            Join join = searchContext.request().source().getJoin();
+            if (join != null) {
+                String secondIndex = join.getIndex();
+                List<FieldAndFormat> secondIndexFields = join.getFields();
+                if (searchIndex.equals(secondIndex)) {
+                    fields = secondIndexFields;
+                }
+            }
+
+            // map from OpenSearch field to Arrow Field type
+            List<ArrowFieldAdaptor> arrowFieldAdaptors = new ArrayList<>();
+            fields.forEach(field -> {
+                QueryShardContext shardContext = searchContext.getQueryShardContext();
+                MappedFieldType fieldType = shardContext.fieldMapper(field.field);
+                ArrowType arrowType = getArrowType(fieldType.typeName());
+                System.out.println("field: " + field.field + " type: " + arrowType);
+                arrowFieldAdaptors.add(new ArrowFieldAdaptor(field.field, arrowType, fieldType.typeName()));
+            });
+
             QuerySearchResult queryResult = searchContext.queryResult();
+
             StreamManager streamManager = searchContext.streamManager();
             if (streamManager == null) {
                 throw new RuntimeException("StreamManager not setup");
             }
+
+            // For each shard search, we open one stream
             StreamTicket ticket = streamManager.registerStream((allocator -> new ArrowStreamProvider.Task() {
                 @Override
                 public VectorSchemaRoot init(BufferAllocator allocator) {
-                    IntVector docIDVector = new IntVector("docID", allocator);
-                    FieldVector[] vectors = new FieldVector[]{
-                        docIDVector
-                    };
-                    VectorSchemaRoot root = new VectorSchemaRoot(Arrays.asList(vectors));
-                    return root;
+                    Map<String, Field> arrowFields = new HashMap<>();
+
+                    Field docIdField = new Field("docId", FieldType.notNullable(new ArrowType.Int(32, true)), null);
+                    arrowFields.put("docId", docIdField);
+                    Field scoreField = new Field(
+                        "score",
+                        FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)),
+                        null
+                    );
+                    arrowFields.put("score", scoreField);
+
+                    arrowFieldAdaptors.forEach(field -> {
+                        Field arrowField = new Field(field.getFieldName(), FieldType.nullable(field.getArrowType()), null);
+                        arrowFields.put(field.getFieldName(), arrowField);
+                    });
+
+                    Schema schema = new Schema(arrowFields.values());
+                    System.out.println("Schema: " + schema);
+                    return VectorSchemaRoot.create(schema, allocator);
                 }
 
                 @Override
                 public void run(VectorSchemaRoot root, ArrowStreamProvider.FlushSignal flushSignal) {
                     try {
                         Collector collector = QueryCollectorContext.createQueryCollector(collectors);
-                        final ArrowDocIdCollector arrowDocIdCollector = new ArrowDocIdCollector(collector, root, flushSignal, 1000);
+                        final ArrowCollector arrowCollector = new ArrowCollector(collector, arrowFieldAdaptors, root, 20, flushSignal);
                         try {
-                            searcher.search(query, arrowDocIdCollector);
+                            // TODO arrow collect with query
+                            // TODO arrow random access doc values
+                            System.out.println("run query");
+                            searcher.search(query, arrowCollector);
                         } catch (EarlyTerminatingCollector.EarlyTerminationException e) {
-                            // EarlyTerminationException is not caught in ContextIndexSearcher to allow force termination of collection. Postcollection
+                            // EarlyTerminationException is not caught in ContextIndexSearcher to allow force termination of collection.
+                            // Postcollection
                             // still needs to be processed for Aggregations when early termination takes place.
-                            searchContext.bucketCollectorProcessor().processPostCollection(arrowDocIdCollector);
+                            searchContext.bucketCollectorProcessor().processPostCollection(arrowCollector);
                             queryResult.terminatedEarly(true);
                         }
+
                         if (searchContext.isSearchTimedOut()) {
                             assert timeoutSet : "TimeExceededException thrown even though timeout wasn't set";
                             if (searchContext.request().allowPartialSearchResults() == false) {
@@ -144,7 +205,8 @@ public class StreamSearchPhase extends QueryPhase {
                             }
                             queryResult.searchTimedOut(true);
                         }
-                        if (searchContext.terminateAfter() != SearchContext.DEFAULT_TERMINATE_AFTER && queryResult.terminatedEarly() == null) {
+                        if (searchContext.terminateAfter() != SearchContext.DEFAULT_TERMINATE_AFTER
+                            && queryResult.terminatedEarly() == null) {
                             queryResult.terminatedEarly(false);
                         }
 
@@ -162,7 +224,7 @@ public class StreamSearchPhase extends QueryPhase {
                 }
             }));
             StreamSearchResult streamSearchResult = searchContext.streamSearchResult();
-            streamSearchResult.flights(List.of(new OSTicket(ticket.getBytes())));
+            streamSearchResult.flights(List.of(new OSTicket(ticket.getBytes(), searchContext.shardTarget())));
             return false;
         }
     }

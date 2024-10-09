@@ -25,7 +25,7 @@ import java.util.UUID;
  */
 public class FlightStreamManager extends StreamManager {
 
-    private FlightClient flightClient;
+    private final FlightClient flightClient;
 
     /**
      * Constructs a new FlightStreamManager.
@@ -43,12 +43,6 @@ public class FlightStreamManager extends StreamManager {
      * @return The VectorSchemaRoot associated with the given ticket.
      */
     @Override
-    public void setFlightClient(Object flightClient) {
-        assert flightClient instanceof FlightClient;
-        this.flightClient = (FlightClient) flightClient;
-    }
-
-    @Override
     public VectorSchemaRoot getVectorSchemaRoot(StreamTicket ticket) {
         // TODO: for remote streams, register streams in cluster state with node details
         // maintain flightClient for all nodes in the cluster to serve the stream
@@ -58,6 +52,7 @@ public class FlightStreamManager extends StreamManager {
 
     @Override
     public StreamTicket generateUniqueTicket() {
+        // return new StreamTicket("123".getBytes()) {};
         return new StreamTicket(UUID.randomUUID().toString().getBytes()) {};
     }
 }

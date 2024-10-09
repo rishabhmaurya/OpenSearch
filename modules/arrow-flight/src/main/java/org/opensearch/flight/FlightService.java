@@ -117,7 +117,6 @@ public class FlightService extends AbstractLifecycleComponent {
             final Location location = Location.forGrpcInsecure(host, port);
             server = FlightServer.builder(allocator, location, producer).build();
             client = FlightClient.builder(allocator, location).build();
-            streamManager.setFlightClient(client);
             server.start();
             logger.info("Arrow Flight server started successfully");
         } catch (IOException e) {

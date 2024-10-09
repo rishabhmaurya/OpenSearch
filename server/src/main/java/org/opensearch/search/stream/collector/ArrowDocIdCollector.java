@@ -6,8 +6,10 @@
  * compatible open source license.
  */
 
-package org.opensearch.arrow.query;
-import org.apache.arrow.vector .*;
+package org.opensearch.search.stream.collector;
+
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.FilterCollector;
@@ -19,11 +21,14 @@ import org.opensearch.arrow.ArrowStreamProvider;
 
 import java.io.IOException;
 
+/**
+ * A collector that collects document IDs and stores them in an Arrow vector.
+ */
 public class ArrowDocIdCollector extends FilterCollector {
     private final VectorSchemaRoot root;
     private final ArrowStreamProvider.FlushSignal flushSignal;
     private final int batchSize;
-    private IntVector docIDVector;
+    private final IntVector docIDVector;
     private int currentRow;
 
     public ArrowDocIdCollector(Collector in, VectorSchemaRoot root, ArrowStreamProvider.FlushSignal flushSignal, int batchSize) {
@@ -47,10 +52,9 @@ public class ArrowDocIdCollector extends FilterCollector {
         return ScoreMode.TOP_DOCS;
     }
 
-
     @Override
     public LeafCollector getLeafCollector(LeafReaderContext context) throws IOException {
-        LeafCollector inner = (this.in == null ? null: super.getLeafCollector(context));
+        LeafCollector inner = (this.in == null ? null : super.getLeafCollector(context));
         return new LeafCollector() {
             @Override
             public void setScorer(Scorable scorer) throws IOException {

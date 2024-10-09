@@ -140,6 +140,13 @@ public class RestSearchAction extends BaseRestHandler {
         };
     }
 
+    static String[] addString(String[] originalArray, String newString) {
+        String[] newArray = new String[originalArray.length + 1];
+        System.arraycopy(originalArray, 0, newArray, 0, originalArray.length);
+        newArray[newArray.length - 1] = newString;
+        return newArray;
+    }
+
     /**
      * Parses the rest request on top of the SearchRequest, preserving values that are not overridden by the rest request.
      *
@@ -161,6 +168,10 @@ public class RestSearchAction extends BaseRestHandler {
         searchRequest.indices(Strings.splitStringByCommaToArray(request.param("index")));
         if (requestContentParser != null) {
             searchRequest.source().parseXContent(requestContentParser, true);
+        }
+
+        if (searchRequest.source().getJoin() != null) {
+            searchRequest.indices(addString(searchRequest.indices(), searchRequest.source().getJoin().getIndex()));
         }
 
         final int batchedReduceSize = request.paramAsInt("batched_reduce_size", searchRequest.getBatchedReduceSize());

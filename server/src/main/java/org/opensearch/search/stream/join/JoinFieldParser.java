@@ -6,7 +6,7 @@
  * compatible open source license.
  */
 
-package org.opensearch.search.builder;
+package org.opensearch.search.stream.join;
 
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.search.fetch.subphase.FieldAndFormat;
@@ -17,6 +17,9 @@ import java.util.List;
 
 import static org.opensearch.index.query.AbstractQueryBuilder.parseInnerQueryBuilder;
 
+/**
+ * Parser for {@link Join} objects.
+ */
 public class JoinFieldParser {
 
     public static Join parse(XContentParser parser) throws IOException {
@@ -67,6 +70,5 @@ public class JoinFieldParser {
                 break;
         }
     }
-
 
 }

@@ -6,10 +6,13 @@
  * compatible open source license.
  */
 
-package org.opensearch.search.builder;
+package org.opensearch.search.stream.join;
 
 import org.opensearch.common.annotation.ExperimentalApi;
 
+/**
+ * Represents a join condition in a search query.
+ */
 @ExperimentalApi
 public class JoinCondition {
     private String leftField;

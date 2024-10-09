@@ -20,9 +20,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @ExperimentalApi
 public abstract class StreamManager implements AutoCloseable {
-
-    public abstract void setFlightClient(Object flightClient);
-
     private final ConcurrentHashMap<StreamTicket, ArrowStreamProvider> streams;
 
     /**

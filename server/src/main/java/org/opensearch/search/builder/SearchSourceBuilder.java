@@ -74,6 +74,8 @@ import org.opensearch.search.sort.ScoreSortBuilder;
 import org.opensearch.search.sort.SortBuilder;
 import org.opensearch.search.sort.SortBuilders;
 import org.opensearch.search.sort.SortOrder;
+import org.opensearch.search.stream.join.Join;
+import org.opensearch.search.stream.join.JoinFieldParser;
 import org.opensearch.search.suggest.SuggestBuilder;
 
 import java.io.IOException;
@@ -164,6 +166,7 @@ public final class SearchSourceBuilder implements Writeable, ToXContentObject, R
 
     private QueryBuilder queryBuilder;
     private Join join;
+
     public Join getJoin() {
         return join;
     }
@@ -1398,7 +1401,7 @@ public final class SearchSourceBuilder implements Writeable, ToXContentObject, R
                         derivedFieldsObject = parser.map();
                     } else if (JOIN_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
                         join = JoinFieldParser.parse(parser);
-                } else {
+                    } else {
                         throw new ParsingException(
                             parser.getTokenLocation(),
                             "Unknown key for a " + token + " in [" + currentFieldName + "].",
