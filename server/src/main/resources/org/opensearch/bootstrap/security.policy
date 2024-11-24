@@ -106,8 +106,7 @@ grant {
 
   // Allow host/ip name service lookups
   permission java.net.SocketPermission "*", "resolve";
-  permission java.net.SocketPermission "*", "accept";
-
+  
   // Allow reading and setting socket keepalive options
   permission jdk.net.NetworkPermission "getOption.TCP_KEEPIDLE";
   permission jdk.net.NetworkPermission "setOption.TCP_KEEPIDLE";
@@ -198,14 +197,6 @@ grant {
   permission java.io.FilePermission "/sys/fs/cgroup/memory", "read";
   permission java.io.FilePermission "/sys/fs/cgroup/memory/-", "read";
 
-  // arrow flight server permissions
-  permission java.security.AllPermission;
-  permission java.util.PropertyPermission "arrow.allocation.manager.type", "write";
-  permission java.util.PropertyPermission "arrow.enable_null_check_for_get", "write";
-  permission java.util.PropertyPermission "io.netty.tryReflectionSetAccessible", "write";
-  permission java.util.PropertyPermission "arrow.enable_unsafe_memory_access", "write";
-  permission java.util.PropertyPermission "io.netty.allocator.numDirectArenas", "write";
-  permission java.util.PropertyPermission "io.netty.noUnsafe", "write";
-  permission java.util.PropertyPermission "io.netty.tryUnsafe", "write";
-  permission java.util.PropertyPermission "arrow.memory.debug.allocator", "write";
+  // Needed for netty based arrow flight server for netty configs related to buffer allocator
+  permission java.security.AllPermission "modifyThreadGroup";
 };
