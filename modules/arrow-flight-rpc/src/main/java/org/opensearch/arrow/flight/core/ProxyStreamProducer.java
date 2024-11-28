@@ -18,7 +18,7 @@ import org.opensearch.arrow.spi.StreamTicket;
  * ProxyStreamProvider acts as forward proxy for FlightStream.
  * It creates a BatchedJob to handle the streaming of data from the remote FlightStream.
  * This is useful when stream is not present locally and needs to be fetched from a node
- * retrieved using {@link StreamTicket#getNodeID()} where it is present.
+ * retrieved using {@link StreamTicket#getNodeId()} where it is present.
  */
 public class ProxyStreamProducer implements StreamProducer {
 
