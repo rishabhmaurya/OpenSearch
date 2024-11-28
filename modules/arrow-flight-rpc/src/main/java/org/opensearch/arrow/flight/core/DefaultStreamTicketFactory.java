@@ -33,12 +33,12 @@ public class DefaultStreamTicketFactory implements StreamTicketFactory {
     }
 
     /**
-     * Generates a new StreamTicket with a unique ticket ID.
+     * Creates a new StreamTicket with a unique ticket ID.
      *
      * @return A new StreamTicket instance
      */
     @Override
-    public StreamTicket generateTicket() {
+    public StreamTicket newTicket() {
         return new FlightStreamTicket(generateUniqueTicket(), nodeId.get());
     }
 

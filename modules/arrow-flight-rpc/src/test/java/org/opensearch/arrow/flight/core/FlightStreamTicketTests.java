@@ -21,8 +21,8 @@ public class FlightStreamTicketTests extends OpenSearchTestCase {
         String nodeID = "node456";
         StreamTicket ticket = new FlightStreamTicket(ticketID, nodeID);
 
-        assertEquals(ticketID, ticket.getTicketID());
-        assertEquals(nodeID, ticket.getNodeID());
+        assertEquals(ticketID, ticket.getTicketId());
+        assertEquals(nodeID, ticket.getNodeId());
     }
 
     public void testToBytes() {
@@ -43,8 +43,8 @@ public class FlightStreamTicketTests extends OpenSearchTestCase {
 
         StreamTicket reconstructed = FlightStreamTicket.fromBytes(bytes);
 
-        assertEquals(original.getTicketID(), reconstructed.getTicketID());
-        assertEquals(original.getNodeID(), reconstructed.getNodeID());
+        assertEquals(original.getTicketId(), reconstructed.getTicketId());
+        assertEquals(original.getNodeId(), reconstructed.getNodeId());
     }
 
     public void testToBytesWithLongStrings() {
