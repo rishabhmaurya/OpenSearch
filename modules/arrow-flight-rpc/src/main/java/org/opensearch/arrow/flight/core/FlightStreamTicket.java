@@ -28,12 +28,12 @@ class FlightStreamTicket implements StreamTicket {
     }
 
     @Override
-    public String getTicketID() {
+    public String getTicketId() {
         return ticketID;
     }
 
     @Override
-    public String getNodeID() {
+    public String getNodeId() {
         return nodeID;
     }
 

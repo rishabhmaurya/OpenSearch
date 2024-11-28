@@ -66,8 +66,8 @@ public class FlightStreamManager implements StreamManager {
      */
     @Override
     public StreamTicket registerStream(StreamProducer provider, TaskId parentTaskId) {
-        StreamTicket ticket = ticketFactory.generateTicket();
-        streamProducers.put(ticket.getTicketID(), new StreamProducerHolder(provider, allocatorSupplier.get()));
+        StreamTicket ticket = ticketFactory.newTicket();
+        streamProducers.put(ticket.getTicketId(), new StreamProducerHolder(provider, allocatorSupplier.get()));
         return ticket;
     }
 
@@ -78,7 +78,7 @@ public class FlightStreamManager implements StreamManager {
      */
     @Override
     public StreamReader getStreamReader(StreamTicket ticket) {
-        FlightStream stream = clientManager.getFlightClient(ticket.getNodeID()).getStream(new Ticket(ticket.toBytes()));
+        FlightStream stream = clientManager.getFlightClient(ticket.getNodeId()).getStream(new Ticket(ticket.toBytes()));
         return new FlightStreamReader(stream);
     }
 
@@ -94,7 +94,7 @@ public class FlightStreamManager implements StreamManager {
      * @return The ArrowStreamProvider associated with the ticket, or null if not found.
      */
     public StreamProducerHolder getStreamProducer(StreamTicket ticket) {
-        return streamProducers.get(ticket.getTicketID());
+        return streamProducers.get(ticket.getTicketId());
     }
 
     /**
@@ -103,7 +103,7 @@ public class FlightStreamManager implements StreamManager {
      * @param ticket The StreamTicket against StreamProducer to remove.
      */
     public void removeStreamProducer(StreamTicket ticket) {
-        streamProducers.invalidate(ticket.getTicketID());
+        streamProducers.invalidate(ticket.getTicketId());
     }
 
     /**
