@@ -21,7 +21,7 @@ public class ServerConfigTests extends OpenSearchTestCase {
     public void setUp() throws Exception {
         super.setUp();
         settings = Settings.builder()
-            .put("node.attr.transport.stream.port", 8815)
+            .put("node.attr.transport.stream.port", 9880)
             .put("arrow.allocation.manager.type", "Netty")
             .put("arrow.enable_null_check_for_get", false)
             .put("arrow.enable_unsafe_memory_access", true)
@@ -58,7 +58,7 @@ public class ServerConfigTests extends OpenSearchTestCase {
         Location location = ServerConfig.getServerLocation();
         assertNotNull(location);
         assertEquals("localhost", location.getUri().getHost());
-        assertEquals(8815, location.getUri().getPort());
+        assertEquals(9880, location.getUri().getPort());
         assertTrue(location.getUri().getScheme().contains("grpc+tls"));
     }
 
@@ -69,7 +69,7 @@ public class ServerConfigTests extends OpenSearchTestCase {
         Location location = ServerConfig.getServerLocation();
         assertNotNull(location);
         assertEquals("localhost", location.getUri().getHost());
-        assertEquals(8815, location.getUri().getPort());
+        assertEquals(9880, location.getUri().getPort());
         assertTrue(location.getUri().getScheme().contains("grpc"));
     }
 
@@ -90,7 +90,7 @@ public class ServerConfigTests extends OpenSearchTestCase {
         ServerConfig.init(defaultSettings);
 
         // Verify default values
-        assertEquals(8815, ServerConfig.STREAM_PORT.get(defaultSettings).intValue());
+        assertEquals(9880, ServerConfig.STREAM_PORT.get(defaultSettings).intValue());
         assertEquals("Netty", ServerConfig.ARROW_ALLOCATION_MANAGER_TYPE.get(defaultSettings));
         assertFalse(ServerConfig.ARROW_ENABLE_NULL_CHECK_FOR_GET.get(defaultSettings));
         assertTrue(ServerConfig.ARROW_ENABLE_UNSAFE_MEMORY_ACCESS.get(defaultSettings));

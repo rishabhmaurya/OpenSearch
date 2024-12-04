@@ -12,6 +12,9 @@ import org.apache.arrow.flight.Location;
 import org.apache.arrow.flight.OpenSearchFlightClient;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.opensearch.Version;
 import org.opensearch.arrow.flight.bootstrap.tls.SslContextProvider;
 import org.opensearch.cluster.ClusterChangedEvent;
 import org.opensearch.cluster.ClusterStateListener;
@@ -37,6 +40,8 @@ public class FlightClientManager implements ClusterStateListener, AutoCloseable 
     private final ClusterService clusterService;
     private final Supplier<BufferAllocator> allocator;
     private final SslContextProvider sslContextProvider;
+
+    private static final Logger logger = LogManager.getLogger(FlightClientManager.class);
 
     /**
      * Creates a new FlightClientManager instance.
@@ -70,7 +75,8 @@ public class FlightClientManager implements ClusterStateListener, AutoCloseable 
      * @return An OpenSearchFlightClient instance for the specified node
      */
     public OpenSearchFlightClient getFlightClient(String nodeId) {
-        return flightClients.computeIfAbsent(nodeId, this::buildFlightClient).flightClient;
+        FlightClientHolder clientHolder = flightClients.computeIfAbsent(nodeId, this::buildFlightClient);
+        return clientHolder == null ? null : clientHolder.flightClient;
     }
 
     /**
@@ -79,7 +85,8 @@ public class FlightClientManager implements ClusterStateListener, AutoCloseable 
      * @return The Location of the Flight client for the specified node
      */
     public Location getFlightClientLocation(String nodeId) {
-        return flightClients.computeIfAbsent(nodeId, this::buildFlightClient).location;
+        FlightClientHolder clientHolder = flightClients.computeIfAbsent(nodeId, this::buildFlightClient);
+        return clientHolder == null ? null : clientHolder.location;
     }
 
     /**
@@ -105,10 +112,18 @@ public class FlightClientManager implements ClusterStateListener, AutoCloseable 
     private FlightClientHolder buildFlightClient(String nodeId) {
         DiscoveryNode node = Objects.requireNonNull(clusterService).state().nodes().get(nodeId);
         if (node == null) {
-            throw new IllegalArgumentException("Node with id " + nodeId + " not found in cluster");
+            return null;
         }
-        // TODO: handle cases where flight server isn't running like mixed cluster with nodes of previous version
-        // ideally streaming shouldn't be supported on mixed cluster.
+        Version minVersion = Version.fromString("3.0.0");
+        if (node.getVersion().before(minVersion)) {
+            return null;
+        }
+
+        String arrowStreamsEnabled = node.getAttributes().get("arrow.streams.enabled");
+        if (!"true".equals(arrowStreamsEnabled)) {
+            return null;
+        }
+
         String clientPort = node.getAttributes().get("transport.stream.port");
         FlightClientBuilder builder = new FlightClientBuilder(
             node.getHostAddress(),
@@ -128,10 +143,7 @@ public class FlightClientManager implements ClusterStateListener, AutoCloseable 
 
     private void initializeFlightClients() {
         for (DiscoveryNode node : Objects.requireNonNull(clusterService).state().nodes()) {
-            String nodeId = node.getId();
-            if (!flightClients.containsKey(nodeId)) {
-                getFlightClient(nodeId);
-            }
+            getFlightClient(node.getId());
         }
     }
 

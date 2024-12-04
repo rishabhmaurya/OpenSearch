@@ -42,7 +42,7 @@ import static org.mockito.Mockito.when;
 
 public class FlightClientManagerTests extends OpenSearchTestCase {
 
-    private static final int FLIGHT_PORT = 8815;
+    private static final int FLIGHT_PORT = 9880;
     private FlightClientManager clientManager;
     private ClusterService clusterService;
     private BufferAllocator allocator;
@@ -86,6 +86,8 @@ public class FlightClientManagerTests extends OpenSearchTestCase {
         TransportAddress address = new TransportAddress(InetAddress.getByName(host), port);
         Map<String, String> attributes = new HashMap<>();
         attributes.put("transport.stream.port", String.valueOf(port));
+        attributes.put("arrow.streams.enabled", "true");
+
         Set<DiscoveryNodeRole> roles = Collections.singleton(DiscoveryNodeRole.DATA_ROLE);
         return new DiscoveryNode(nodeId, address, attributes, roles, Version.CURRENT);
     }
@@ -110,7 +112,7 @@ public class FlightClientManagerTests extends OpenSearchTestCase {
     }
 
     public void testGetFlightClientForNonExistentNode() {
-        expectThrows(IllegalArgumentException.class, () -> { clientManager.getFlightClient("non_existent_node"); });
+        assertNull(clientManager.getFlightClient("non_existent_node"));
     }
 
     public void testUpdateFlightClientsWithNodesChanged() throws Exception {
@@ -173,10 +175,11 @@ public class FlightClientManagerTests extends OpenSearchTestCase {
 
     public void testNodeWithoutStreamPort() throws Exception {
         // Create node without stream port
+
         DiscoveryNode invalidNode = new DiscoveryNode(
             "invalid_node",
             new TransportAddress(InetAddress.getByName("127.0.0.4"), FLIGHT_PORT),
-            Collections.emptyMap(),
+            Map.of("arrow.streams.enabled", "true"),
             Collections.singleton(DiscoveryNodeRole.DATA_ROLE),
             Version.CURRENT
         );
@@ -208,4 +211,56 @@ public class FlightClientManagerTests extends OpenSearchTestCase {
 
         verify(sslContextProvider, never()).getClientSslContext();
     }
+
+    public void testIncompatibleNodeVersion() throws Exception {
+        // Create node with old version that doesn't support Arrow Flight
+        Map<String, String> attributes = new HashMap<>();
+        attributes.put("transport.stream.port", String.valueOf(FLIGHT_PORT));
+        attributes.put("arrow.streams.enabled", "true");
+        DiscoveryNode oldVersionNode = new DiscoveryNode(
+            "old_version_node",
+            new TransportAddress(InetAddress.getByName("127.0.0.3"), FLIGHT_PORT),
+            attributes,
+            Collections.singleton(DiscoveryNodeRole.DATA_ROLE),
+            Version.fromString("2.18.0")  // Version before Arrow Flight introduction
+        );
+
+        // Update cluster state with old version node
+        DiscoveryNodes.Builder nodesBuilder = DiscoveryNodes.builder();
+        nodesBuilder.add(oldVersionNode);
+        nodesBuilder.localNodeId(localNode.getId());
+        DiscoveryNodes nodes = nodesBuilder.build();
+        ClusterState oldVersionState = ClusterState.builder(new ClusterName("test")).nodes(nodes).build();
+
+        when(clusterService.state()).thenReturn(oldVersionState);
+
+        assertNull(clientManager.getFlightClient(oldVersionNode.getId()));
+    }
+
+    public void testFeatureFlagDisabled() throws Exception {
+        // Create attributes map without the arrow.streams.enabled flag
+        Map<String, String> attributes = new HashMap<>();
+        attributes.put("transport.stream.port", String.valueOf(FLIGHT_PORT));
+
+        // Create node with feature flag disabled
+        DiscoveryNode disabledNode = new DiscoveryNode(
+            "disabled_feature_node",
+            new TransportAddress(InetAddress.getByName("127.0.0.3"), FLIGHT_PORT),
+            attributes,  // Using attributes without arrow.streams.enabled
+            Collections.singleton(DiscoveryNodeRole.DATA_ROLE),
+            Version.CURRENT
+        );
+
+        // Update cluster state with the disabled feature node
+        DiscoveryNodes.Builder nodesBuilder = DiscoveryNodes.builder();
+        nodesBuilder.add(disabledNode);
+        nodesBuilder.localNodeId(localNode.getId());
+        DiscoveryNodes nodes = nodesBuilder.build();
+        ClusterState disabledFeatureState = ClusterState.builder(new ClusterName("test")).nodes(nodes).build();
+
+        when(clusterService.state()).thenReturn(disabledFeatureState);
+
+        assertNull(clientManager.getFlightClient(disabledNode.getId()));
+    }
+
 }

@@ -13,6 +13,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.opensearch.arrow.spi.StreamProducer;
 import org.opensearch.test.OpenSearchTestCase;
+import org.junit.After;
 
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -24,35 +25,40 @@ public class ProxyStreamProducerTests extends OpenSearchTestCase {
 
     private FlightStream mockRemoteStream;
     private BufferAllocator mockAllocator;
-    private ProxyStreamProducer proxyStreamProvider;
+    private ProxyStreamProducer proxyStreamProducer;
 
     @Override
     public void setUp() throws Exception {
         super.setUp();
         mockRemoteStream = mock(FlightStream.class);
         mockAllocator = mock(BufferAllocator.class);
-        proxyStreamProvider = new ProxyStreamProducer(mockRemoteStream);
+        proxyStreamProducer = new ProxyStreamProducer(new FlightStreamReader(mockRemoteStream));
     }
 
     public void testCreateRoot() {
         VectorSchemaRoot mockRoot = mock(VectorSchemaRoot.class);
         when(mockRemoteStream.getRoot()).thenReturn(mockRoot);
 
-        VectorSchemaRoot result = proxyStreamProvider.createRoot(mockAllocator);
+        VectorSchemaRoot result = proxyStreamProducer.createRoot(mockAllocator);
 
         assertEquals(mockRoot, result);
         verify(mockRemoteStream).getRoot();
     }
 
+    public void testDefaults() {
+        assertEquals("", proxyStreamProducer.getAction());
+        assertEquals(-1, proxyStreamProducer.estimatedRowCount());
+    }
+
     public void testCreateJob() {
-        StreamProducer.BatchedJob job = proxyStreamProvider.createJob(mockAllocator);
+        StreamProducer.BatchedJob job = proxyStreamProducer.createJob(mockAllocator);
 
         assertNotNull(job);
         assertTrue(job instanceof ProxyStreamProducer.ProxyBatchedJob);
     }
 
     public void testProxyBatchedJob() throws Exception {
-        StreamProducer.BatchedJob job = proxyStreamProvider.createJob(mockAllocator);
+        StreamProducer.BatchedJob job = proxyStreamProducer.createJob(mockAllocator);
         VectorSchemaRoot mockRoot = mock(VectorSchemaRoot.class);
         StreamProducer.FlushSignal mockFlushSignal = mock(StreamProducer.FlushSignal.class);
 
@@ -62,33 +68,44 @@ public class ProxyStreamProducerTests extends OpenSearchTestCase {
 
         verify(mockRemoteStream, times(3)).next();
         verify(mockFlushSignal, times(2)).awaitConsumption(1000);
-        verify(mockRemoteStream).close();
     }
 
     public void testProxyBatchedJobWithException() throws Exception {
-        StreamProducer.BatchedJob job = proxyStreamProvider.createJob(mockAllocator);
+        StreamProducer.BatchedJob job = proxyStreamProducer.createJob(mockAllocator);
         VectorSchemaRoot mockRoot = mock(VectorSchemaRoot.class);
         StreamProducer.FlushSignal mockFlushSignal = mock(StreamProducer.FlushSignal.class);
 
-        when(mockRemoteStream.next()).thenReturn(true, false);
-        doThrow(new RuntimeException("Test exception")).when(mockRemoteStream).close();
+        doThrow(new RuntimeException("Test exception")).when(mockRemoteStream).next();
 
         try {
             job.run(mockRoot, mockFlushSignal);
             fail("Expected RuntimeException");
         } catch (RuntimeException e) {
-            assertEquals("Test exception", e.getCause().getMessage());
+            assertEquals("Test exception", e.getMessage());
         }
 
-        verify(mockRemoteStream, times(2)).next();
-        verify(mockFlushSignal).awaitConsumption(1000);
-        verify(mockRemoteStream).close();
+        verify(mockRemoteStream, times(1)).next();
     }
 
     public void testProxyBatchedJobOnCancel() {
-        StreamProducer.BatchedJob job = proxyStreamProvider.createJob(mockAllocator);
+        StreamProducer.BatchedJob job = proxyStreamProducer.createJob(mockAllocator);
+        VectorSchemaRoot mockRoot = mock(VectorSchemaRoot.class);
+        StreamProducer.FlushSignal mockFlushSignal = mock(StreamProducer.FlushSignal.class);
+        when(mockRemoteStream.next()).thenReturn(true, true, false);
 
-        // onCancel() method is empty, so we just call it to ensure it doesn't throw any exceptions
+        // cancel the job
         job.onCancel();
+        job.run(mockRoot, mockFlushSignal);
+        verify(mockRemoteStream, times(0)).next();
+        verify(mockFlushSignal, times(0)).awaitConsumption(1000);
+        assertTrue(job.isCancelled());
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        if (proxyStreamProducer != null) {
+            proxyStreamProducer.close();
+        }
+        super.tearDown();
     }
 }

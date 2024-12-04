@@ -8,6 +8,7 @@
 
 package org.opensearch.arrow.flight.bootstrap;
 
+import org.apache.arrow.flight.FlightProducer;
 import org.apache.arrow.flight.OpenSearchFlightServer;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -75,7 +76,7 @@ public class FlightService extends AbstractLifecycleComponent {
      * @param threadPool The ThreadPool instance.
      */
     public void initialize(ClusterService clusterService, ThreadPool threadPool) {
-        this.threadPool.trySet(threadPool);
+        this.threadPool.trySet(Objects.requireNonNull(threadPool));
         if (ServerConfig.isSslEnabled()) {
             sslContextProvider = new DefaultSslContextProvider(secureTransportSettingsProvider::get);
         } else {
@@ -103,7 +104,7 @@ public class FlightService extends AbstractLifecycleComponent {
                 (PrivilegedExceptionAction<BufferAllocator>) () -> new RootAllocator(Integer.MAX_VALUE)
             );
 
-            BaseFlightProducer producer = new BaseFlightProducer(clientManager, streamManager, allocator);
+            FlightProducer producer = new BaseFlightProducer(clientManager, streamManager, allocator);
             FlightServerBuilder builder = new FlightServerBuilder(threadPool.get(), () -> allocator, producer, sslContextProvider);
             server = builder.build();
             server.start();

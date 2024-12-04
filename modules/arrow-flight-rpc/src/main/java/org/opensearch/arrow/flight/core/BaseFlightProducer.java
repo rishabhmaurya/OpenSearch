@@ -71,7 +71,10 @@ public class BaseFlightProducer extends NoOpFlightProducer {
                 streamProducerHolder = streamManager.getStreamProducer(streamTicket);
             } else {
                 OpenSearchFlightClient remoteClient = flightClientManager.getFlightClient(streamTicket.getNodeId());
-                StreamProducer proxyProvider = new ProxyStreamProducer(remoteClient.getStream(ticket));
+                if (remoteClient == null) {
+                    listener.error(CallStatus.UNAVAILABLE.withDescription("Client doesn't support Stream").cause());
+                }
+                StreamProducer proxyProvider = new ProxyStreamProducer(new FlightStreamReader(remoteClient.getStream(ticket)));
                 streamProducerHolder = new FlightStreamManager.StreamProducerHolder(proxyProvider, allocator);
             }
             if (streamProducerHolder == null) {
@@ -144,6 +147,9 @@ public class BaseFlightProducer extends NoOpFlightProducer {
             return infoBuilder.build();
         } else {
             OpenSearchFlightClient remoteClient = flightClientManager.getFlightClient(streamTicket.getNodeId());
+            if (remoteClient == null) {
+                throw CallStatus.UNAVAILABLE.withDescription("Client doesn't support Stream").toRuntimeException();
+            }
             return remoteClient.getInfo(descriptor);
         }
     }
