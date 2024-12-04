@@ -14,7 +14,6 @@ import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.threadpool.ScalingExecutorBuilder;
-import org.opensearch.threadpool.ThreadPool;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,7 +32,7 @@ public class ServerConfig {
 
     static final Setting<Integer> STREAM_PORT = Setting.intSetting(
         "node.attr.transport.stream.port",
-        8815,
+        9880,
         1024,
         65535,
         Setting.Property.NodeScope
@@ -72,7 +71,7 @@ public class ServerConfig {
 
     static final Setting<Integer> FLIGHT_THREAD_POOL_MAX_SIZE = Setting.intSetting(
         "thread_pool.flight-server.max",
-        100000,
+        100000, // TODO depends on max concurrent streams per node, decide after benchmark. To be controlled by admission control layer.
         1,
         Setting.Property.NodeScope
     );
@@ -93,7 +92,6 @@ public class ServerConfig {
 
     private static final String host = "localhost";
     private static int port;
-    private static ThreadPool threadPool;
     private static boolean enableSsl;
     private static ScalingExecutorBuilder executorBuilder;
 
