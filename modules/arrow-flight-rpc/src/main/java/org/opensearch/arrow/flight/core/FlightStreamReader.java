@@ -10,6 +10,7 @@ package org.opensearch.arrow.flight.core;
 
 import org.apache.arrow.flight.FlightStream;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.opensearch.ExceptionsHelper;
 import org.opensearch.arrow.spi.StreamReader;
 
 /**
@@ -52,10 +53,6 @@ public class FlightStreamReader implements StreamReader {
      */
     @Override
     public void close() {
-        try {
-            flightStream.close();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        ExceptionsHelper.catchAsRuntimeException(flightStream::close);
     }
 }

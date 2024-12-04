@@ -9,18 +9,28 @@ package org.opensearch.arrow.flight.bootstrap;
 
 import org.apache.arrow.flight.Action;
 import org.apache.arrow.flight.OpenSearchFlightClient;
-import org.opensearch.arrow.flight.bootstrap.client.FlightClientBuilder;
+import org.opensearch.Version;
+import org.opensearch.arrow.flight.bootstrap.client.FlightClientManager;
 import org.opensearch.arrow.flight.bootstrap.tls.DefaultSslContextProvider;
 import org.opensearch.arrow.flight.bootstrap.tls.DisabledSslContextProvider;
 import org.opensearch.arrow.flight.bootstrap.tls.SslContextProvider;
+import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.ClusterState;
+import org.opensearch.cluster.node.DiscoveryNode;
+import org.opensearch.cluster.node.DiscoveryNodeRole;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.core.common.transport.TransportAddress;
 import org.opensearch.plugins.SecureTransportSettingsProvider;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.threadpool.ThreadPool;
 
+import java.net.InetAddress;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.Mockito.mock;
@@ -33,20 +43,23 @@ public class FlightServiceTests extends OpenSearchTestCase {
     private ClusterService clusterService;
     private ThreadPool threadPool;
     private SecureTransportSettingsProvider secureTransportSettingsProvider;
-    private AtomicInteger port = new AtomicInteger(0);
+    private final AtomicInteger port = new AtomicInteger(0);
 
     @Override
     public void setUp() throws Exception {
         super.setUp();
         int availablePort = getBasePort() + port.addAndGet(1);
         settings = Settings.builder().put("node.attr.transport.stream.port", String.valueOf(availablePort)).build();
+        DiscoveryNode localNode = createNode("local_node", "127.0.0.1", availablePort);
 
+        // Setup initial cluster state
+        DiscoveryNodes.Builder nodesBuilder = DiscoveryNodes.builder();
+        nodesBuilder.localNodeId(localNode.getId());
+        nodesBuilder.add(localNode);
+        DiscoveryNodes nodes = nodesBuilder.build();
+        ClusterState clusterState = ClusterState.builder(new ClusterName("test")).nodes(nodes).build();
         clusterService = mock(ClusterService.class);
-        ClusterState clusterState = mock(ClusterState.class);
-        DiscoveryNodes nodes = mock(DiscoveryNodes.class);
         when(clusterService.state()).thenReturn(clusterState);
-        when(clusterState.nodes()).thenReturn(nodes);
-        when(nodes.getLocalNodeId()).thenReturn("test-node");
 
         threadPool = mock(ThreadPool.class);
         secureTransportSettingsProvider = mock(SecureTransportSettingsProvider.class);
@@ -180,15 +193,19 @@ public class FlightServiceTests extends OpenSearchTestCase {
     }
 
     private void verifyServerRunning(FlightService flightService, int clientPort) throws InterruptedException {
-        FlightClientBuilder builder = new FlightClientBuilder(
-            "localhost",
-            clientPort,
-            flightService.getAllocator(),
-            flightService.getSslContextProvider()
-        );
-        try (OpenSearchFlightClient client = builder.build()) {
-            // If we can connect, server is running
-            assertNotNull("Should be able to connect to server", client.doAction(new Action("ping")));
-        }
+        FlightClientManager flightClientManager = flightService.getFlightClientManager();
+        OpenSearchFlightClient client = flightClientManager.getFlightClient(flightClientManager.getLocalNodeId());
+        // If we can connect, server is running
+        assertNotNull("Should be able to connect to server", client.doAction(new Action("ping")));
+    }
+
+    private DiscoveryNode createNode(String nodeId, String host, int port) throws Exception {
+        TransportAddress address = new TransportAddress(InetAddress.getByName(host), port);
+        Map<String, String> attributes = new HashMap<>();
+        attributes.put("transport.stream.port", String.valueOf(port));
+        attributes.put("arrow.streams.enabled", "true");
+
+        Set<DiscoveryNodeRole> roles = Collections.singleton(DiscoveryNodeRole.DATA_ROLE);
+        return new DiscoveryNode(nodeId, address, attributes, roles, Version.CURRENT);
     }
 }

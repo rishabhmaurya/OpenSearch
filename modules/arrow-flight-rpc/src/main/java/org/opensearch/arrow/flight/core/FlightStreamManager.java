@@ -34,7 +34,7 @@ import java.util.function.Supplier;
  */
 public class FlightStreamManager implements StreamManager {
 
-    private final DefaultStreamTicketFactory ticketFactory;
+    private final FlightStreamTicketFactory ticketFactory;
     private final FlightClientManager clientManager;
     private final Supplier<BufferAllocator> allocatorSupplier;
     private final Cache<String, StreamProducerHolder> streamProducers;
@@ -55,7 +55,7 @@ public class FlightStreamManager implements StreamManager {
             .setExpireAfterWrite(expireAfter)
             .setMaximumWeight(MAX_PRODUCERS)
             .build();
-        this.ticketFactory = new DefaultStreamTicketFactory(clientManager::getLocalNodeId);
+        this.ticketFactory = new FlightStreamTicketFactory(clientManager::getLocalNodeId);
     }
 
     /**

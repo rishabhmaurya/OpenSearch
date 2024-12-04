@@ -19,7 +19,7 @@ import java.util.function.Supplier;
  * Default implementation of StreamTicketFactory
  */
 @ExperimentalApi
-public class DefaultStreamTicketFactory implements StreamTicketFactory {
+public class FlightStreamTicketFactory implements StreamTicketFactory {
 
     private final Supplier<String> nodeId;
 
@@ -28,7 +28,7 @@ public class DefaultStreamTicketFactory implements StreamTicketFactory {
      *
      * @param nodeId A Supplier that provides the node ID for the StreamTicket
      */
-    public DefaultStreamTicketFactory(Supplier<String> nodeId) {
+    public FlightStreamTicketFactory(Supplier<String> nodeId) {
         this.nodeId = nodeId;
     }
 

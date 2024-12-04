@@ -35,7 +35,7 @@ public class FlightStreamPluginTests extends OpenSearchTestCase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        settings = Settings.builder().put("node.attr.transport.stream.port", "8815").put(ARROW_STREAMS_SETTING.getKey(), true).build();
+        settings = Settings.builder().put("node.attr.transport.stream.port", "9880").put(ARROW_STREAMS_SETTING.getKey(), true).build();
         clusterService = mock(ClusterService.class);
         ClusterState clusterState = mock(ClusterState.class);
         DiscoveryNodes nodes = mock(DiscoveryNodes.class);
@@ -76,10 +76,12 @@ public class FlightStreamPluginTests extends OpenSearchTestCase {
         assertNotNull(settings);
         assertFalse(settings.isEmpty());
 
+        assertNotNull(plugin.getSecureTransports(null, null, null, null, null, null, null, null));
+
         plugin.close();
 
         Settings disabledSettings = Settings.builder()
-            .put("node.attr.transport.stream.port", "8815")
+            .put("node.attr.transport.stream.port", "9880")
             .put(ARROW_STREAMS_SETTING.getKey(), false)
             .build();
         FeatureFlags.initializeFeatureFlags(disabledSettings);
@@ -102,6 +104,11 @@ public class FlightStreamPluginTests extends OpenSearchTestCase {
         assertTrue(disabledPluginComponents.isEmpty());
         assertNull(disabledPlugin.getStreamManager());
         assertTrue(disabledPlugin.getExecutorBuilders(disabledSettings).isEmpty());
+        assertNotNull(disabledPlugin.getSettings());
+        assertTrue(disabledPlugin.getSettings().isEmpty());
+
+        assertNotNull(disabledPlugin.getSecureTransports(null, null, null, null, null, null, null, null));
+
         disabledPlugin.close();
     }
 }
