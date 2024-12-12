@@ -74,8 +74,10 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
-// TODO - add comment
-/** Client for Flight services. */
+/**
+ * Clone of {@link FlightClient} to support setting SslContext directly. It can be discarded once
+ * FlightClient supports setting SslContext directly.
+ */
 public class OpenSearchFlightClient implements AutoCloseable {
     private static final int PENDING_REQUESTS = 5;
     /**

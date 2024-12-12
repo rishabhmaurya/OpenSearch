@@ -52,7 +52,10 @@ import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
-// TODO - add comment
+/**
+ * Clone of {@link FlightServer} to support setting SslContext directly. It can be discarded once
+ * FlightServer.Builder supports setting SslContext directly.
+ */
 public class OpenSearchFlightServer implements AutoCloseable {
     private static final Logger logger = LogManager.getLogger(OpenSearchFlightServer.class);
 

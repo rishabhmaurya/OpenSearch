@@ -8,6 +8,7 @@
 
 package org.opensearch.arrow.flight;
 
+import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.arrow.spi.StreamManager;
 import org.opensearch.client.Client;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
@@ -21,6 +22,7 @@ import org.opensearch.core.indices.breaker.CircuitBreakerService;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;
+import org.opensearch.plugins.ClusterPlugin;
 import org.opensearch.plugins.NetworkPlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.SecureTransportSettingsProvider;
@@ -31,6 +33,7 @@ import org.opensearch.telemetry.tracing.Tracer;
 import org.opensearch.threadpool.ExecutorBuilder;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.Transport;
+import org.opensearch.transport.TransportService;
 import org.opensearch.watcher.ResourceWatcherService;
 
 import java.util.Collection;
@@ -42,7 +45,7 @@ import java.util.function.Supplier;
  * BaseFlightStreamPlugin is a plugin that implements the StreamManagerPlugin interface.
  * It provides the necessary components for handling flight streams in the OpenSearch cluster.
  */
-public abstract class BaseFlightStreamPlugin extends Plugin implements StreamManagerPlugin, NetworkPlugin {
+public abstract class BaseFlightStreamPlugin extends Plugin implements StreamManagerPlugin, NetworkPlugin, ClusterPlugin {
 
     /**
      * Constructor for BaseFlightStreamPlugin.
@@ -109,7 +112,7 @@ public abstract class BaseFlightStreamPlugin extends Plugin implements StreamMan
      * Returns the StreamManager instance for managing flight streams.
      */
     @Override
-    public abstract StreamManager getStreamManager();
+    public abstract Supplier<StreamManager> getStreamManager();
 
     /**
      * Returns a list of ExecutorBuilder instances for building thread pools used for FlightServer
@@ -123,4 +126,7 @@ public abstract class BaseFlightStreamPlugin extends Plugin implements StreamMan
      */
     @Override
     public abstract List<Setting<?>> getSettings();
+
+    @Override
+    public abstract void onNodeStarted(DiscoveryNode localNode);
 }

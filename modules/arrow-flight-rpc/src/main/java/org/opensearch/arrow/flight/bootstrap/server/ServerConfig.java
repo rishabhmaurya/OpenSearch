@@ -30,7 +30,7 @@ public class ServerConfig {
      */
     public ServerConfig() {}
 
-    static final Setting<Integer> STREAM_PORT = Setting.intSetting(
+    public static final Setting<Integer> STREAM_PORT = Setting.intSetting(
         "node.attr.transport.stream.port",
         9880,
         1024,
@@ -91,7 +91,7 @@ public class ServerConfig {
     static final String FLIGHT_THREAD_POOL_NAME = "flight-server";
 
     private static final String host = "localhost";
-    private static int port;
+    public static int port;
     private static boolean enableSsl;
     private static ScalingExecutorBuilder executorBuilder;
 
@@ -166,7 +166,7 @@ public class ServerConfig {
         };
     }
 
-    private static Location getLocation(String address, int port) {
+    public static Location getLocation(String address, int port) {
         if (enableSsl) {
             return Location.forGrpcTls(address, port);
         }
@@ -176,7 +176,7 @@ public class ServerConfig {
     private static class Netty4Configs {
         public static final Setting<Integer> NETTY_ALLOCATOR_NUM_DIRECT_ARENAS = Setting.intSetting(
             "io.netty.allocator.numDirectArenas",
-            1, // TODO - 2 * the number of available processors
+            1, // TODO - 2 * the number of available processors; to be confirmed and set after running benchmarks
             1,
             Setting.Property.NodeScope
         );

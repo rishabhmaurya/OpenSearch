@@ -31,6 +31,7 @@ public class FlightServerBuilder {
     private final Supplier<BufferAllocator> allocator;
     private final FlightProducer producer;
     private final SslContextProvider sslContextProvider;
+    private final Location location;
 
     /**
      * Creates a new FlightServerBuilder instance with the specified configurations.
@@ -44,12 +45,14 @@ public class FlightServerBuilder {
         ThreadPool threadPool,
         Supplier<BufferAllocator> allocator,
         FlightProducer producer,
-        SslContextProvider sslContextProvider
+        SslContextProvider sslContextProvider,
+        Location location
     ) {
         this.threadPool = threadPool;
         this.allocator = allocator;
         this.producer = producer;
         this.sslContextProvider = sslContextProvider;
+        this.location = location;
     }
 
     /**
@@ -57,7 +60,6 @@ public class FlightServerBuilder {
      * @return A configured OpenSearchFlightServer instance
      */
     public OpenSearchFlightServer build() throws IOException {
-        final Location location = ServerConfig.getServerLocation();
         ExecutorService executorService = threadPool.executor(FLIGHT_THREAD_POOL_NAME);
         OpenSearchFlightServer.Builder builder = OpenSearchFlightServer.builder(allocator.get(), location, producer);
         builder.executor(executorService);

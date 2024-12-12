@@ -20,12 +20,15 @@ import org.opensearch.cluster.ClusterChangedEvent;
 import org.opensearch.cluster.ClusterStateListener;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.util.FeatureFlags;
 
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
+
+import static org.opensearch.common.util.FeatureFlags.ARROW_STREAMS_SETTING;
 
 /**
  * Manages Flight client connections to OpenSearch nodes in a cluster.
@@ -118,15 +121,13 @@ public class FlightClientManager implements ClusterStateListener, AutoCloseable 
         if (node.getVersion().before(minVersion)) {
             return null;
         }
-
-        String arrowStreamsEnabled = node.getAttributes().get("arrow.streams.enabled");
-        if (!"true".equals(arrowStreamsEnabled)) {
+        if (!FeatureFlags.isEnabled(ARROW_STREAMS_SETTING)) {
             return null;
         }
 
         String clientPort = node.getAttributes().get("transport.stream.port");
         FlightClientBuilder builder = new FlightClientBuilder(
-            node.getHostAddress(),
+            node.getAddress().getAddress(),
             Integer.parseInt(clientPort),
             allocator.get(),
             sslContextProvider

@@ -9,6 +9,7 @@
 package org.opensearch.arrow.flight.bootstrap;
 
 import org.apache.arrow.flight.FlightProducer;
+import org.apache.arrow.flight.Location;
 import org.apache.arrow.flight.OpenSearchFlightServer;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -24,6 +25,8 @@ import org.opensearch.arrow.flight.bootstrap.tls.SslContextProvider;
 import org.opensearch.arrow.flight.core.BaseFlightProducer;
 import org.opensearch.arrow.flight.core.FlightStreamManager;
 import org.opensearch.arrow.spi.StreamManager;
+import org.opensearch.cluster.node.DiscoveryNode;
+import org.opensearch.cluster.node.DiscoveryNodeRole;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.SetOnce;
 import org.opensearch.common.lifecycle.AbstractLifecycleComponent;
@@ -33,9 +36,10 @@ import org.opensearch.threadpool.ThreadPool;
 
 import java.io.IOException;
 import java.security.AccessController;
-import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Objects;
+import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * FlightService manages the Arrow Flight server and client for OpenSearch.
@@ -48,9 +52,11 @@ public class FlightService extends AbstractLifecycleComponent {
 
     private static OpenSearchFlightServer server;
     private static BufferAllocator allocator;
-    private static FlightStreamManager streamManager;
+    private static Supplier<StreamManager> streamManager;
     private static FlightClientManager clientManager;
     private final SetOnce<ThreadPool> threadPool = new SetOnce<>();
+    private final SetOnce<ClusterService> clusterService = new SetOnce<>();
+
     private final SetOnce<SecureTransportSettingsProvider> secureTransportSettingsProvider = new SetOnce<>();
     private SslContextProvider sslContextProvider;
 
@@ -76,14 +82,8 @@ public class FlightService extends AbstractLifecycleComponent {
      * @param threadPool The ThreadPool instance.
      */
     public void initialize(ClusterService clusterService, ThreadPool threadPool) {
+        this.clusterService.trySet(clusterService);
         this.threadPool.trySet(Objects.requireNonNull(threadPool));
-        if (ServerConfig.isSslEnabled()) {
-            sslContextProvider = new DefaultSslContextProvider(secureTransportSettingsProvider::get);
-        } else {
-            sslContextProvider = new DisabledSslContextProvider();
-        }
-        clientManager = new FlightClientManager(() -> allocator, Objects.requireNonNull(clusterService), sslContextProvider);
-        streamManager = new FlightStreamManager(() -> allocator, clientManager);
     }
 
     /**
@@ -94,27 +94,10 @@ public class FlightService extends AbstractLifecycleComponent {
         this.secureTransportSettingsProvider.trySet(secureTransportSettingsProvider);
     }
 
-    /**
-     * Starts the FlightService by initializing and starting the Arrow Flight server.
-     */
+
     @Override
     protected void doStart() {
-        try {
-            allocator = AccessController.doPrivileged(
-                (PrivilegedExceptionAction<BufferAllocator>) () -> new RootAllocator(Integer.MAX_VALUE)
-            );
-
-            FlightProducer producer = new BaseFlightProducer(clientManager, streamManager, allocator);
-            FlightServerBuilder builder = new FlightServerBuilder(threadPool.get(), () -> allocator, producer, sslContextProvider);
-            server = builder.build();
-            server.start();
-            logger.info("Arrow Flight server started successfully:{}", ServerConfig.getServerLocation().getUri().toString());
-        } catch (IOException e) {
-            logger.error("Failed to start Arrow Flight server", e);
-            throw new RuntimeException("Failed to start Arrow Flight server", e);
-        } catch (PrivilegedActionException e) {
-            throw new RuntimeException(e);
-        }
+        // everything is lazily started in onNodeStart() after TransportService is started
     }
 
     /**
@@ -123,10 +106,18 @@ public class FlightService extends AbstractLifecycleComponent {
     @Override
     protected void doStop() {
         try {
-            server.shutdown();
-            streamManager.close();
-            clientManager.close();
-            server.close();
+            if (server != null) {
+                server.shutdown();
+            }
+            if (streamManager != null && streamManager.get() != null) {
+                streamManager.get().close();
+            }
+            if (clientManager != null) {
+                clientManager.close();
+            }
+            if (server != null) {
+                server.close();
+            }
             logger.info("Arrow Flight service closed successfully");
         } catch (Exception e) {
             logger.error("Error while closing Arrow Flight service", e);
@@ -151,11 +142,52 @@ public class FlightService extends AbstractLifecycleComponent {
         return clientManager;
     }
 
+    public void onNodeStart(DiscoveryNode localNode) {
+        if (isDedicatedClusterManagerNode(localNode)) {
+            return;
+        }
+        try {
+            allocator = AccessController.doPrivileged(
+                (PrivilegedExceptionAction<BufferAllocator>) () -> new RootAllocator(Integer.MAX_VALUE)
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to initialize Arrow Flight server", e);
+        }
+
+        if (ServerConfig.isSslEnabled()) {
+            sslContextProvider = new DefaultSslContextProvider(secureTransportSettingsProvider::get);
+        } else {
+            sslContextProvider = new DisabledSslContextProvider();
+        }
+        clientManager = new FlightClientManager(() -> allocator, Objects.requireNonNull(clusterService.get()), sslContextProvider);
+        FlightStreamManager flightStreamManager = new FlightStreamManager(() -> allocator, clientManager);
+        streamManager = () -> flightStreamManager;
+
+        try {
+            FlightProducer producer = new BaseFlightProducer(clientManager, flightStreamManager, allocator);
+            Location serverLocation = ServerConfig.getLocation(localNode.getAddress().getAddress(), Integer.parseInt(localNode.getAttributes().get("transport.stream.port")));
+            FlightServerBuilder builder = new FlightServerBuilder(threadPool.get(), () -> allocator, producer, sslContextProvider, serverLocation);
+            server = builder.build();
+            server.start();
+            logger.info("Arrow Flight server started successfully:{}", serverLocation);
+        } catch (IOException e) {
+            logger.error("Failed to start Arrow Flight server", e);
+            throw new RuntimeException("Failed to start Arrow Flight server", e);
+        }
+    }
+
+    private boolean isDedicatedClusterManagerNode(DiscoveryNode node) {
+        Set<DiscoveryNodeRole> nodeRoles = node.getRoles();
+        return nodeRoles.size() == 1 &&
+            (nodeRoles.contains(DiscoveryNodeRole.CLUSTER_MANAGER_ROLE) ||
+                nodeRoles.contains(DiscoveryNodeRole.MASTER_ROLE));
+    }
+
     /**
      * Retrieves the StreamManager used by the FlightService.
      * @return The StreamManager instance.
      */
-    public StreamManager getStreamManager() {
+    public Supplier<StreamManager> getStreamManager() {
         return streamManager;
     }
 

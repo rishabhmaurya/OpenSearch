@@ -43,7 +43,7 @@ public class FlightServerBuilderTests extends OpenSearchTestCase {
     }
 
     public void testBuilderConstructorWithValidInputs() throws IOException {
-        FlightServerBuilder newBuilder = new FlightServerBuilder(threadPool, () -> allocator, producer, mock(SslContextProvider.class));
+        FlightServerBuilder newBuilder = new FlightServerBuilder(threadPool, () -> allocator, producer, mock(SslContextProvider.class), null);
         assertNotNull(newBuilder);
         assertNotNull(newBuilder.build());
     }
@@ -51,14 +51,14 @@ public class FlightServerBuilderTests extends OpenSearchTestCase {
     public void testBuilderConstructorWithNullThreadPool() {
         expectThrows(
             NullPointerException.class,
-            () -> (new FlightServerBuilder(null, () -> allocator, producer, mock(SslContextProvider.class))).build()
+            () -> (new FlightServerBuilder(null, () -> allocator, producer, mock(SslContextProvider.class), null)).build()
         );
     }
 
     public void testBuilderConstructorWithNullAllocator() {
         expectThrows(
             NullPointerException.class,
-            () -> (new FlightServerBuilder(threadPool, null, producer, mock(SslContextProvider.class))).build()
+            () -> (new FlightServerBuilder(threadPool, null, producer, mock(SslContextProvider.class), null)).build()
         );
     }
 
@@ -66,7 +66,7 @@ public class FlightServerBuilderTests extends OpenSearchTestCase {
         SslContextProvider sslContextProvider = mock(SslContextProvider.class);
         when(sslContextProvider.isSslEnabled()).thenReturn(true);
         when(sslContextProvider.getServerSslContext()).thenReturn(null);
-        FlightServerBuilder newBuilder = new FlightServerBuilder(threadPool, () -> allocator, producer, sslContextProvider);
+        FlightServerBuilder newBuilder = new FlightServerBuilder(threadPool, () -> allocator, producer, sslContextProvider, null);
         assertNotNull(newBuilder);
         expectThrows(NullPointerException.class, newBuilder::build);
     }

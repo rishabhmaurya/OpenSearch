@@ -22,6 +22,7 @@ import org.opensearch.threadpool.ThreadPool;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Supplier;
 
 import static org.opensearch.common.util.FeatureFlags.ARROW_STREAMS_SETTING;
 import static org.mockito.Mockito.mock;
@@ -69,7 +70,7 @@ public class FlightStreamPluginTests extends OpenSearchTestCase {
         assertNotNull(executorBuilders);
         assertFalse(executorBuilders.isEmpty());
 
-        StreamManager streamManager = plugin.getStreamManager();
+        Supplier<StreamManager> streamManager = plugin.getStreamManager();
         assertNotNull(streamManager);
 
         List<Setting<?>> settings = plugin.getSettings();
