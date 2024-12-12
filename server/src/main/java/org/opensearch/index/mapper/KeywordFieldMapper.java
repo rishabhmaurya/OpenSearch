@@ -34,6 +34,7 @@ package org.opensearch.index.mapper;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.document.BinaryDocValuesField;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.SortedSetDocValuesField;
@@ -61,6 +62,7 @@ import org.opensearch.index.analysis.IndexAnalyzers;
 import org.opensearch.index.analysis.NamedAnalyzer;
 import org.opensearch.index.compositeindex.datacube.DimensionType;
 import org.opensearch.index.fielddata.IndexFieldData;
+import org.opensearch.index.fielddata.plain.BinaryIndexFieldData;
 import org.opensearch.index.fielddata.plain.SortedSetOrdinalsIndexFieldData;
 import org.opensearch.index.query.QueryShardContext;
 import org.opensearch.index.similarity.SimilarityProvider;
@@ -167,6 +169,13 @@ public final class KeywordFieldMapper extends ParametrizedFieldMapper {
             false
         );
 
+        private final Parameter<Boolean> useBinaryDV = Parameter.boolParam(
+            "use_binary_doc_value",
+            true,
+            m -> toType(m).useBinaryDocValue,
+            false
+        );
+
         private final Parameter<Map<String, String>> meta = Parameter.metaParam();
         private final Parameter<Float> boost = Parameter.boostParam();
 
@@ -216,7 +225,8 @@ public final class KeywordFieldMapper extends ParametrizedFieldMapper {
                 normalizer,
                 splitQueriesOnWhitespace,
                 boost,
-                meta
+                meta,
+                useBinaryDV
             );
         }
 
@@ -238,7 +248,7 @@ public final class KeywordFieldMapper extends ParametrizedFieldMapper {
             } else if (splitQueriesOnWhitespace.getValue()) {
                 searchAnalyzer = Lucene.WHITESPACE_ANALYZER;
             }
-            return new KeywordFieldType(buildFullName(context), fieldType, normalizer, searchAnalyzer, this);
+            return new KeywordFieldType(buildFullName(context), fieldType, normalizer, searchAnalyzer, this, useBinaryDV.getValue());
         }
 
         @Override
@@ -274,8 +284,13 @@ public final class KeywordFieldMapper extends ParametrizedFieldMapper {
 
         private final int ignoreAbove;
         private final String nullValue;
+        private final boolean useBinaryDocValue;
 
         public KeywordFieldType(String name, FieldType fieldType, NamedAnalyzer normalizer, NamedAnalyzer searchAnalyzer, Builder builder) {
+            this(name,fieldType,normalizer, searchAnalyzer, builder, false);
+        }
+
+        public KeywordFieldType(String name, FieldType fieldType, NamedAnalyzer normalizer, NamedAnalyzer searchAnalyzer, Builder builder, boolean useBinaryDocValue) {
             super(
                 name,
                 fieldType.indexOptions() != IndexOptions.NONE,
@@ -289,6 +304,7 @@ public final class KeywordFieldMapper extends ParametrizedFieldMapper {
             setBoost(builder.boost.getValue());
             this.ignoreAbove = builder.ignoreAbove.getValue();
             this.nullValue = builder.nullValue.getValue();
+            this.useBinaryDocValue = useBinaryDocValue;
         }
 
         public KeywordFieldType(String name, boolean isSearchable, boolean hasDocValues, Map<String, String> meta) {
@@ -296,6 +312,7 @@ public final class KeywordFieldMapper extends ParametrizedFieldMapper {
             setIndexAnalyzer(Lucene.KEYWORD_ANALYZER);
             this.ignoreAbove = Integer.MAX_VALUE;
             this.nullValue = null;
+            this.useBinaryDocValue = false;
         }
 
         public KeywordFieldType(String name) {
@@ -313,12 +330,14 @@ public final class KeywordFieldMapper extends ParametrizedFieldMapper {
             );
             this.ignoreAbove = Integer.MAX_VALUE;
             this.nullValue = null;
+            this.useBinaryDocValue = false;
         }
 
         public KeywordFieldType(String name, NamedAnalyzer analyzer) {
             super(name, true, false, true, new TextSearchInfo(Defaults.FIELD_TYPE, null, analyzer, analyzer), Collections.emptyMap());
             this.ignoreAbove = Integer.MAX_VALUE;
             this.nullValue = null;
+            this.useBinaryDocValue = false;
         }
 
         @Override
@@ -333,7 +352,11 @@ public final class KeywordFieldMapper extends ParametrizedFieldMapper {
         @Override
         public IndexFieldData.Builder fielddataBuilder(String fullyQualifiedIndexName, Supplier<SearchLookup> searchLookup) {
             failIfNoDocValues();
-            return new SortedSetOrdinalsIndexFieldData.Builder(name(), CoreValuesSourceType.BYTES);
+            if (useBinaryDocValue) {
+                return new BinaryIndexFieldData.Builder(name() + ".binary", CoreValuesSourceType.BYTES);
+            } else {
+                return new SortedSetOrdinalsIndexFieldData.Builder(name(), CoreValuesSourceType.BYTES);
+            }
         }
 
         @Override
@@ -661,6 +684,7 @@ public final class KeywordFieldMapper extends ParametrizedFieldMapper {
     private final SimilarityProvider similarity;
     private final String normalizerName;
     private final boolean splitQueriesOnWhitespace;
+    private final boolean useBinaryDocValue;
 
     private final IndexAnalyzers indexAnalyzers;
 
@@ -684,7 +708,7 @@ public final class KeywordFieldMapper extends ParametrizedFieldMapper {
         this.similarity = builder.similarity.getValue();
         this.normalizerName = builder.normalizer.getValue();
         this.splitQueriesOnWhitespace = builder.splitQueriesOnWhitespace.getValue();
-
+        this.useBinaryDocValue = builder.useBinaryDV.getValue();
         this.indexAnalyzers = builder.indexAnalyzers;
     }
 
@@ -741,7 +765,11 @@ public final class KeywordFieldMapper extends ParametrizedFieldMapper {
         }
 
         if (fieldType().hasDocValues()) {
-            context.doc().add(new SortedSetDocValuesField(fieldType().name(), binaryValue));
+            if (useBinaryDocValue) {
+                context.doc().add(new BinaryDocValuesField(fieldType().name() + ".binary", binaryValue));
+            } else {
+                context.doc().add(new SortedSetDocValuesField(fieldType().name(), binaryValue));
+            }
         }
     }
 
