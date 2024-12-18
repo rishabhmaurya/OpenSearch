@@ -12,6 +12,7 @@ import org.opensearch.arrow.flight.bootstrap.FlightStreamPluginImpl;
 import org.opensearch.arrow.spi.StreamManager;
 import org.opensearch.client.Client;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.network.NetworkService;
 import org.opensearch.common.settings.Setting;
@@ -88,8 +89,8 @@ public class FlightStreamPlugin extends BaseFlightStreamPlugin {
                 }
 
                 @Override
-                public StreamManager getStreamManager() {
-                    return null;
+                public Supplier<StreamManager> getStreamManager() {
+                    return () -> null;
                 }
 
                 @Override
@@ -100,6 +101,11 @@ public class FlightStreamPlugin extends BaseFlightStreamPlugin {
                 @Override
                 public List<Setting<?>> getSettings() {
                     return List.of();
+                }
+
+                @Override
+                public void onNodeStarted(DiscoveryNode localNode) {
+
                 }
             };
         }
@@ -188,7 +194,7 @@ public class FlightStreamPlugin extends BaseFlightStreamPlugin {
      * Gets the StreamManager instance for managing flight streams.
      */
     @Override
-    public StreamManager getStreamManager() {
+    public Supplier<StreamManager> getStreamManager() {
         return delegate.getStreamManager();
     }
 
@@ -207,5 +213,10 @@ public class FlightStreamPlugin extends BaseFlightStreamPlugin {
     @Override
     public List<Setting<?>> getSettings() {
         return delegate.getSettings();
+    }
+
+    @Override
+    public void onNodeStarted(DiscoveryNode localNode) {
+        delegate.onNodeStarted(localNode);
     }
 }

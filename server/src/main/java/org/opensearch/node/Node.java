@@ -311,6 +311,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -1392,9 +1393,10 @@ public class Node implements Closeable {
                     );
                 }
                 if (!streamManagerPlugins.isEmpty()) {
-                    if (streamManagerPlugins.get(0).getStreamManager() != null) {
+                    Supplier<StreamManager> baseStreamManager =  streamManagerPlugins.get(0).getStreamManager();
+                    if (baseStreamManager != null) {
                         streamManager = new StreamManagerWrapper(
-                            streamManagerPlugins.get(0).getStreamManager(),
+                            baseStreamManager,
                             transportService.getTaskManager()
                         );
                         logger.info("StreamManager initialized");
@@ -1801,6 +1803,7 @@ public class Node implements Closeable {
             HttpServerTransport http = injector.getInstance(HttpServerTransport.class);
             writePortsFile("http", http.boundAddress());
         }
+
 
         logger.info("started");
 

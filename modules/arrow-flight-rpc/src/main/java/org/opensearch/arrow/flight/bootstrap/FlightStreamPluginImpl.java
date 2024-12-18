@@ -13,6 +13,7 @@ import org.opensearch.arrow.flight.bootstrap.server.ServerConfig;
 import org.opensearch.arrow.spi.StreamManager;
 import org.opensearch.client.Client;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.network.NetworkService;
 import org.opensearch.common.settings.Setting;
@@ -30,6 +31,7 @@ import org.opensearch.telemetry.tracing.Tracer;
 import org.opensearch.threadpool.ExecutorBuilder;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.Transport;
+import org.opensearch.transport.TransportService;
 import org.opensearch.watcher.ResourceWatcherService;
 
 import java.util.Collection;
@@ -109,15 +111,21 @@ public class FlightStreamPluginImpl extends BaseFlightStreamPlugin {
         SecureTransportSettingsProvider secureTransportSettingsProvider,
         Tracer tracer
     ) {
+
         flightService.setSecureTransportSettingsProvider(secureTransportSettingsProvider);
         return Collections.emptyMap();
+    }
+
+    @Override
+    public void onNodeStarted(DiscoveryNode localNode) {
+        flightService.onNodeStart(localNode);
     }
 
     /**
      * Gets the StreamManager instance for managing flight streams.
      */
     @Override
-    public StreamManager getStreamManager() {
+    public Supplier<StreamManager> getStreamManager() {
         return flightService.getStreamManager();
     }
 

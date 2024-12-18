@@ -8,18 +8,19 @@
 
 package org.opensearch.arrow.flight.bootstrap.server;
 
+import io.netty.channel.Channel;
+import io.netty.channel.EventLoopGroup;
 import org.apache.arrow.flight.FlightProducer;
 import org.apache.arrow.flight.Location;
 import org.apache.arrow.flight.OpenSearchFlightServer;
 import org.apache.arrow.memory.BufferAllocator;
 import org.opensearch.arrow.flight.bootstrap.tls.SslContextProvider;
-import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.arrow.flight.bootstrap.Utils;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 
-import static org.opensearch.arrow.flight.bootstrap.server.ServerConfig.FLIGHT_THREAD_POOL_NAME;
 
 /**
  * Builder class for creating and configuring OpenSearch Flight server instances.
@@ -27,29 +28,26 @@ import static org.opensearch.arrow.flight.bootstrap.server.ServerConfig.FLIGHT_T
  * buffer allocation, producer configuration, and SSL/TLS settings.
  */
 public class FlightServerBuilder {
-    private final ThreadPool threadPool;
-    private final Supplier<BufferAllocator> allocator;
-    private final FlightProducer producer;
-    private final SslContextProvider sslContextProvider;
-
+    private final OpenSearchFlightServer.Builder builder;
     /**
      * Creates a new FlightServerBuilder instance with the specified configurations.
      *
-     * @param threadPool The thread pool used for handling Flight server operations
      * @param allocator Supplier for Arrow buffer allocation
      * @param producer The Flight producer that handles incoming requests
      * @param sslContextProvider Provider for SSL/TLS context configuration
      */
     public FlightServerBuilder(
-        ThreadPool threadPool,
         Supplier<BufferAllocator> allocator,
         FlightProducer producer,
-        SslContextProvider sslContextProvider
+        SslContextProvider sslContextProvider,
+        Location location,
+        ExecutorService executorService
     ) {
-        this.threadPool = threadPool;
-        this.allocator = allocator;
-        this.producer = producer;
-        this.sslContextProvider = sslContextProvider;
+        this.builder = OpenSearchFlightServer.builder(allocator.get(), location, producer);
+        builder.executor(executorService);
+        if (sslContextProvider.isSslEnabled()) {
+            builder.useTls(sslContextProvider.getServerSslContext());
+        }
     }
 
     /**
@@ -57,13 +55,13 @@ public class FlightServerBuilder {
      * @return A configured OpenSearchFlightServer instance
      */
     public OpenSearchFlightServer build() throws IOException {
-        final Location location = ServerConfig.getServerLocation();
-        ExecutorService executorService = threadPool.executor(FLIGHT_THREAD_POOL_NAME);
-        OpenSearchFlightServer.Builder builder = OpenSearchFlightServer.builder(allocator.get(), location, producer);
-        builder.executor(executorService);
-        if (sslContextProvider.isSslEnabled()) {
-            builder.useTls(sslContextProvider.getServerSslContext());
-        }
         return builder.build();
+    }
+
+    public FlightServerBuilder elg(EventLoopGroup bossELG, EventLoopGroup workerELG, Class<? extends Channel> channelType) {
+        builder.transportHint("netty.channelType", Utils.DEFAULT_CLIENT_CHANNEL_TYPE);
+        builder.transportHint("netty.bossEventLoopGroup", bossELG);
+        builder.transportHint("netty.workerEventLoopGroup", workerELG);
+        return this;
     }
 }

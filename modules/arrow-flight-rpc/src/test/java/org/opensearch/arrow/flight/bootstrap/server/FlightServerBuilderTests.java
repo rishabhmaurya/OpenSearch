@@ -17,6 +17,8 @@ import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.io.IOException;
+import java.util.Objects;
+import java.util.concurrent.ExecutorService;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -43,7 +45,8 @@ public class FlightServerBuilderTests extends OpenSearchTestCase {
     }
 
     public void testBuilderConstructorWithValidInputs() throws IOException {
-        FlightServerBuilder newBuilder = new FlightServerBuilder(threadPool, () -> allocator, producer, mock(SslContextProvider.class));
+        ExecutorService executorService = Objects.requireNonNull(threadPool).executor(ServerConfig.FLIGHT_THREAD_POOL_NAME);
+        FlightServerBuilder newBuilder = new FlightServerBuilder(() -> allocator, producer, mock(SslContextProvider.class), null, executorService);
         assertNotNull(newBuilder);
         assertNotNull(newBuilder.build());
     }
@@ -51,14 +54,15 @@ public class FlightServerBuilderTests extends OpenSearchTestCase {
     public void testBuilderConstructorWithNullThreadPool() {
         expectThrows(
             NullPointerException.class,
-            () -> (new FlightServerBuilder(null, () -> allocator, producer, mock(SslContextProvider.class))).build()
+            () -> (new FlightServerBuilder(() -> allocator, producer, mock(SslContextProvider.class), null, null)).build()
         );
     }
 
     public void testBuilderConstructorWithNullAllocator() {
+        ExecutorService executorService = Objects.requireNonNull(threadPool).executor(ServerConfig.FLIGHT_THREAD_POOL_NAME);
         expectThrows(
             NullPointerException.class,
-            () -> (new FlightServerBuilder(threadPool, null, producer, mock(SslContextProvider.class))).build()
+            () -> (new FlightServerBuilder(null, producer, mock(SslContextProvider.class), null, executorService)).build()
         );
     }
 
@@ -66,7 +70,8 @@ public class FlightServerBuilderTests extends OpenSearchTestCase {
         SslContextProvider sslContextProvider = mock(SslContextProvider.class);
         when(sslContextProvider.isSslEnabled()).thenReturn(true);
         when(sslContextProvider.getServerSslContext()).thenReturn(null);
-        FlightServerBuilder newBuilder = new FlightServerBuilder(threadPool, () -> allocator, producer, sslContextProvider);
+        ExecutorService executorService = Objects.requireNonNull(threadPool).executor(ServerConfig.FLIGHT_THREAD_POOL_NAME);
+        FlightServerBuilder newBuilder = new FlightServerBuilder(() -> allocator, producer, sslContextProvider, null, executorService);
         assertNotNull(newBuilder);
         expectThrows(NullPointerException.class, newBuilder::build);
     }

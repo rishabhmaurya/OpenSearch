@@ -10,6 +10,7 @@
  */
 
 apply plugin: 'opensearch.publish'
+apply plugin: 'opensearch.internal-cluster-test'
 
 opensearchplugin {
   description 'Arrow flight based Stream implementation'
@@ -19,6 +20,7 @@ opensearchplugin {
 dependencies {
   implementation project(':libs:opensearch-arrow-spi')
   implementation project(':modules:transport-netty4')
+  implementation "io.netty:netty-transport-native-epoll:${versions.netty}"
 
   implementation 'org.checkerframework:checker-qual:3.44.0'
   implementation "org.apache.arrow:arrow-memory-core:${versions.arrow}"
