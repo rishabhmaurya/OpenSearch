@@ -15,13 +15,13 @@ import org.apache.arrow.flight.FlightEndpoint;
 import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.Location;
 import org.apache.arrow.flight.NoOpFlightProducer;
-import org.apache.arrow.flight.OpenSearchFlightClient;
+import org.apache.arrow.flight.OSFlightClient;
 import org.apache.arrow.flight.Ticket;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.arrow.flight.bootstrap.client.FlightClientManager;
+import org.opensearch.arrow.flight.bootstrap.FlightClientManager;
 import org.opensearch.arrow.spi.StreamProducer;
 import org.opensearch.arrow.spi.StreamTicket;
 
@@ -70,7 +70,7 @@ public class BaseFlightProducer extends NoOpFlightProducer {
             if (streamTicket.getNodeId().equals(flightClientManager.getLocalNodeId())) {
                 streamProducerHolder = streamManager.getStreamProducer(streamTicket);
             } else {
-                OpenSearchFlightClient remoteClient = flightClientManager.getFlightClient(streamTicket.getNodeId());
+                OSFlightClient remoteClient = flightClientManager.getFlightClient(streamTicket.getNodeId());
                 if (remoteClient == null) {
                     listener.error(CallStatus.UNAVAILABLE.withDescription("Client doesn't support Stream").cause());
                 }
@@ -146,7 +146,7 @@ public class BaseFlightProducer extends NoOpFlightProducer {
             ).setRecords(streamProducerHolder.getProducer().estimatedRowCount());
             return infoBuilder.build();
         } else {
-            OpenSearchFlightClient remoteClient = flightClientManager.getFlightClient(streamTicket.getNodeId());
+            OSFlightClient remoteClient = flightClientManager.getFlightClient(streamTicket.getNodeId());
             if (remoteClient == null) {
                 throw CallStatus.UNAVAILABLE.withDescription("Client doesn't support Stream").toRuntimeException();
             }

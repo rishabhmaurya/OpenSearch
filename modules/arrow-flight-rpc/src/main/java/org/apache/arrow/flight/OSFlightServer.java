@@ -15,6 +15,7 @@ import org.apache.arrow.flight.auth2.CallHeaderAuthenticator;
 import org.apache.arrow.flight.auth2.ServerCallHeaderAuthMiddleware;
 import org.apache.arrow.flight.grpc.ServerBackpressureThresholdInterceptor;
 import org.apache.arrow.flight.grpc.ServerInterceptorAdapter;
+import org.apache.arrow.flight.grpc.ServerInterceptorAdapter.KeyFactory;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.util.VisibleForTesting;
@@ -41,20 +42,24 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import io.grpc.BindableService;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NettyServerBuilder;
+import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
-// TODO - add comment
-public class OpenSearchFlightServer implements AutoCloseable {
-    private static final Logger logger = LogManager.getLogger(OpenSearchFlightServer.class);
+/**
+ * Generic server of flight data that is customized via construction with delegate classes for the
+ * actual logic. The server currently uses GRPC as its transport mechanism.
+ */
+public class OSFlightServer implements AutoCloseable {
+
+    private static final Logger logger = LogManager.getLogger(OSFlightServer.class);
 
     private final Location location;
     private final Server server;
@@ -64,43 +69,31 @@ public class OpenSearchFlightServer implements AutoCloseable {
     @VisibleForTesting
     final ExecutorService grpcExecutor;
 
-    /**
-     * The maximum size of an individual gRPC message. This effectively disables the limit.
-     */
+    /** The maximum size of an individual gRPC message. This effectively disables the limit. */
     static final int MAX_GRPC_MESSAGE_SIZE = Integer.MAX_VALUE;
 
-    /**
-     * The default number of bytes that can be queued on an output stream before blocking.
-     */
+    /** The default number of bytes that can be queued on an output stream before blocking. */
     public static final int DEFAULT_BACKPRESSURE_THRESHOLD = 10 * 1024 * 1024; // 10MB
 
-    /**
-     * Create a new instance from a gRPC server. For internal use only.
-     */
-    private OpenSearchFlightServer(Location location, Server server, ExecutorService grpcExecutor) {
+    /** Create a new instance from a gRPC server. For internal use only. */
+    private OSFlightServer(Location location, Server server, ExecutorService grpcExecutor) {
         this.location = location;
         this.server = server;
         this.grpcExecutor = grpcExecutor;
     }
 
-    /**
-     * Start the server.
-     */
-    public OpenSearchFlightServer start() throws IOException {
+    /** Start the server. */
+    public OSFlightServer start() throws IOException {
         server.start();
         return this;
     }
 
-    /**
-     * Get the port the server is running on (if applicable).
-     */
+    /** Get the port the server is running on (if applicable). */
     public int getPort() {
         return server.getPort();
     }
 
-    /**
-     * Get the location for this server.
-     */
+    /** Get the location for this server. */
     public Location getLocation() {
         if (location.getUri().getPort() == 0) {
             // If the server was bound to port 0, replace the port in the location with the real port.
@@ -117,16 +110,12 @@ public class OpenSearchFlightServer implements AutoCloseable {
         return location;
     }
 
-    /**
-     * Block until the server shuts down.
-     */
+    /** Block until the server shuts down. */
     public void awaitTermination() throws InterruptedException {
         server.awaitTermination();
     }
 
-    /**
-     * Request that the server shut down.
-     */
+    /** Request that the server shut down. */
     public void shutdown() {
         server.shutdown();
         if (grpcExecutor != null) {
@@ -143,9 +132,7 @@ public class OpenSearchFlightServer implements AutoCloseable {
         return server.awaitTermination(timeout, unit);
     }
 
-    /**
-     * Shutdown the server, waits for up to 6 seconds for successful shutdown before returning.
-     */
+    /** Shutdown the server, waits for up to 6 seconds for successful shutdown before returning. */
     @Override
     public void close() throws InterruptedException {
         shutdown();
@@ -170,20 +157,38 @@ public class OpenSearchFlightServer implements AutoCloseable {
         }
     }
 
-    /**
-     * Create a builder for a Flight server.
-     */
+    /** Create a builder for a Flight server. */
     public static Builder builder() {
         return new Builder();
     }
 
-    /**
-     * Create a builder for a Flight server.
-     */
+    /** Create a builder for a Flight server. */
     public static Builder builder(BufferAllocator allocator, Location location, FlightProducer producer) {
         return new Builder(allocator, location, producer);
     }
 
+    public static Builder builder(
+        BufferAllocator allocator,
+        Location location,
+        FlightProducer producer,
+        SslContext sslContext,
+        Class<? extends Channel> channelType,
+        EventLoopGroup bossELG,
+        EventLoopGroup workerELG,
+        ExecutorService grpcExecutor
+    ) {
+        Builder builder = new Builder(allocator, location, producer);
+        if (sslContext != null) {
+            builder.useTls(sslContext);
+        }
+        builder.transportHint("netty.channelType", channelType);
+        builder.transportHint("netty.bossEventLoopGroup", bossELG);
+        builder.transportHint("netty.workerEventLoopGroup", workerELG);
+        builder.executor(grpcExecutor);
+        return builder;
+    }
+
+    /** A builder for Flight servers. */
     public static final class Builder {
         private BufferAllocator allocator;
         private Location location;
@@ -192,14 +197,14 @@ public class OpenSearchFlightServer implements AutoCloseable {
         private ServerAuthHandler authHandler = ServerAuthHandler.NO_OP;
         private CallHeaderAuthenticator headerAuthenticator = CallHeaderAuthenticator.NO_OP;
         private ExecutorService executor = null;
-        public static final int MAX_GRPC_MESSAGE_SIZE = Integer.MAX_VALUE;
         private int maxInboundMessageSize = MAX_GRPC_MESSAGE_SIZE;
+        private int maxHeaderListSize = MAX_GRPC_MESSAGE_SIZE;
         private int backpressureThreshold = DEFAULT_BACKPRESSURE_THRESHOLD;
         private InputStream certChain;
         private InputStream key;
         private InputStream mTlsCACert;
         private SslContext sslContext;
-        private final List<ServerInterceptorAdapter.KeyFactory<?>> interceptors;
+        private final List<KeyFactory<?>> interceptors;
         // Keep track of inserted interceptors
         private final Set<String> interceptorKeys;
 
@@ -216,11 +221,9 @@ public class OpenSearchFlightServer implements AutoCloseable {
             this.producer = Preconditions.checkNotNull(producer);
         }
 
-        /**
-         * Create the server for this builder.
-         */
+        /** Create the server for this builder. */
         @SuppressWarnings("unchecked")
-        public OpenSearchFlightServer build() {
+        public OSFlightServer build() {
             // Add the auth middleware if applicable.
             if (headerAuthenticator != CallHeaderAuthenticator.NO_OP) {
                 this.middleware(
@@ -272,7 +275,7 @@ public class OpenSearchFlightServer implements AutoCloseable {
                     break;
                 }
                 case LocationSchemes.GRPC_TLS: {
-                    if (certChain == null && sslContext == null) {
+                    if (certChain == null) {
                         throw new IllegalArgumentException("Must provide a certificate and key to serve gRPC over TLS");
                     }
                     builder = NettyServerBuilder.forAddress(location.toSocketAddress());
@@ -282,8 +285,9 @@ public class OpenSearchFlightServer implements AutoCloseable {
                     throw new IllegalArgumentException("Scheme is not supported: " + location.getUri().getScheme());
             }
 
-            if (certChain != null) {
+            if (sslContext != null && certChain != null) {
                 SslContextBuilder sslContextBuilder = GrpcSslContexts.forServer(certChain, key);
+
                 if (mTlsCACert != null) {
                     sslContextBuilder.clientAuth(ClientAuth.REQUIRE).trustManager(mTlsCACert);
                 }
@@ -296,8 +300,7 @@ public class OpenSearchFlightServer implements AutoCloseable {
                     closeCertChain();
                     closeKey();
                 }
-                builder.sslContext(sslContext);
-            } else if (sslContext != null) {
+
                 builder.sslContext(sslContext);
             }
 
@@ -306,11 +309,18 @@ public class OpenSearchFlightServer implements AutoCloseable {
             // We only want to have FlightServer close the gRPC executor if we created it here. We should
             // not close
             // user-supplied executors.
-            final ExecutorService grpcExecutor = null;
-            exec = executor;
-            final BindableService flightService = FlightGrpcUtils.createFlightService(allocator, producer, authHandler, exec);
+            final ExecutorService grpcExecutor;
+            if (executor != null) {
+                exec = executor;
+                grpcExecutor = null;
+            } else {
+                throw new IllegalStateException("GRPC executor must be passed to start Flight server.");
+            }
+
+            final FlightBindingService flightService = new FlightBindingService(allocator, producer, authHandler, exec);
             builder.executor(exec)
                 .maxInboundMessageSize(maxInboundMessageSize)
+                .maxInboundMetadataSize(maxHeaderListSize)
                 .addService(
                     ServerInterceptors.intercept(
                         flightService,
@@ -343,7 +353,12 @@ public class OpenSearchFlightServer implements AutoCloseable {
             });
 
             builder.intercept(new ServerInterceptorAdapter(interceptors));
-            return new OpenSearchFlightServer(location, builder.build(), grpcExecutor);
+            return new OSFlightServer(location, builder.build(), grpcExecutor);
+        }
+
+        public Builder setMaxHeaderListSize(int maxHeaderListSize) {
+            this.maxHeaderListSize = maxHeaderListSize;
+            return this;
         }
 
         /**
@@ -412,7 +427,7 @@ public class OpenSearchFlightServer implements AutoCloseable {
          * Enable TLS on the server.
          *
          * @param certChain The certificate chain to use.
-         * @param key       The private key to use.
+         * @param key The private key to use.
          */
         public Builder useTls(final File certChain, final File key) throws IOException {
             closeCertChain();
@@ -421,11 +436,6 @@ public class OpenSearchFlightServer implements AutoCloseable {
             closeKey();
             this.key = new FileInputStream(key);
 
-            return this;
-        }
-
-        public Builder useTls(SslContext sslContext) {
-            this.sslContext = Objects.requireNonNull(sslContext);
             return this;
         }
 
@@ -444,7 +454,7 @@ public class OpenSearchFlightServer implements AutoCloseable {
          * Enable TLS on the server.
          *
          * @param certChain The certificate chain to use.
-         * @param key       The private key to use.
+         * @param key The private key to use.
          */
         public Builder useTls(final InputStream certChain, final InputStream key) throws IOException {
             closeCertChain();
@@ -453,6 +463,15 @@ public class OpenSearchFlightServer implements AutoCloseable {
             closeKey();
             this.key = key;
 
+            return this;
+        }
+
+        /**
+         * Enable TLS on the server.
+         * @param sslContext SslContext to use.
+         */
+        public Builder useTls(SslContext sslContext) {
+            this.sslContext = Objects.requireNonNull(sslContext);
             return this;
         }
 
@@ -478,25 +497,19 @@ public class OpenSearchFlightServer implements AutoCloseable {
             return this;
         }
 
-        /**
-         * Set the authentication handler.
-         */
+        /** Set the authentication handler. */
         public Builder authHandler(ServerAuthHandler authHandler) {
             this.authHandler = authHandler;
             return this;
         }
 
-        /**
-         * Set the header-based authentication mechanism.
-         */
+        /** Set the header-based authentication mechanism. */
         public Builder headerAuthenticator(CallHeaderAuthenticator headerAuthenticator) {
             this.headerAuthenticator = headerAuthenticator;
             return this;
         }
 
-        /**
-         * Provide a transport-specific option. Not guaranteed to have any effect.
-         */
+        /** Provide a transport-specific option. Not guaranteed to have any effect. */
         public Builder transportHint(final String key, Object option) {
             builderOptions.put(key, option);
             return this;
@@ -505,22 +518,22 @@ public class OpenSearchFlightServer implements AutoCloseable {
         /**
          * Add a Flight middleware component to inspect and modify requests to this service.
          *
-         * @param key     An identifier for this middleware component. Service implementations can retrieve
-         *                the middleware instance for the current call using {@link
-         *                org.apache.arrow.flight.FlightProducer.CallContext}.
+         * @param key An identifier for this middleware component. Service implementations can retrieve
+         *     the middleware instance for the current call using {@link
+         *     org.apache.arrow.flight.FlightProducer.CallContext}.
          * @param factory A factory for the middleware.
-         * @param <T>     The middleware type.
+         * @param <T> The middleware type.
          * @throws IllegalArgumentException if the key already exists
          */
         public <T extends FlightServerMiddleware> Builder middleware(
             final FlightServerMiddleware.Key<T> key,
             final FlightServerMiddleware.Factory<T> factory
         ) {
-            // if (interceptorKeys.contains(key.toString())) {
-            // throw new IllegalArgumentException("Key already exists: " + key.key);
-            // }
-            interceptors.add(new ServerInterceptorAdapter.KeyFactory<>(key, factory));
-            // interceptorKeys.add(key.key);
+            if (interceptorKeys.contains(key.key)) {
+                throw new IllegalArgumentException("Key already exists: " + key.key);
+            }
+            interceptors.add(new KeyFactory<>(key, factory));
+            interceptorKeys.add(key.key);
             return this;
         }
 

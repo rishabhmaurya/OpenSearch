@@ -64,7 +64,7 @@ public class SslContextProviderTests extends OpenSearchTestCase {
     }
 
     public void testEnabledSslContextProvider() {
-        SslContextProvider provider = new DefaultSslContextProvider(() -> mockSecureTransportSettingsProvider);
+        SslContextProvider provider = new DefaultSslContextProvider(mockSecureTransportSettingsProvider);
 
         assertTrue("SSL should be enabled", provider.isSslEnabled());
         assertNotNull(provider.getServerSslContext());
@@ -88,7 +88,7 @@ public class SslContextProviderTests extends OpenSearchTestCase {
 
     public void testDefaultSslContextProviderWithInvalidSslProvider() {
         when(mockParameters.sslProvider()).thenReturn("INVALID");
-        DefaultSslContextProvider provider = new DefaultSslContextProvider(()->mockSecureTransportSettingsProvider);
+        DefaultSslContextProvider provider = new DefaultSslContextProvider(mockSecureTransportSettingsProvider);
         expectThrows(IllegalArgumentException.class, provider::getServerSslContext);
         expectThrows(IllegalArgumentException.class, provider::getClientSslContext);
     }

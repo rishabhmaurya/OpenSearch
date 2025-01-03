@@ -9,12 +9,12 @@
 package org.opensearch.arrow.flight.core;
 
 import org.apache.arrow.flight.FlightStream;
-import org.apache.arrow.flight.OpenSearchFlightClient;
+import org.apache.arrow.flight.OSFlightClient;
 import org.apache.arrow.flight.Ticket;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.opensearch.arrow.flight.bootstrap.client.FlightClientManager;
+import org.opensearch.arrow.flight.bootstrap.FlightClientManager;
 import org.opensearch.arrow.spi.StreamReader;
 import org.opensearch.arrow.spi.StreamTicket;
 import org.opensearch.test.OpenSearchTestCase;
@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 
 public class FlightStreamManagerTests extends OpenSearchTestCase {
 
-    private OpenSearchFlightClient flightClient;
+    private OSFlightClient flightClient;
     private FlightStreamManager flightStreamManager;
     private static final String NODE_ID = "testNodeId";
     private static final String TICKET_ID = "testTicketId";
@@ -35,11 +35,12 @@ public class FlightStreamManagerTests extends OpenSearchTestCase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        flightClient = mock(OpenSearchFlightClient.class);
+        flightClient = mock(OSFlightClient.class);
         FlightClientManager clientManager = mock(FlightClientManager.class);
         when(clientManager.getFlightClient(NODE_ID)).thenReturn(flightClient);
         BufferAllocator allocator = mock(BufferAllocator.class);
-        flightStreamManager = new FlightStreamManager(() -> allocator, clientManager);
+        flightStreamManager = new FlightStreamManager(() -> allocator);
+        flightStreamManager.setClientManager(clientManager);
     }
 
     public void testGetStreamReader() {

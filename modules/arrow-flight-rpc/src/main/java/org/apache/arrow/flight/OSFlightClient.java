@@ -1,18 +1,9 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * SPDX-License-Identifier: Apache-2.0
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * The OpenSearch Contributors require contributions made to
+ * this file be licensed under the Apache-2.0 license or a
+ * compatible open source license.
  */
 package org.apache.arrow.flight;
 
@@ -52,6 +43,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 
@@ -74,9 +66,9 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
-// TODO - add comment
 /** Client for Flight services. */
-public class OpenSearchFlightClient implements AutoCloseable {
+@SuppressWarnings("forbiddenApisMain")
+public class OSFlightClient implements AutoCloseable {
     private static final int PENDING_REQUESTS = 5;
     /**
      * The maximum number of trace events to keep on the gRPC Channel. This value disables channel
@@ -96,7 +88,7 @@ public class OpenSearchFlightClient implements AutoCloseable {
     private final List<FlightClientMiddleware.Factory> middleware;
 
     /** Create a Flight client from an allocator and a gRPC channel. */
-    OpenSearchFlightClient(BufferAllocator incomingAllocator, ManagedChannel channel, List<FlightClientMiddleware.Factory> middleware) {
+    OSFlightClient(BufferAllocator incomingAllocator, ManagedChannel channel, List<FlightClientMiddleware.Factory> middleware) {
         this.allocator = incomingAllocator.newChildAllocator("flight-client", 0, Long.MAX_VALUE);
         this.channel = channel;
         this.middleware = middleware;
@@ -456,7 +448,7 @@ public class OpenSearchFlightClient implements AutoCloseable {
         }
     }
 
-    /** A stream observer for Flight.PutResult */
+    /** A stream observer for Flight.PutResult. */
     private static class SetStreamObserver implements StreamObserver<Flight.PutResult> {
         private final BufferAllocator allocator;
         private final StreamListener<PutResult> listener;
@@ -720,6 +712,24 @@ public class OpenSearchFlightClient implements AutoCloseable {
         return new Builder(allocator, location);
     }
 
+    public static Builder builder(
+        BufferAllocator allocator,
+        Location location,
+        Class<? extends io.netty.channel.Channel> channelType,
+        ExecutorService executorService,
+        EventLoopGroup workerELG,
+        SslContext sslContext
+    ) {
+        Builder builder = new Builder(allocator, location);
+        builder.channelType(channelType);
+        builder.executor(executorService);
+        builder.eventLoopGroup(workerELG);
+        if (sslContext != null) {
+            builder.useTLS(sslContext);
+        }
+        return builder;
+    }
+
     /** A builder for Flight clients. */
     public static final class Builder {
         private BufferAllocator allocator;
@@ -732,6 +742,9 @@ public class OpenSearchFlightClient implements AutoCloseable {
         private String overrideHostname = null;
         private List<FlightClientMiddleware.Factory> middleware = new ArrayList<>();
         private boolean verifyServer = true;
+        private EventLoopGroup workerELG;
+        private ExecutorService executorService;
+        private Class<? extends io.netty.channel.Channel> channelType;
         private SslContext sslContext;
 
         private Builder() {}
@@ -744,11 +757,6 @@ public class OpenSearchFlightClient implements AutoCloseable {
         /** Force the client to connect over TLS. */
         public Builder useTls() {
             this.forceTls = true;
-            return this;
-        }
-
-        public Builder sslContext(SslContext sslContext) {
-            this.sslContext = Objects.requireNonNull(sslContext);
             return this;
         }
 
@@ -799,8 +807,28 @@ public class OpenSearchFlightClient implements AutoCloseable {
             return this;
         }
 
+        public Builder eventLoopGroup(EventLoopGroup elg) {
+            this.workerELG = elg;
+            return this;
+        }
+
+        public Builder executor(ExecutorService executorService) {
+            this.executorService = executorService;
+            return this;
+        }
+
+        public Builder channelType(Class<? extends io.netty.channel.Channel> channelType) {
+            this.channelType = channelType;
+            return this;
+        }
+
+        public Builder useTLS(SslContext sslContext) {
+            this.sslContext = Objects.requireNonNull(sslContext);
+            return this;
+        }
+
         /** Create the client from this builder. */
-        public OpenSearchFlightClient build() {
+        public OSFlightClient build() {
             final NettyChannelBuilder builder;
 
             switch (location.getUri().getScheme()) {
@@ -808,6 +836,18 @@ public class OpenSearchFlightClient implements AutoCloseable {
                 case LocationSchemes.GRPC_INSECURE:
                 case LocationSchemes.GRPC_TLS: {
                     builder = NettyChannelBuilder.forAddress(location.toSocketAddress());
+                    if (workerELG != null) {
+                        builder.eventLoopGroup(workerELG);
+                    }
+                    if (executorService != null) {
+                        builder.executor(executorService);
+                    }
+                    if (channelType != null) {
+                        builder.channelType(channelType);
+                    }
+                    if (sslContext != null) {
+                        builder.sslContext(sslContext);
+                    }
                     break;
                 }
                 case LocationSchemes.GRPC_DOMAIN_SOCKET: {
@@ -871,11 +911,7 @@ public class OpenSearchFlightClient implements AutoCloseable {
                     }
                 }
                 try {
-                    if (sslContext != null) {
-                        builder.sslContext(sslContext);
-                    } else {
-                        builder.sslContext(sslContextBuilder.build());
-                    }
+                    builder.sslContext(sslContextBuilder.build());
                 } catch (SSLException e) {
                     throw new RuntimeException(e);
                 }
@@ -890,7 +926,7 @@ public class OpenSearchFlightClient implements AutoCloseable {
             builder.maxTraceEvents(MAX_CHANNEL_TRACE_EVENTS)
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .maxInboundMetadataSize(maxInboundMessageSize);
-            return new OpenSearchFlightClient(allocator, builder.build(), middleware);
+            return new OSFlightClient(allocator, builder.build(), middleware);
         }
     }
 

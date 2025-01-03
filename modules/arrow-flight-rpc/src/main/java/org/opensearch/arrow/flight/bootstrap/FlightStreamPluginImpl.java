@@ -9,10 +9,10 @@
 package org.opensearch.arrow.flight.bootstrap;
 
 import org.opensearch.arrow.flight.BaseFlightStreamPlugin;
-import org.opensearch.arrow.flight.bootstrap.server.ServerConfig;
 import org.opensearch.arrow.spi.StreamManager;
 import org.opensearch.client.Client;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.network.NetworkService;
 import org.opensearch.common.settings.Setting;
@@ -114,11 +114,20 @@ public class FlightStreamPluginImpl extends BaseFlightStreamPlugin {
     }
 
     /**
+     * Called when a node is started. Starts the FlightService
+     * @param localNode local Node.
+     */
+    @Override
+    public void onNodeStarted(DiscoveryNode localNode) {
+        flightService.onNodeStart(localNode);
+    }
+
+    /**
      * Gets the StreamManager instance for managing flight streams.
      */
     @Override
-    public StreamManager getStreamManager() {
-        return flightService.getStreamManager();
+    public Supplier<StreamManager> getStreamManager() {
+        return flightService::getStreamManager;
     }
 
     /**
@@ -127,7 +136,7 @@ public class FlightStreamPluginImpl extends BaseFlightStreamPlugin {
      */
     @Override
     public List<ExecutorBuilder<?>> getExecutorBuilders(Settings settings) {
-        return Collections.singletonList(ServerConfig.getExecutorBuilder());
+        return List.of(ServerConfig.getServerExecutorBuilder(), ServerConfig.getClientExecutorBuilder());
     }
 
     /**

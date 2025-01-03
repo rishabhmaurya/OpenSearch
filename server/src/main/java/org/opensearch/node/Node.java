@@ -311,6 +311,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -1387,19 +1388,13 @@ public class Node implements Closeable {
                 List<StreamManagerPlugin> streamManagerPlugins = pluginsService.filterPlugins(StreamManagerPlugin.class);
                 if (streamManagerPlugins.size() > 1) {
                     throw new IllegalStateException(
-                        String.format(
-                            Locale.ROOT,
-                            "Only one StreamManagerPlugin can be installed. Found: %d",
-                            streamManagerPlugins.size()
-                        )
+                        String.format(Locale.ROOT, "Only one StreamManagerPlugin can be installed. Found: %d", streamManagerPlugins.size())
                     );
                 }
                 if (!streamManagerPlugins.isEmpty()) {
-                    if (streamManagerPlugins.get(0).getStreamManager() != null) {
-                        streamManager = new StreamManagerWrapper(
-                            streamManagerPlugins.get(0).getStreamManager(),
-                            transportService.getTaskManager()
-                        );
+                    Supplier<StreamManager> baseStreamManager = streamManagerPlugins.get(0).getStreamManager();
+                    if (baseStreamManager != null) {
+                        streamManager = new StreamManagerWrapper(baseStreamManager, transportService.getTaskManager());
                         logger.info("StreamManager initialized");
                     }
                 }

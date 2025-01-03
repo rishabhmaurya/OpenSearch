@@ -6,7 +6,7 @@
  * compatible open source license.
  */
 
-package org.opensearch.arrow.flight.bootstrap.server;
+package org.opensearch.arrow.flight.bootstrap;
 
 import org.apache.arrow.flight.Location;
 import org.opensearch.common.SuppressForbidden;
@@ -19,6 +19,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import io.netty.channel.Channel;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.Epoll;
+import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.epoll.EpollServerSocketChannel;
+import io.netty.channel.epoll.EpollSocketChannel;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 /**
  * Configuration class for OpenSearch Flight server settings.
  * This class manages server-side configurations including port settings, Arrow memory settings,
@@ -30,7 +41,10 @@ public class ServerConfig {
      */
     public ServerConfig() {}
 
-    static final Setting<Integer> STREAM_PORT = Setting.intSetting(
+    /**
+     * Setting for the transport stream port.
+     */
+    public static final Setting<Integer> STREAM_PORT = Setting.intSetting(
         "node.attr.transport.stream.port",
         9880,
         1024,
@@ -88,12 +102,21 @@ public class ServerConfig {
         Setting.Property.NodeScope
     );
 
-    static final String FLIGHT_THREAD_POOL_NAME = "flight-server";
+    /**
+     * The thread pool name for the Flight server.
+     */
+    public static final String FLIGHT_SERVER_THREAD_POOL_NAME = "flight-server";
+
+    /**
+     * The thread pool name for the Flight client.
+     */
+    public static final String FLIGHT_CLIENT_THREAD_POOL_NAME = "flight-client";
 
     private static final String host = "localhost";
-    private static int port;
     private static boolean enableSsl;
-    private static ScalingExecutorBuilder executorBuilder;
+    private static int threadPoolMin;
+    private static int threadPoolMax;
+    private static TimeValue keepAlive;
 
     /**
      * Initializes the server configuration with the provided settings.
@@ -108,14 +131,10 @@ public class ServerConfig {
         System.setProperty("arrow.enable_unsafe_memory_access", Boolean.toString(ARROW_ENABLE_UNSAFE_MEMORY_ACCESS.get(settings)));
         System.setProperty("arrow.memory.debug.allocator", Boolean.toString(ARROW_ENABLE_DEBUG_ALLOCATOR.get(settings)));
         Netty4Configs.init(settings);
-        port = STREAM_PORT.get(settings);
         enableSsl = ARROW_SSL_ENABLE.get(settings);
-        executorBuilder = new ScalingExecutorBuilder(
-            FLIGHT_THREAD_POOL_NAME,
-            FLIGHT_THREAD_POOL_MIN_SIZE.get(settings),
-            FLIGHT_THREAD_POOL_MAX_SIZE.get(settings),
-            FLIGHT_THREAD_POOL_KEEP_ALIVE.get(settings)
-        );
+        threadPoolMin = FLIGHT_THREAD_POOL_MIN_SIZE.get(settings);
+        threadPoolMax = FLIGHT_THREAD_POOL_MAX_SIZE.get(settings);
+        keepAlive = FLIGHT_THREAD_POOL_KEEP_ALIVE.get(settings);
     }
 
     /**
@@ -132,17 +151,17 @@ public class ServerConfig {
      *
      * @return The configured ScalingExecutorBuilder instance
      */
-    public static ScalingExecutorBuilder getExecutorBuilder() {
-        return executorBuilder;
+    public static ScalingExecutorBuilder getServerExecutorBuilder() {
+        return new ScalingExecutorBuilder(FLIGHT_SERVER_THREAD_POOL_NAME, threadPoolMin, threadPoolMax, keepAlive);
     }
 
     /**
-     * Gets the server location configuration.
+     * Gets the thread pool executor builder configured for the Flight server.
      *
-     * @return Location instance configured for the server
+     * @return The configured ScalingExecutorBuilder instance
      */
-    public static Location getServerLocation() {
-        return getLocation(host, port);
+    public static ScalingExecutorBuilder getClientExecutorBuilder() {
+        return new ScalingExecutorBuilder(FLIGHT_CLIENT_THREAD_POOL_NAME, threadPoolMin, threadPoolMax, keepAlive);
     }
 
     /**
@@ -166,17 +185,32 @@ public class ServerConfig {
         };
     }
 
-    private static Location getLocation(String address, int port) {
+    static Location getLocation(String address, int port) {
         if (enableSsl) {
             return Location.forGrpcTls(address, port);
         }
         return Location.forGrpcInsecure(address, port);
     }
 
+    static EventLoopGroup create(String name, int eventLoopThreads) {
+
+        return Epoll.isAvailable()
+            ? new EpollEventLoopGroup(eventLoopThreads, new DefaultThreadFactory(name, true))
+            : new NioEventLoopGroup(eventLoopThreads, new DefaultThreadFactory(name, true));
+    }
+
+    static Class<? extends Channel> serverChannelType() {
+        return Epoll.isAvailable() ? EpollSocketChannel.class : NioServerSocketChannel.class;
+    }
+
+    static Class<? extends Channel> clientChannelType() {
+        return Epoll.isAvailable() ? EpollServerSocketChannel.class : NioSocketChannel.class;
+    }
+
     private static class Netty4Configs {
         public static final Setting<Integer> NETTY_ALLOCATOR_NUM_DIRECT_ARENAS = Setting.intSetting(
             "io.netty.allocator.numDirectArenas",
-            1, // TODO - 2 * the number of available processors
+            1, // TODO - 2 * the number of available processors; to be confirmed and set after running benchmarks
             1,
             Setting.Property.NodeScope
         );

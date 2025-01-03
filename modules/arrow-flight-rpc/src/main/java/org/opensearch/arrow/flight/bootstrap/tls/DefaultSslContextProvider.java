@@ -15,7 +15,6 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Locale;
-import java.util.function.Supplier;
 
 import io.netty.handler.ssl.ApplicationProtocolConfig;
 import io.netty.handler.ssl.ApplicationProtocolNames;
@@ -29,13 +28,13 @@ import io.netty.handler.ssl.SupportedCipherSuiteFilter;
  */
 public class DefaultSslContextProvider implements SslContextProvider {
 
-    private final Supplier<SecureTransportSettingsProvider> secureTransportSettingsProvider;
+    private final SecureTransportSettingsProvider secureTransportSettingsProvider;
 
     /**
      * Constructor for DefaultSslContextProvider.
      * @param secureTransportSettingsProvider The SecureTransportSettingsProvider instance.
      */
-    public DefaultSslContextProvider(Supplier<SecureTransportSettingsProvider> secureTransportSettingsProvider) {
+    public DefaultSslContextProvider(SecureTransportSettingsProvider secureTransportSettingsProvider) {
         this.secureTransportSettingsProvider = secureTransportSettingsProvider;
     }
 
@@ -58,9 +57,7 @@ public class DefaultSslContextProvider implements SslContextProvider {
     @Override
     public SslContext getServerSslContext() {
         try {
-            SecureTransportSettingsProvider.SecureTransportParameters parameters = secureTransportSettingsProvider.get()
-                .parameters(null)
-                .get();
+            SecureTransportSettingsProvider.SecureTransportParameters parameters = secureTransportSettingsProvider.parameters(null).get();
             return AccessController.doPrivileged(
                 (PrivilegedExceptionAction<SslContext>) () -> io.netty.handler.ssl.SslContextBuilder.forServer(
                     parameters.keyManagerFactory()
@@ -97,9 +94,7 @@ public class DefaultSslContextProvider implements SslContextProvider {
     @Override
     public SslContext getClientSslContext() {
         try {
-            SecureTransportSettingsProvider.SecureTransportParameters parameters = secureTransportSettingsProvider.get()
-                .parameters(null)
-                .get();
+            SecureTransportSettingsProvider.SecureTransportParameters parameters = secureTransportSettingsProvider.parameters(null).get();
             return AccessController.doPrivileged(
                 (PrivilegedExceptionAction<SslContext>) () -> io.netty.handler.ssl.SslContextBuilder.forClient()
                     .sslProvider(SslProvider.valueOf(parameters.sslProvider().toUpperCase(Locale.ROOT)))

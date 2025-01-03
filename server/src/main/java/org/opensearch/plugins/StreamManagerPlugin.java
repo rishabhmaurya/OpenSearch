@@ -10,6 +10,8 @@ package org.opensearch.plugins;
 
 import org.opensearch.arrow.spi.StreamManager;
 
+import java.util.function.Supplier;
+
 /**
  * An interface for OpenSearch plugins to implement to provide a StreamManager.
  * This interface is used by the Arrow Flight plugin to get the StreamManager instance.
@@ -22,5 +24,5 @@ public interface StreamManagerPlugin {
      *
      * @return The StreamManager instance
      */
-    StreamManager getStreamManager();
+    Supplier<StreamManager> getStreamManager();
 }
