@@ -12,7 +12,7 @@ import org.apache.arrow.flight.FlightStream;
 import org.apache.arrow.flight.Ticket;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
-import org.opensearch.arrow.flight.bootstrap.client.FlightClientManager;
+import org.opensearch.arrow.flight.bootstrap.FlightClientManager;
 import org.opensearch.arrow.spi.StreamManager;
 import org.opensearch.arrow.spi.StreamProducer;
 import org.opensearch.arrow.spi.StreamReader;
@@ -34,8 +34,8 @@ import java.util.function.Supplier;
  */
 public class FlightStreamManager implements StreamManager {
 
-    private final FlightStreamTicketFactory ticketFactory;
-    private final FlightClientManager clientManager;
+    private FlightStreamTicketFactory ticketFactory;
+    private FlightClientManager clientManager;
     private final Supplier<BufferAllocator> allocatorSupplier;
     private final Cache<String, StreamProducerHolder> streamProducers;
     private static final TimeValue expireAfter = TimeValue.timeValueMinutes(2);
@@ -45,16 +45,23 @@ public class FlightStreamManager implements StreamManager {
      * Constructs a new FlightStreamManager.
      * @param allocatorSupplier The supplier for BufferAllocator instances used for memory management.
      *                          This parameter is required to be non-null.
-     * @param clientManager The FlightClientManager instance to use for Flight client operations.
-     *                      This parameter is required to be non-null.
+
      */
-    public FlightStreamManager(Supplier<BufferAllocator> allocatorSupplier, FlightClientManager clientManager) {
+    public FlightStreamManager(Supplier<BufferAllocator> allocatorSupplier) {
         this.allocatorSupplier = allocatorSupplier;
-        this.clientManager = clientManager;
         this.streamProducers = CacheBuilder.<String, StreamProducerHolder>builder()
             .setExpireAfterWrite(expireAfter)
             .setMaximumWeight(MAX_PRODUCERS)
             .build();
+    }
+
+    /**
+     * Sets the FlightClientManager for this FlightStreamManager.
+     * @param clientManager The FlightClientManager instance to use for Flight client operations.
+     *                      This parameter is required to be non-null.
+     */
+    public void setClientManager(FlightClientManager clientManager) {
+        this.clientManager = clientManager;
         this.ticketFactory = new FlightStreamTicketFactory(clientManager::getLocalNodeId);
     }
 
@@ -82,6 +89,10 @@ public class FlightStreamManager implements StreamManager {
         return new FlightStreamReader(stream);
     }
 
+    /**
+     * Retrieves the StreamTicketFactory used by this StreamManager.
+     * @return The StreamTicketFactory instance associated with this StreamManager.
+     */
     @Override
     public StreamTicketFactory getStreamTicketFactory() {
         return ticketFactory;

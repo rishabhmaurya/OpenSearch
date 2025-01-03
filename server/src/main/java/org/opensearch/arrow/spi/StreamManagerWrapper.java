@@ -20,16 +20,17 @@ import org.opensearch.tasks.TaskAwareRequest;
 import org.opensearch.tasks.TaskManager;
 
 import java.io.IOException;
+import java.util.function.Supplier;
 
 /**
  * Wraps a StreamManager to make it work with the TaskManager.
  */
 public class StreamManagerWrapper implements StreamManager {
 
-    private final StreamManager streamManager;
+    private final Supplier<StreamManager> streamManager;
     private final TaskManager taskManager;
 
-    public StreamManagerWrapper(StreamManager streamManager, TaskManager taskManager) {
+    public StreamManagerWrapper(Supplier<StreamManager> streamManager, TaskManager taskManager) {
         super();
         this.streamManager = streamManager;
         this.taskManager = taskManager;
@@ -38,24 +39,24 @@ public class StreamManagerWrapper implements StreamManager {
     @Override
     public StreamTicket registerStream(StreamProducer producer, TaskId parentTaskId) {
         StreamProducerTaskWrapper wrappedProducer = new StreamProducerTaskWrapper(producer, taskManager, parentTaskId);
-        StreamTicket ticket = streamManager.registerStream(wrappedProducer, parentTaskId);
+        StreamTicket ticket = streamManager.get().registerStream(wrappedProducer, parentTaskId);
         wrappedProducer.setDescription(ticket.toString());
         return ticket;
     }
 
     @Override
     public StreamReader getStreamReader(StreamTicket ticket) {
-        return streamManager.getStreamReader(ticket);
+        return streamManager.get().getStreamReader(ticket);
     }
 
     @Override
     public StreamTicketFactory getStreamTicketFactory() {
-        return streamManager.getStreamTicketFactory();
+        return streamManager.get().getStreamTicketFactory();
     }
 
     @Override
     public void close() throws Exception {
-        streamManager.close();
+        streamManager.get().close();
     }
 
     static class StreamProducerTaskWrapper implements StreamProducer {
@@ -147,7 +148,7 @@ public class StreamManagerWrapper implements StreamManager {
 
             @Override
             public boolean isCancelled() {
-               return batchedJob.isCancelled();
+                return batchedJob.isCancelled();
             }
 
             @Override

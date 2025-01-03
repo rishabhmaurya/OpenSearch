@@ -8,6 +8,7 @@
 
 package org.opensearch.arrow.flight;
 
+import org.opensearch.arrow.flight.bootstrap.FlightService;
 import org.opensearch.arrow.spi.StreamManager;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.node.DiscoveryNodes;
@@ -15,6 +16,7 @@ import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.FeatureFlags;
+import org.opensearch.plugins.SecureTransportSettingsProvider;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.threadpool.ExecutorBuilder;
 import org.opensearch.threadpool.ThreadPool;
@@ -22,6 +24,7 @@ import org.opensearch.threadpool.ThreadPool;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Supplier;
 
 import static org.opensearch.common.util.FeatureFlags.ARROW_STREAMS_SETTING;
 import static org.mockito.Mockito.mock;
@@ -64,19 +67,22 @@ public class FlightStreamPluginTests extends OpenSearchTestCase {
 
         assertNotNull(components);
         assertFalse(components.isEmpty());
+        assertEquals(1, components.size());
+        assertTrue(components.iterator().next() instanceof FlightService);
 
         List<ExecutorBuilder<?>> executorBuilders = plugin.getExecutorBuilders(settings);
         assertNotNull(executorBuilders);
         assertFalse(executorBuilders.isEmpty());
+        assertEquals(2, executorBuilders.size());
 
-        StreamManager streamManager = plugin.getStreamManager();
+        Supplier<StreamManager> streamManager = plugin.getStreamManager();
         assertNotNull(streamManager);
 
         List<Setting<?>> settings = plugin.getSettings();
         assertNotNull(settings);
         assertFalse(settings.isEmpty());
 
-        assertNotNull(plugin.getSecureTransports(null, null, null, null, null, null, null, null));
+        assertNotNull(plugin.getSecureTransports(null, null, null, null, null, null, mock(SecureTransportSettingsProvider.class), null));
 
         plugin.close();
 
@@ -102,7 +108,7 @@ public class FlightStreamPluginTests extends OpenSearchTestCase {
         );
 
         assertTrue(disabledPluginComponents.isEmpty());
-        assertNull(disabledPlugin.getStreamManager());
+        assertNull(disabledPlugin.getStreamManager().get());
         assertTrue(disabledPlugin.getExecutorBuilders(disabledSettings).isEmpty());
         assertNotNull(disabledPlugin.getSettings());
         assertTrue(disabledPlugin.getSettings().isEmpty());

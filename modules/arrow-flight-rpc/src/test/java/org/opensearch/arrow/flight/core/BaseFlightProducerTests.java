@@ -15,8 +15,10 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.dictionary.DictionaryProvider;
 import org.apache.arrow.vector.ipc.message.IpcOption;
-import org.opensearch.arrow.flight.bootstrap.client.FlightClientManager;
+import org.opensearch.arrow.flight.bootstrap.FlightClientManager;
 import org.opensearch.arrow.spi.StreamProducer;
+import org.opensearch.common.util.FeatureFlags;
+import org.opensearch.test.FeatureFlagSetter;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.concurrent.CountDownLatch;
@@ -43,6 +45,7 @@ public class BaseFlightProducerTests extends OpenSearchTestCase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
+        FeatureFlagSetter.set(FeatureFlags.ARROW_STREAMS_SETTING.getKey());
         streamManager = mock(FlightStreamManager.class);
         when(streamManager.getStreamTicketFactory()).thenReturn(new FlightStreamTicketFactory(() -> LOCAL_NODE_ID));
         when(flightClientManager.getLocalNodeId()).thenReturn(LOCAL_NODE_ID);
