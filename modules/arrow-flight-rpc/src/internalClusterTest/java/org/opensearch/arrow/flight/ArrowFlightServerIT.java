@@ -14,8 +14,11 @@ import org.opensearch.arrow.flight.bootstrap.FlightClientManager;
 import org.opensearch.arrow.flight.bootstrap.FlightService;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodeRole;
+import org.opensearch.common.util.FeatureFlags;
 import org.opensearch.plugins.Plugin;
+import org.opensearch.test.FeatureFlagSetter;
 import org.opensearch.test.OpenSearchIntegTestCase;
+import org.junit.BeforeClass;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -26,6 +29,11 @@ import java.util.concurrent.TimeUnit;
 public class ArrowFlightServerIT extends OpenSearchIntegTestCase {
 
     private FlightClientManager flightClientManager;
+
+    @BeforeClass
+    public static void setupFeatureFlags() {
+        FeatureFlagSetter.set(FeatureFlags.ARROW_STREAMS_SETTING.getKey());
+    }
 
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
