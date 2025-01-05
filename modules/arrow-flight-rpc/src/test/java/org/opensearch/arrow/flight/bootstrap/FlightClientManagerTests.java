@@ -60,8 +60,8 @@ public class FlightClientManagerTests extends OpenSearchTestCase {
     public static void setupClass() throws Exception {
         ServerConfig.init(Settings.EMPTY);
         allocator = new RootAllocator();
-        elg = ServerConfig.create("test-grpc-worker-elg", NettyRuntime.availableProcessors() * 2);
-        executorService = ServerConfig.create("test-grpc-worker", NettyRuntime.availableProcessors() * 2);
+        elg = ServerConfig.createELG("test-grpc-worker-elg", NettyRuntime.availableProcessors() * 2);
+        executorService = ServerConfig.createELG("test-grpc-worker", NettyRuntime.availableProcessors() * 2);
     }
 
     @Override
@@ -112,7 +112,7 @@ public class FlightClientManagerTests extends OpenSearchTestCase {
     }
 
     @AfterClass
-    public static void tearClass() throws Exception {
+    public static void tearClass() {
         allocator.close();
     }
 
@@ -120,7 +120,7 @@ public class FlightClientManagerTests extends OpenSearchTestCase {
         validateNodes();
     }
 
-    public void testGetFlightClientLocation() throws Exception {
+    public void testGetFlightClientLocation() {
         for (DiscoveryNode node : state.nodes()) {
             Location location = clientManager.getFlightClientLocation(node.getId());
             assertNotNull("Flight client location should be returned", location);

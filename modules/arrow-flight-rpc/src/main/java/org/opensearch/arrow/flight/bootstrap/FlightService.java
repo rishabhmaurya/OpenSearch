@@ -338,8 +338,8 @@ public class FlightService extends AbstractLifecycleComponent {
         }
 
         private void initializeEventLoopGroups() {
-            bossEventLoopGroup = ServerConfig.create(GRPC_BOSS_ELG, 1);
-            workerEventLoopGroup = ServerConfig.create(GRPC_WORKER_ELG, NettyRuntime.availableProcessors() * 2);
+            bossEventLoopGroup = ServerConfig.createELG(GRPC_BOSS_ELG, 1);
+            workerEventLoopGroup = ServerConfig.createELG(GRPC_WORKER_ELG, NettyRuntime.availableProcessors() * 2);
         }
 
         private void initializeExecutors(ThreadPool threadPool) {
