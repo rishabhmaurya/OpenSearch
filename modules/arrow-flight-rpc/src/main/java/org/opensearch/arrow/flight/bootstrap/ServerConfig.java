@@ -192,7 +192,7 @@ public class ServerConfig {
         return Location.forGrpcInsecure(address, port);
     }
 
-    static EventLoopGroup create(String name, int eventLoopThreads) {
+    static EventLoopGroup createELG(String name, int eventLoopThreads) {
 
         return Epoll.isAvailable()
             ? new EpollEventLoopGroup(eventLoopThreads, new DefaultThreadFactory(name, true))

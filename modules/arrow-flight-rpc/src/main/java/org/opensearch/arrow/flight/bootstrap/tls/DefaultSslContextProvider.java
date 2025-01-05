@@ -48,8 +48,6 @@ public class DefaultSslContextProvider implements SslContextProvider {
     }
 
     // TODO - handle certificates reload
-    // TODO - reason why SslContext needs to be build here instead of security plugin
-
     /**
      * Creates and returns the server SSL context based on the provided SecureTransportSettingsProvider.
      * @return The server SSL context.
