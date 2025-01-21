@@ -17,7 +17,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.Query;
 import org.opensearch.OpenSearchException;
-import org.opensearch.arrow.spi.ArrowDocIdCollector;
+import org.opensearch.arrow.custom.ArrowDocIdCollector;
 import org.opensearch.arrow.spi.StreamManager;
 import org.opensearch.arrow.spi.StreamProducer;
 import org.opensearch.arrow.spi.StreamTicket;

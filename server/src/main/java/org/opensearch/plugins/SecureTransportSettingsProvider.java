@@ -85,8 +85,6 @@ public interface SecureTransportSettingsProvider {
      */
     Optional<SSLEngine> buildSecureServerTransportEngine(Settings settings, Transport transport) throws SSLException;
 
-    Optional<Object> buildSecureServerTransportSslContext(Settings settings, Transport transport) throws SSLException;
-
     /**
      * If supported, builds the {@link SSLEngine} instance for client transport instance
      * @param settings settings
