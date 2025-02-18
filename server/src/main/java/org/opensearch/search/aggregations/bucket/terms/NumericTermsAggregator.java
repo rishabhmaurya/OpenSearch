@@ -188,7 +188,7 @@ public class NumericTermsAggregator extends TermsAggregator {
                 BucketOrdsEnum ordsEnum = bucketOrds.ordsEnum(owningBucketOrds[ordIdx]);
                 Supplier<B> emptyBucketBuilder = emptyBucketBuilder(owningBucketOrds[ordIdx]);
 
-                if ((bucketsInOrd > (size * 2L)) || isKeyOrder(order)) {
+                if ((bucketsInOrd > (size * 3L)) || isKeyOrder(order)) {
                     // use heap sort
                     PriorityQueue<B> ordered = buildPriorityQueue(size);
                     while (ordsEnum.next()) {
