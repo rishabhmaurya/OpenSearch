@@ -348,6 +348,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
                 SearchTask task,
                 SearchRequest searchRequest,
                 Executor executor,
+                Executor fanoutExecutor,
                 GroupShardsIterator<SearchShardIterator> shardsIts,
                 SearchTimeProvider timeProvider,
                 BiFunction<String, String, Transport.Connection> connectionLookup,
@@ -370,6 +371,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
                     concreteIndexBoosts,
                     indexRoutings,
                     executor,
+                    fanoutExecutor,
                     searchRequest,
                     listener,
                     shardsIts,
@@ -1087,6 +1089,8 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
             searchTransportService::getConnection
         );
         final Executor asyncSearchExecutor = asyncSearchExecutor(concreteLocalIndices, clusterState);
+        final Executor fanoutExecutor = asyncFanoutExecutor(concreteLocalIndices, clusterState);
+
         final boolean preFilterSearchShards = shouldPreFilterSearchShards(
             clusterState,
             searchRequest,
@@ -1097,6 +1101,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
             task,
             searchRequest,
             asyncSearchExecutor,
+            fanoutExecutor,
             shardIterators,
             timeProvider,
             connectionLookup,
@@ -1117,7 +1122,15 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
             final IndexMetadata indexMetadata = clusterState.metadata().index(index);
             return indexMetadata != null && indexMetadata.isSystem();
         });
-        return onlySystemIndices ? threadPool.executor(ThreadPool.Names.SYSTEM_READ) : threadPool.executor(ThreadPool.Names.SEARCH);
+        return onlySystemIndices ? threadPool.executor(ThreadPool.Names.SYSTEM_READ) : threadPool.executor(ThreadPool.Names.SEARCH_FANOUT);
+    }
+
+    Executor asyncFanoutExecutor(final String[] indices, final ClusterState clusterState) {
+        final boolean onlySystemIndices = Arrays.stream(indices).allMatch(index -> {
+            final IndexMetadata indexMetadata = clusterState.metadata().index(index);
+            return indexMetadata != null && indexMetadata.isSystem();
+        });
+        return onlySystemIndices ? threadPool.executor(ThreadPool.Names.SYSTEM_READ) : threadPool.executor(ThreadPool.Names.SEARCH_FANOUT);
     }
 
     static BiFunction<String, String, Transport.Connection> buildConnectionLookup(
@@ -1181,6 +1194,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
             SearchTask task,
             SearchRequest searchRequest,
             Executor executor,
+            Executor fanoutExecutor,
             GroupShardsIterator<SearchShardIterator> shardIterators,
             SearchTimeProvider timeProvider,
             BiFunction<String, String, Transport.Connection> connectionLookup,
@@ -1200,6 +1214,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
         SearchTask task,
         SearchRequest searchRequest,
         Executor executor,
+        Executor fanoutExecutor,
         GroupShardsIterator<SearchShardIterator> shardIterators,
         SearchTimeProvider timeProvider,
         BiFunction<String, String, Transport.Connection> connectionLookup,
@@ -1233,6 +1248,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
                         task,
                         searchRequest,
                         executor,
+                        fanoutExecutor,
                         iter,
                         timeProvider,
                         connectionLookup,
