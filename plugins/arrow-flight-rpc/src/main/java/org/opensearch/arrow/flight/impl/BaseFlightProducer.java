@@ -66,7 +66,7 @@ public class BaseFlightProducer extends NoOpFlightProducer {
     @Override
     public void getStream(CallContext context, Ticket ticket, ServerStreamListener listener) {
         StreamTicket streamTicket = streamManager.getStreamTicketFactory().fromBytes(ticket.getBytes());
-        Optional<FlightStreamManager.StreamProducerHolder> streamProducerHolder = Optional.empty();
+        Optional<FlightStreamManager.StreamProducerHolder> streamProducerHolder;
         try {
             if (streamTicket.getNodeId().equals(flightClientManager.getLocalNodeId())) {
                 streamProducerHolder = streamManager.removeStreamProducer(streamTicket);
@@ -76,7 +76,7 @@ public class BaseFlightProducer extends NoOpFlightProducer {
                     listener.error(
                         CallStatus.UNAVAILABLE.withDescription("Either server is not up yet or node does not support Streams.").cause()
                     );
-                    return;
+                    throw new RuntimeException("Either server is not up yet or node does not support Streams.");
                 }
                 StreamProducer<VectorSchemaRoot, BufferAllocator> proxyProvider = new ProxyStreamProducer(
                     new FlightStreamReader(remoteClient.get().getStream(ticket))
