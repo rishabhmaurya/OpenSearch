@@ -56,7 +56,6 @@ import org.opensearch.action.search.SearchTaskRequestOperationsListener;
 import org.opensearch.action.search.SearchTransportService;
 import org.opensearch.action.support.TransportAction;
 import org.opensearch.action.update.UpdateHelper;
-import org.opensearch.arrow.custom.StreamManagerWrapper;
 import org.opensearch.arrow.spi.StreamManager;
 import org.opensearch.bootstrap.BootstrapCheck;
 import org.opensearch.bootstrap.BootstrapContext;
@@ -1383,22 +1382,34 @@ public class Node implements Closeable {
                 admissionControlService,
                 cacheService
             );
-            StreamManager streamManager = null;
+
+            Supplier<StreamManager> streamManager = null;
             if (FeatureFlags.isEnabled(ARROW_STREAMS_SETTING)) {
                 List<StreamManagerPlugin> streamManagerPlugins = pluginsService.filterPlugins(StreamManagerPlugin.class);
-                if (streamManagerPlugins.size() > 1) {
-                    throw new IllegalStateException(
-                        String.format(Locale.ROOT, "Only one StreamManagerPlugin can be installed. Found: %d", streamManagerPlugins.size())
-                    );
-                }
                 if (!streamManagerPlugins.isEmpty()) {
-                    Supplier<StreamManager> baseStreamManager = streamManagerPlugins.get(0).getStreamManager();
-                    if (baseStreamManager != null) {
-                        streamManager = new StreamManagerWrapper(baseStreamManager, transportService.getTaskManager());
-                        logger.info("StreamManager initialized");
+                    for (StreamManagerPlugin smPlugin : streamManagerPlugins) {
+                        Supplier<StreamManager> baseStreamManager = smPlugin.getStreamManager();
+                        if (streamManager == null && baseStreamManager != null) {
+                            streamManager = baseStreamManager;
+                            logger.info("StreamManager initialized");
+                        } else if (streamManager != null && baseStreamManager != null) {
+                            throw new IllegalStateException(
+                                String.format(
+                                    Locale.ROOT,
+                                    "Only one StreamManagerPlugin can be installed. Found: %d",
+                                    streamManagerPlugins.size()
+                                )
+                            );
+                        }
+                    }
+                    if (streamManager != null) {
+                        for (StreamManagerPlugin plugin : streamManagerPlugins) {
+                            plugin.onStreamManagerInitialized(streamManager);
+                        }
                     }
                 }
             }
+
             final SearchService searchService = newSearchService(
                 clusterService,
                 indicesService,
@@ -1413,7 +1424,7 @@ public class Node implements Closeable {
                 searchModule.getIndexSearcherExecutor(threadPool),
                 taskResourceTrackingService,
                 searchModule.getConcurrentSearchRequestDeciderFactories(),
-                streamManager
+                streamManager.get()
             );
 
             final List<PersistentTasksExecutor<?>> tasksExecutors = pluginsService.filterPlugins(PersistentTaskPlugin.class)

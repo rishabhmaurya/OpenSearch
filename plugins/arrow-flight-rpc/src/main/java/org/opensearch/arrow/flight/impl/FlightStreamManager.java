@@ -53,8 +53,7 @@ public class FlightStreamManager implements StreamManager {
     /**
      * Holds a StreamProducer along with its metadata and resources
      */
-    public record StreamProducerHolder(StreamProducer producer, BufferAllocator allocator, long creationTime, SetOnce<
-        VectorSchemaRoot> root) {
+    record StreamProducerHolder(StreamProducer producer, BufferAllocator allocator, long creationTime, SetOnce<VectorSchemaRoot> root) {
         public StreamProducerHolder {
             Objects.requireNonNull(producer, "StreamProducer cannot be null");
             Objects.requireNonNull(allocator, "BufferAllocator cannot be null");
