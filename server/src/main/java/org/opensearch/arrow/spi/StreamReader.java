@@ -9,6 +9,7 @@
 package org.opensearch.arrow.spi;
 
 import org.opensearch.common.annotation.ExperimentalApi;
+import org.opensearch.core.transport.TransportResponse;
 
 import java.io.Closeable;
 
@@ -36,14 +37,14 @@ import java.io.Closeable;
  * @see StreamProducer
  */
 @ExperimentalApi
-public interface StreamReader<VectorRoot> extends Closeable {
+public abstract class StreamReader<VectorRoot> extends TransportResponse implements Closeable {
 
     /**
      * Blocking request to load next batch into root.
      *
      * @return true if more data was found, false if the stream is exhausted
      */
-    boolean next();
+    public abstract boolean next();
 
     /**
      * Returns the VectorSchemaRoot associated with this iterator.
@@ -51,5 +52,5 @@ public interface StreamReader<VectorRoot> extends Closeable {
      *
      * @return the VectorSchemaRoot
      */
-    VectorRoot getRoot();
+    public abstract VectorRoot getRoot();
 }

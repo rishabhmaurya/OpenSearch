@@ -39,6 +39,7 @@ import org.opensearch.OpenSearchServerException;
 import org.opensearch.Version;
 import org.opensearch.action.ActionListenerResponseHandler;
 import org.opensearch.action.support.PlainActionFuture;
+import org.opensearch.arrow.spi.StreamReader;
 import org.opensearch.cluster.ClusterName;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.Nullable;
@@ -112,6 +113,7 @@ public class TransportService extends AbstractLifecycleComponent
     private final DelegatingTransportMessageListener messageListener = new DelegatingTransportMessageListener();
     protected final Transport transport;
     protected final ConnectionManager connectionManager;
+    private final ConnectionManager streamConnectionManager;
     protected final ThreadPool threadPool;
     protected final ClusterName clusterName;
     protected final TaskManager taskManager;
@@ -255,10 +257,14 @@ public class TransportService extends AbstractLifecycleComponent
             HandshakeRequest::new,
             (request, channel, task) -> channel.sendResponse(new HandshakeResponse(localNode, clusterName, localNode.getVersion()))
         );
+        streamConnectionManager = null;
     }
 
     public RemoteClusterService getRemoteClusterService() {
         return remoteClusterService;
+    }
+    public Transport getTransport() {
+        return transport;
     }
 
     public DiscoveryNode getLocalNode() {
@@ -1690,6 +1696,67 @@ public class TransportService extends AbstractLifecycleComponent
             for (TransportMessageListener listener : listeners) {
                 listener.onResponseReceived(requestId, holder);
             }
+        }
+    }
+
+    public <VectorSchemaRoot> void sendStreamRequest(
+        DiscoveryNode node,
+        String action,
+        TransportRequest request,
+        ActionListener<StreamReader<VectorSchemaRoot>> listener
+    ) {
+        Transport.Connection connection = getStreamConnection(node);
+        StreamResponseHandler<VectorSchemaRoot> handler = new StreamResponseHandler<>(listener);
+        sendRequest(connection, action, request, TransportRequestOptions.builder().withType(TransportRequestOptions.Type.STREAM).build(), handler);
+    }
+
+    public Transport.Connection getStreamConnection(DiscoveryNode node) {
+        if (!streamConnectionManager.nodeConnected(node)) {
+            PlainActionFuture<Transport.Connection> future = new PlainActionFuture<>();
+            streamConnectionManager.openConnection(
+                node,
+                ConnectionProfile.buildSingleChannelProfile(TransportRequestOptions.Type.STREAM),
+                future
+            );
+            try {
+                return future.get();
+            } catch (Exception e) {
+                throw new ConnectTransportException(node, "Failed to open stream connection", e);
+            }
+        }
+        return streamConnectionManager.getConnection(node);
+    }
+
+    private static class StreamResponseHandler<VectorSchemaRoot> implements TransportResponseHandler<StreamReader<VectorSchemaRoot>> {
+        private final ActionListener<StreamReader<VectorSchemaRoot>> listener;
+
+        StreamResponseHandler(ActionListener<StreamReader<VectorSchemaRoot>> listener) {
+            this.listener = listener;
+        }
+
+        @Override
+        public void handleResponse(StreamReader<VectorSchemaRoot> response) {
+            listener.onResponse(response);
+        }
+
+        @Override
+        public void handleException(TransportException exp) {
+            listener.onFailure(exp);
+        }
+
+        @Override
+        public String executor() {
+            return ThreadPool.Names.GENERIC;
+        }
+
+        @Override
+        public void handleRejection(Exception exp) {
+            TransportResponseHandler.super.handleRejection(exp);
+        }
+
+        @Override
+        public StreamReader<VectorSchemaRoot> read(StreamInput in) throws IOException {
+            throw new UnsupportedOperationException("StreamReader is created directly from FlightStream");
         }
     }
 

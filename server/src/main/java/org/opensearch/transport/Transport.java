@@ -290,7 +290,7 @@ public interface Transport extends LifecycleComponent {
          * Returns a new request ID to use when sending a message via {@link Connection#sendRequest(long, String,
          * TransportRequest, TransportRequestOptions)}
          */
-        long newRequestId() {
+        public long newRequestId() {
             return requestIdGenerator.incrementAndGet();
         }
 

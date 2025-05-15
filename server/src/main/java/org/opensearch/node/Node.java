@@ -1397,7 +1397,7 @@ public class Node implements Closeable {
                 final List<StreamManagerPlugin> streamManagerPlugins = pluginsService.filterPlugins(StreamManagerPlugin.class);
 
                 final List<StreamManager> streamManagers = streamManagerPlugins.stream()
-                    .map(StreamManagerPlugin::getStreamManager)
+                    .map(plugin -> plugin.getStreamManager(transportService))
                     .filter(Optional::isPresent)
                     .map(Optional::get)
                     .toList();

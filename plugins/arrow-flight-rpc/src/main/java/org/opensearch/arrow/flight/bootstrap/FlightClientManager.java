@@ -131,6 +131,21 @@ public class FlightClientManager implements ClusterStateListener, AutoCloseable 
         requestNodeLocation(nodeId, locationFuture);
     }
 
+    public void buildClientFuture(String nodeId, CompletableFuture<FlightClient> future) {
+        CompletableFuture<Location> locationFuture = new CompletableFuture<>();
+
+        locationFuture.thenAccept(location -> {
+            DiscoveryNode node = getNodeFromClusterState(nodeId);
+            buildClientAndAddToPool(location, node);
+            future.complete(getFlightClient(node.getId()).orElseThrow());
+        }).exceptionally(throwable -> {
+            logger.error("Failed to get Flight server location for node: [{}] {}", nodeId, throwable);
+            throw new RuntimeException(throwable);
+        });
+        requestNodeLocation(nodeId, locationFuture);
+
+    }
+
     private void buildClientAndAddToPool(Location location, DiscoveryNode node) {
         if (!isValidNode(node)) {
             logger.warn(

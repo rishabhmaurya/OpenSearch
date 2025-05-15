@@ -245,6 +245,10 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
         return threadPool;
     }
 
+    public PageCacheRecycler getPageCacheRecycler() {
+        return pageCacheRecycler;
+    }
+
     public Supplier<CircuitBreaker> getInflightBreaker() {
         return () -> circuitBreakerService.getBreaker(CircuitBreaker.IN_FLIGHT_REQUESTS);
     }

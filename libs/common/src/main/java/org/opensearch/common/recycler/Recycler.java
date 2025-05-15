@@ -32,6 +32,7 @@
 
 package org.opensearch.common.recycler;
 
+import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.common.lease.Releasable;
 
 /**
@@ -40,6 +41,8 @@ import org.opensearch.common.lease.Releasable;
  *
  * @opensearch.internal
  */
+@ExperimentalApi
+@SuppressWarnings("")
 public interface Recycler<T> {
 
     /**
@@ -73,6 +76,7 @@ public interface Recycler<T> {
      *
      * @opensearch.internal
      */
+    @ExperimentalApi
     interface V<T> extends Releasable {
 
         /** Reference to the value. */

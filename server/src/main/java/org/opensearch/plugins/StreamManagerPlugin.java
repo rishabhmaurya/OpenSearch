@@ -9,6 +9,8 @@
 package org.opensearch.plugins;
 
 import org.opensearch.arrow.spi.StreamManager;
+import org.opensearch.transport.TcpTransport;
+import org.opensearch.transport.TransportService;
 
 import java.util.Optional;
 
@@ -25,7 +27,7 @@ public interface StreamManagerPlugin {
      *
      * @return The StreamManager instance
      */
-    default Optional<StreamManager> getStreamManager() {
+    default Optional<StreamManager> getStreamManager(TransportService transportService) {
         return Optional.empty();
     }
 

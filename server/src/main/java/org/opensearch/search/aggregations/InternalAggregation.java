@@ -237,7 +237,7 @@ public abstract class InternalAggregation implements Aggregation, NamedWriteable
     @Override
     public final void writeTo(StreamOutput out) throws IOException {
         out.writeString(name);
-        out.writeGenericValue(metadata);
+        out.writeMap(metadata);
         doWriteTo(out);
     }
 

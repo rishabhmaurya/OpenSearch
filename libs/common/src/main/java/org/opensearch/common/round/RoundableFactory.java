@@ -38,7 +38,7 @@ public final class RoundableFactory {
      *  - jdk.incubator.vector.LongVector is available (--add-modules=jdk.incubator.vector is passed)
      */
     private static final class VectorCheck {
-        final static int SPECIES_PREFERRED = jdk.incubator.vector.LongVector.SPECIES_PREFERRED.length();
+        final static int SPECIES_PREFERRED = 0; //jdk.incubator.vector.LongVector.SPECIES_PREFERRED.length();
     }
 
     static {
@@ -46,12 +46,12 @@ public final class RoundableFactory {
         boolean useBtreeSearcher = false;
 
         try {
-            final Class<?> incubator = Class.forName("jdk.incubator.vector.LongVector");
+            //final Class<?> incubator = Class.forName("jdk.incubator.vector.LongVector");
 
-            useBtreeSearcher = "forced".equalsIgnoreCase(simdRoundingFeatureFlag)
-                || (VectorCheck.SPECIES_PREFERRED >= 4 && "true".equalsIgnoreCase(simdRoundingFeatureFlag));
+            useBtreeSearcher = "forced".equalsIgnoreCase(simdRoundingFeatureFlag);
+                //|| (VectorCheck.SPECIES_PREFERRED >= 4 && "true".equalsIgnoreCase(simdRoundingFeatureFlag));
 
-        } catch (final ClassNotFoundException ex) {
+        } catch (final Exception ex) {
             /* do not use BtreeSearcher */
         }
 

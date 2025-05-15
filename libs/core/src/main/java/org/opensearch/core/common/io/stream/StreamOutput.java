@@ -234,7 +234,7 @@ public abstract class StreamOutput extends OutputStream {
 
     private static final ThreadLocal<byte[]> scratch = ThreadLocal.withInitial(() -> new byte[1024]);
 
-    public final void writeShort(short v) throws IOException {
+    public void writeShort(short v) throws IOException {
         final byte[] buffer = scratch.get();
         buffer[0] = (byte) (v >> 8);
         buffer[1] = (byte) v;
@@ -494,7 +494,7 @@ public abstract class StreamOutput extends OutputStream {
         }
     }
 
-    public final void writeBigInteger(BigInteger v) throws IOException {
+    public void writeBigInteger(BigInteger v) throws IOException {
         writeString(v.toString());
     }
 
@@ -613,7 +613,7 @@ public abstract class StreamOutput extends OutputStream {
      * @param keyWriter The key writer
      * @param valueWriter The value writer
      */
-    public final <K, V> void writeMapOfLists(final Map<K, List<V>> map, final Writer<K> keyWriter, final Writer<V> valueWriter)
+    public <K, V> void writeMapOfLists(final Map<K, List<V>> map, final Writer<K> keyWriter, final Writer<V> valueWriter)
         throws IOException {
         writeMap(map, keyWriter, (stream, list) -> {
             writeVInt(list.size());
@@ -644,7 +644,7 @@ public abstract class StreamOutput extends OutputStream {
     /**
      * Writes an {@link Instant} to the stream with nanosecond resolution
      */
-    public final void writeInstant(Instant instant) throws IOException {
+    public void writeInstant(Instant instant) throws IOException {
         writeLong(instant.getEpochSecond());
         writeInt(instant.getNano());
     }
@@ -652,7 +652,7 @@ public abstract class StreamOutput extends OutputStream {
     /**
      * Writes an {@link Instant} to the stream, which could possibly be null
      */
-    public final void writeOptionalInstant(@Nullable Instant instant) throws IOException {
+    public void writeOptionalInstant(@Nullable Instant instant) throws IOException {
         if (instant == null) {
             writeBoolean(false);
         } else {

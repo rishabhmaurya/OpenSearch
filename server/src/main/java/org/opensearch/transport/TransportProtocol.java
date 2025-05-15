@@ -11,14 +11,14 @@ package org.opensearch.transport;
 /**
  * Enumeration of transport protocols.
  */
-enum TransportProtocol {
+public enum TransportProtocol {
     /**
      * The original, hand-rolled binary protocol used for node-to-node
      * communication. Message schemas are defined implicitly in code using the
      * StreamInput and StreamOutput classes to parse and generate binary data.
      */
-    NATIVE;
-
+    NATIVE,
+    FLIGHT;
     public static TransportProtocol fromBytes(byte b1, byte b2) {
         if (b1 == 'E' && b2 == 'S') {
             return NATIVE;

@@ -22,7 +22,7 @@ public class RoundableSupplier implements Supplier<Roundable> {
                 delegate = () -> new BidirectionalLinearSearcher(values, size);
                 break;
             case "btree":
-                delegate = () -> new BtreeSearcher(values, size);
+                delegate = () -> null;//new BtreeSearcher(values, size);
                 break;
             default:
                 throw new IllegalArgumentException("invalid type: " + type);

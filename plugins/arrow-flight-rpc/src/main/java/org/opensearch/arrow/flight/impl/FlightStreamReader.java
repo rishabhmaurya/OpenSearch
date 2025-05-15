@@ -13,12 +13,16 @@ import org.apache.arrow.flight.FlightStream;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.arrow.spi.StreamReader;
+import org.opensearch.core.common.io.stream.StreamInput;
+import org.opensearch.core.common.io.stream.StreamOutput;
+
+import java.io.IOException;
 
 /**
  * FlightStreamReader is a wrapper class that adapts the FlightStream interface
  * to the StreamReader interface.
  */
-public class FlightStreamReader implements StreamReader<VectorSchemaRoot> {
+public class FlightStreamReader extends StreamReader<VectorSchemaRoot> {
 
     private final FlightStream flightStream;
 
@@ -29,6 +33,10 @@ public class FlightStreamReader implements StreamReader<VectorSchemaRoot> {
      */
     public FlightStreamReader(FlightStream flightStream) {
         this.flightStream = flightStream;
+    }
+
+    public FlightStreamReader(StreamInput streamInput) {
+        flightStream = null;
     }
 
     /**
@@ -57,5 +65,10 @@ public class FlightStreamReader implements StreamReader<VectorSchemaRoot> {
     @Override
     public void close() {
         ExceptionsHelper.catchAsRuntimeException(flightStream::close);
+    }
+
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+
     }
 }

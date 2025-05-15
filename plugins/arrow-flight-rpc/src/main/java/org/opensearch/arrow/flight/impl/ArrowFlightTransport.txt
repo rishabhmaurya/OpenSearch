@@ -1,0 +1,139 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * The OpenSearch Contributors require contributions made to
+ * this file be licensed under the Apache-2.0 license or a
+ * compatible open source license.
+ */
+package org.opensearch.arrow.flight.impl;
+
+import org.apache.arrow.flight.FlightClient;
+import org.apache.arrow.memory.BufferAllocator;
+import org.opensearch.Version;
+import org.opensearch.arrow.flight.bootstrap.FlightClientManager;
+import org.opensearch.arrow.flight.bootstrap.FlightService;
+import org.opensearch.cluster.node.DiscoveryNode;
+import org.opensearch.common.annotation.PublicApi;
+import org.opensearch.core.action.ActionListener;
+import org.opensearch.core.common.transport.BoundTransportAddress;
+import org.opensearch.core.common.transport.TransportAddress;
+import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.ConnectionProfile;
+import org.opensearch.transport.RequestHandlerRegistry;
+import org.opensearch.transport.Transport;
+import org.opensearch.transport.TransportMessageListener;
+import org.opensearch.transport.TransportStats;
+
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Arrow Flight-based transport implementation for OpenSearch.
+ *
+ * @opensearch.api
+ */
+@PublicApi(since = "1.0.0")
+public class ArrowFlightTransport implements Transport {
+    private final FlightService flightService;
+    private final FlightClientManager clientManager;
+    private final BufferAllocator allocator;
+    private final ResponseHandlers responseHandlers = new ResponseHandlers();
+    private final RequestHandlers requestHandlers = new RequestHandlers();
+    private final Map<DiscoveryNode, ArrowFlightClientChannel> channels = new ConcurrentHashMap<>();
+
+    public ArrowFlightTransport(FlightService flightService, FlightClientManager clientManager, BufferAllocator allocator) {
+        this.flightService = flightService;
+        this.clientManager = clientManager;
+        this.allocator = allocator;
+    }
+
+    @Override
+    public void registerRequestHandler(RequestHandlerRegistry<?> reg) {
+        requestHandlers.registerHandler(reg);
+    }
+
+    @Override
+    public void setMessageListener(TransportMessageListener listener) {
+        flightService.getFlightProducer().setMessageListener(listener);
+    }
+
+    @Override
+    public boolean isSecure() {
+        return flightService.getSslContextProvider() != null;
+    }
+
+    @Override
+    public BoundTransportAddress boundAddress() {
+        return flightService.getBoundAddress();
+    }
+
+    @Override
+    public Map<String, BoundTransportAddress> profileBoundAddresses() {
+        return Map.of("arrow_flight", boundAddress());
+    }
+
+    @Override
+    public TransportAddress[] addressesFromString(String address) throws UnknownHostException {
+        return new TransportAddress[]{new TransportAddress(InetAddress.getByName(address), 0)};
+    }
+
+    @Override
+    public List<String> getDefaultSeedAddresses() {
+        return List.of("localhost:0");
+    }
+
+    @Override
+    public void openConnection(DiscoveryNode node, ConnectionProfile profile, ActionListener<Connection> listener) {
+        clientManager.getFlightClient(node.getId()).ifPresentOrElse(client -> {
+            ArrowFlightTransportChannel channel = channels.computeIfAbsent(node, n ->
+                new ArrowFlightTransportChannel(n, client));
+            listener.onResponse(channel);
+        }, () -> {
+            // Trigger async client build if not present
+            clientManager.buildClientAsync(node.getId());
+            // Retry after a short delay (simplified; use a retry mechanism in production)
+            threadPool().schedule(() -> openConnection(node, profile, listener), TimeValue.timeValueSeconds(1), ThreadPool.Names.GENERIC);
+        });
+    }
+
+    @Override
+    public TransportStats getStats() {
+        return new TransportStats();
+    }
+
+    @Override
+    public ResponseHandlers getResponseHandlers() {
+        return responseHandlers;
+    }
+
+    @Override
+    public RequestHandlers getRequestHandlers() {
+        return requestHandlers;
+    }
+
+    @Override
+    public void start() {
+        flightService.setFlightProducer(new ArrowFlightProducer(flightService.getNativeTransport(), allocator));
+        flightService.start();
+    }
+
+    @Override
+    public void stop() {
+        flightService.stop();
+    }
+
+    @Override
+    public void close() {
+        flightService.close();
+        channels.values().forEach(ArrowFlightTransportChannel::close);
+        channels.clear();
+    }
+
+    private ThreadPool threadPool() {
+        return flightService.getThreadPool();
+    }
+}

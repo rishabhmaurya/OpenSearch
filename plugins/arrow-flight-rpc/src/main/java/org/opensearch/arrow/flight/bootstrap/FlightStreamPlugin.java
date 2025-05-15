@@ -43,7 +43,9 @@ import org.opensearch.script.ScriptService;
 import org.opensearch.telemetry.tracing.Tracer;
 import org.opensearch.threadpool.ExecutorBuilder;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.TcpTransport;
 import org.opensearch.transport.Transport;
+import org.opensearch.transport.TransportService;
 import org.opensearch.transport.client.Client;
 import org.opensearch.watcher.ResourceWatcherService;
 
@@ -229,8 +231,12 @@ public class FlightStreamPlugin extends Plugin
      * Gets the StreamManager instance for managing flight streams.
      */
     @Override
-    public Optional<StreamManager> getStreamManager() {
-        return isArrowStreamsEnabled ? Optional.ofNullable(flightService.getStreamManager()) : Optional.empty();
+    public Optional<StreamManager> getStreamManager(TransportService transportService) {
+        if (!isArrowStreamsEnabled) {
+            return Optional.empty();
+        }
+        flightService.setNativeTransport((TcpTransport) transportService.getTransport());
+        return Optional.ofNullable(flightService.getStreamManager());
     }
 
     /**

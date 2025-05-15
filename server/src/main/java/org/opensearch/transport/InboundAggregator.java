@@ -244,14 +244,14 @@ public class InboundAggregator implements Releasable {
      *
      * @opensearch.internal
      */
-    private static class BreakerControl implements Releasable {
+    public static class BreakerControl implements Releasable {
 
         private static final int CLOSED = -1;
 
         private final Supplier<CircuitBreaker> circuitBreaker;
         private final AtomicInteger bytesToRelease = new AtomicInteger(0);
 
-        private BreakerControl(Supplier<CircuitBreaker> circuitBreaker) {
+        public BreakerControl(Supplier<CircuitBreaker> circuitBreaker) {
             this.circuitBreaker = circuitBreaker;
         }
 

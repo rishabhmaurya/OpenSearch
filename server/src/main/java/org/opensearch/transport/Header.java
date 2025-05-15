@@ -65,7 +65,7 @@ public class Header {
     Tuple<Map<String, String>, Map<String, Set<String>>> headers;
     Set<String> features;
 
-    Header(TransportProtocol protocol, int networkMessageSize, long requestId, byte status, Version version) {
+    public Header(TransportProtocol protocol, int networkMessageSize, long requestId, byte status, Version version) {
         this.protocol = protocol;
         this.networkMessageSize = networkMessageSize;
         this.version = version;

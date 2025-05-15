@@ -86,7 +86,8 @@ public final class InternalAggregations extends Aggregations implements Writeabl
     }
 
     public static InternalAggregations readFrom(StreamInput in) throws IOException {
-        final InternalAggregations res = from(in.readList(stream -> in.readNamedWriteable(InternalAggregation.class)));
+        final InternalAggregations res = from(in.readNamedWriteableList(InternalAggregation.class));
+        // final InternalAggregations res = from(in.readList(stream -> in.readNamedWriteable(InternalAggregation.class)));
         return res;
     }
 

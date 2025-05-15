@@ -16,6 +16,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.arrow.flight.bootstrap.tls.DefaultSslContextProvider;
 import org.opensearch.arrow.flight.bootstrap.tls.SslContextProvider;
+import org.opensearch.arrow.flight.impl.ArrowFlightProducer;
 import org.opensearch.arrow.flight.impl.BaseFlightProducer;
 import org.opensearch.arrow.flight.impl.FlightStreamManager;
 import org.opensearch.arrow.spi.StreamManager;
@@ -26,6 +27,7 @@ import org.opensearch.core.common.transport.BoundTransportAddress;
 import org.opensearch.plugins.NetworkPlugin;
 import org.opensearch.plugins.SecureTransportSettingsProvider;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.TcpTransport;
 import org.opensearch.transport.client.Client;
 
 import java.security.AccessController;
@@ -46,6 +48,7 @@ public class FlightService extends NetworkPlugin.AuxTransport {
     private SecureTransportSettingsProvider secureTransportSettingsProvider;
     private BufferAllocator allocator;
     private ThreadPool threadPool;
+    private TcpTransport nativeTransport;
 
     /**
      * Constructor for FlightService.
@@ -83,6 +86,10 @@ public class FlightService extends NetworkPlugin.AuxTransport {
         this.secureTransportSettingsProvider = secureTransportSettingsProvider;
     }
 
+    void setNativeTransport(TcpTransport nativeTransport) {
+        this.nativeTransport = nativeTransport;
+    }
+
     /**
      * Starts the FlightService by initializing the stream manager.
      */
@@ -106,7 +113,7 @@ public class FlightService extends NetworkPlugin.AuxTransport {
                 client
             );
             initializeStreamManager(clientManager);
-            serverComponents.setFlightProducer(new BaseFlightProducer(clientManager, streamManager, allocator));
+            serverComponents.setFlightProducer(new ArrowFlightProducer(nativeTransport, allocator));
             serverComponents.start();
 
         } catch (Exception e) {

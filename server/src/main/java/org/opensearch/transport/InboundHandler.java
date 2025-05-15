@@ -106,7 +106,7 @@ public class InboundHandler {
         this.slowLogThresholdMs = slowLogThreshold.getMillis();
     }
 
-    void inboundMessage(TcpChannel channel, InboundMessage message) throws Exception {
+    public void inboundMessage(TcpChannel channel, InboundMessage message) throws Exception {
         final long startTime = threadPool.relativeTimeInMillis();
         channel.getChannelStats().markAccessed(startTime);
         messageReceivedFromPipeline(channel, message, startTime);

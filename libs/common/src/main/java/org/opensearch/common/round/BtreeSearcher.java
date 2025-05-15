@@ -10,10 +10,10 @@ package org.opensearch.common.round;
 
 import org.opensearch.common.annotation.InternalApi;
 
-import jdk.incubator.vector.LongVector;
-import jdk.incubator.vector.Vector;
-import jdk.incubator.vector.VectorOperators;
-import jdk.incubator.vector.VectorSpecies;
+//import jdk.incubator.vector.LongVector;
+//import jdk.incubator.vector.Vector;
+//import jdk.incubator.vector.VectorOperators;
+//import jdk.incubator.vector.VectorSpecies;
 
 /**
  * It uses vectorized B-tree search to find the round-down point.
@@ -22,8 +22,8 @@ import jdk.incubator.vector.VectorSpecies;
  */
 @InternalApi
 class BtreeSearcher implements Roundable {
-    private static final VectorSpecies<Long> LONG_VECTOR_SPECIES = LongVector.SPECIES_PREFERRED;
-    private static final int LANES = LONG_VECTOR_SPECIES.length();
+    //private static final VectorSpecies<Long> LONG_VECTOR_SPECIES = LongVector.SPECIES_PREFERRED;
+    private static final int LANES = 0; //LONG_VECTOR_SPECIES.length();
     private static final int SHIFT = log2(LANES);
 
     private final long[] values;
@@ -77,12 +77,12 @@ class BtreeSearcher implements Roundable {
 
     @Override
     public long floor(long key) {
-        Vector<Long> keyVector = LongVector.broadcast(LONG_VECTOR_SPECIES, key);
+        //Vector<Long> keyVector = LongVector.broadcast(LONG_VECTOR_SPECIES, key);
         int i = 1, result = 1;
 
         while (i < values.length) {
-            Vector<Long> valuesVector = LongVector.fromArray(LONG_VECTOR_SPECIES, values, i);
-            int j = i + valuesVector.compare(VectorOperators.GT, keyVector).firstTrue();
+            //Vector<Long> valuesVector = LongVector.fromArray(LONG_VECTOR_SPECIES, values, i);
+            int j = i + 0;//valuesVector.compare(VectorOperators.GT, keyVector).firstTrue();
             result = (j > i) ? j : result;
             i += (j << SHIFT);
         }
