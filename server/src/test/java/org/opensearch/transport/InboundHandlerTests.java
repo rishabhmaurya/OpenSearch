@@ -123,6 +123,7 @@ public abstract class InboundHandlerTests extends OpenSearchTestCase {
             threadPool,
             BigArrays.NON_RECYCLING_INSTANCE,
             outboundHandler,
+            null,
             namedWriteableRegistry,
             handshaker,
             keepAlive,

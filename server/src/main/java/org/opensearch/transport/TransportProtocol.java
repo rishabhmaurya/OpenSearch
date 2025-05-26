@@ -23,6 +23,9 @@ public enum TransportProtocol {
         if (b1 == 'E' && b2 == 'S') {
             return NATIVE;
         }
+        if (b1 == 'F' && b2 == 'S') {
+            return FLIGHT;
+        }
 
         throw new IllegalArgumentException("Unknown transport protocol: [" + b1 + ", " + b2 + "]");
     }

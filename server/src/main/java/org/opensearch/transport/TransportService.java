@@ -112,6 +112,7 @@ public class TransportService extends AbstractLifecycleComponent
     private final AtomicBoolean handleIncomingRequests = new AtomicBoolean();
     private final DelegatingTransportMessageListener messageListener = new DelegatingTransportMessageListener();
     protected final Transport transport;
+    protected final Transport streamTransport;
     protected final ConnectionManager connectionManager;
     private final ConnectionManager streamConnectionManager;
     protected final ThreadPool threadPool;
@@ -309,7 +310,9 @@ public class TransportService extends AbstractLifecycleComponent
     protected void doStart() {
         transport.setMessageListener(this);
         connectionManager.addListener(this);
+        streamConnectionManager.addListener(this);
         transport.start();
+        streamTransport.start();
         if (transport.boundAddress() != null && logger.isInfoEnabled()) {
             logger.info("{}", transport.boundAddress());
             for (Map.Entry<String, BoundTransportAddress> entry : transport.profileBoundAddresses().entrySet()) {

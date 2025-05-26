@@ -14,25 +14,32 @@ import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.opensearch.Version;
 import org.opensearch.arrow.flight.bootstrap.tls.DefaultSslContextProvider;
 import org.opensearch.arrow.flight.bootstrap.tls.SslContextProvider;
-import org.opensearch.arrow.flight.impl.ArrowFlightProducer;
+import org.opensearch.arrow.flight.transport.ArrowFlightProducer;
 import org.opensearch.arrow.flight.impl.BaseFlightProducer;
 import org.opensearch.arrow.flight.impl.FlightStreamManager;
+import org.opensearch.arrow.flight.transport.ArrowOutboundHandler;
 import org.opensearch.arrow.spi.StreamManager;
 import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.Booleans;
 import org.opensearch.common.network.NetworkService;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.core.common.transport.BoundTransportAddress;
+import org.opensearch.node.Node;
 import org.opensearch.plugins.NetworkPlugin;
 import org.opensearch.plugins.SecureTransportSettingsProvider;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.StatsTracker;
 import org.opensearch.transport.TcpTransport;
+import org.opensearch.transport.TransportSettings;
 import org.opensearch.transport.client.Client;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Objects;
+import java.util.TreeSet;
 
 /**
  * FlightService manages the Arrow Flight server and client for OpenSearch.
@@ -49,6 +56,7 @@ public class FlightService extends NetworkPlugin.AuxTransport {
     private BufferAllocator allocator;
     private ThreadPool threadPool;
     private TcpTransport nativeTransport;
+    private ArrowOutboundHandler arrowOutboundHandler;
 
     /**
      * Constructor for FlightService.
@@ -86,8 +94,34 @@ public class FlightService extends NetworkPlugin.AuxTransport {
         this.secureTransportSettingsProvider = secureTransportSettingsProvider;
     }
 
+    void setOutboundHandler(ArrowOutboundHandler outboundHandler) {
+        this.arrowOutboundHandler = outboundHandler;
+    }
+
+    public ArrowOutboundHandler getOutBoundHandler(Settings settings, ThreadPool threadPool) {
+        if (arrowOutboundHandler != null) {
+            return arrowOutboundHandler;
+        }
+        String nodeName = Node.NODE_NAME_SETTING.get(settings);
+        final Settings defaultFeatures = TransportSettings.DEFAULT_FEATURES_SETTING.get(settings);
+            defaultFeatures.names().forEach(key -> {
+            if (Booleans.parseBoolean(defaultFeatures.get(key)) == false) {
+                throw new IllegalArgumentException("feature settings must have default [true] value");
+            }
+        });
+        // use a sorted set to present the features in a consistent order
+        String [] features = new TreeSet<>(defaultFeatures.names()).toArray(new String[defaultFeatures.names().size()]);
+        arrowOutboundHandler = new ArrowOutboundHandler(nodeName, Version.CURRENT, features, new StatsTracker(), threadPool);
+        arrowOutboundHandler.setAllocator(allocator);
+        return arrowOutboundHandler;
+    }
+
     void setNativeTransport(TcpTransport nativeTransport) {
         this.nativeTransport = nativeTransport;
+    }
+
+    public BufferAllocator  getAllocator() {
+        return allocator;
     }
 
     /**
@@ -99,6 +133,7 @@ public class FlightService extends NetworkPlugin.AuxTransport {
         try {
             allocator = AccessController.doPrivileged((PrivilegedAction<BufferAllocator>) () -> new RootAllocator(Integer.MAX_VALUE));
             serverComponents.setAllocator(allocator);
+            getOutBoundHandler(Settings.builder().build(), threadPool).setAllocator(allocator);
             SslContextProvider sslContextProvider = ServerConfig.isSslEnabled()
                 ? new DefaultSslContextProvider(secureTransportSettingsProvider)
                 : null;

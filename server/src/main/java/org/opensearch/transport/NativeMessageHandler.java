@@ -73,7 +73,7 @@ public class NativeMessageHandler implements ProtocolMessageHandler {
     private static final Logger logger = LogManager.getLogger(NativeMessageHandler.class);
 
     private final ThreadPool threadPool;
-    private final NativeOutboundHandler outboundHandler;
+    private final ProtocolOutboundHandler outboundHandler;
     private final NamedWriteableRegistry namedWriteableRegistry;
     private final TransportHandshaker handshaker;
     private final TransportKeepAlive keepAlive;
@@ -95,10 +95,11 @@ public class NativeMessageHandler implements ProtocolMessageHandler {
         Transport.RequestHandlers requestHandlers,
         Transport.ResponseHandlers responseHandlers,
         Tracer tracer,
-        TransportKeepAlive keepAlive
+        TransportKeepAlive keepAlive,
+        ProtocolOutboundHandler protocolOutboundHandler
     ) {
         this.threadPool = threadPool;
-        this.outboundHandler = new NativeOutboundHandler(nodeName, version, features, statsTracker, threadPool, bigArrays, outboundHandler);
+        this.outboundHandler = protocolOutboundHandler != null? protocolOutboundHandler: new NativeOutboundHandler(nodeName, version, features, statsTracker, threadPool, bigArrays, outboundHandler);
         this.namedWriteableRegistry = namedWriteableRegistry;
         this.handshaker = handshaker;
         this.requestHandlers = requestHandlers;

@@ -36,6 +36,7 @@ import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Setting.Property;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.core.common.unit.ByteSizeValue;
+import org.opensearch.transport.ProtocolOutboundHandler;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -109,6 +110,8 @@ public final class NetworkService {
         Property.NodeScope,
         Setting.Property.Deprecated
     );
+
+    public ProtocolOutboundHandler outboundHandler;
 
     /**
      * A custom name resolver can support custom lookup keys (my_net_key:ipv4) and also change
@@ -297,5 +300,9 @@ public final class NetworkService {
             }
         }
         return InetAddress.getAllByName(host);
+    }
+
+    public void setOutboundHandler(ProtocolOutboundHandler outboundHandler) {
+        this.outboundHandler = outboundHandler;
     }
 }

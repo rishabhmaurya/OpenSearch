@@ -18,6 +18,7 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.complex.StructVector;
+import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.core.common.io.stream.NamedWriteable;
 import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.core.common.io.stream.StreamInput;
@@ -32,7 +33,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-class ArrowStreamInput extends StreamInput {
+@ExperimentalApi
+public class ArrowStreamInput extends StreamInput {
     private final VectorSchemaRoot root;
     private final ArrowStreamOutput.PathManager pathManager;
     private final Map<String, List<FieldVector>> vectorsByPath;

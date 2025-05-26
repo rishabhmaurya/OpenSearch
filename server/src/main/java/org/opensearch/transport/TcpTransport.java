@@ -151,7 +151,7 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
     private final TransportKeepAlive keepAlive;
     private final OutboundHandler outboundHandler;
     private final InboundHandler inboundHandler;
-    private final NativeOutboundHandler handshakerHandler;
+    private NativeOutboundHandler handshakerHandler;
     private final ResponseHandlers responseHandlers = new ResponseHandlers();
     private final RequestHandlers requestHandlers = new RequestHandlers();
 
@@ -224,6 +224,7 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
             threadPool,
             bigArrays,
             outboundHandler,
+            networkService.outboundHandler,
             namedWriteableRegistry,
             handshaker,
             keepAlive,
@@ -795,7 +796,7 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
     }
 
     private static int readHeaderBuffer(BytesReference headerBuffer) throws IOException {
-        if (headerBuffer.get(0) != 'E' || headerBuffer.get(1) != 'S') {
+        if ((headerBuffer.get(0) != 'E' && headerBuffer.get(0) != 'F') || headerBuffer.get(1) != 'S') {
             if (appearsToBeHTTPRequest(headerBuffer)) {
                 throw new HttpRequestOnTransportException("This is not an HTTP port");
             }

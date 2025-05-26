@@ -60,6 +60,14 @@ public interface TransportChannel {
 
     void sendResponse(Exception exception) throws IOException;
 
+    // New streaming methods
+    default void sendResponseBatch(TransportResponse response) throws IOException {
+        throw new UnsupportedOperationException("Batch streaming not supported by this channel");
+    }
+    default void complete() throws IOException {
+        throw new UnsupportedOperationException("Complete not supported by this channel");
+    }
+
     /**
      * Returns the version of the other party that this channel will send a response to.
      */

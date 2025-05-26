@@ -10,6 +10,7 @@ package org.opensearch.arrow.flight.stream;
 
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.search.DocValueFormat;
@@ -49,12 +50,10 @@ public class ArrowStreamSerializationTests extends OpenSearchTestCase {
 
     public void testInternalAggregationSerializationDeserialization() throws IOException {
         StringTerms original = createTestStringTerms();
-
         try (ArrowStreamOutput output = new ArrowStreamOutput(allocator)) {
             output.writeNamedWriteable(original);
-            VectorSchemaRoot unifiedRoot = output.getUnifiedRoot();
-
-            try (ArrowStreamInput input = new ArrowStreamInput(unifiedRoot, registry)) {
+            VectorSchemaRoot root = output.getUnifiedRoot();
+            try (ArrowStreamInput input = new ArrowStreamInput(root, registry)) {
                 StringTerms deserialized = input.readNamedWriteable(StringTerms.class);
                 assertEquals(String.valueOf(original), String.valueOf(deserialized));
             }

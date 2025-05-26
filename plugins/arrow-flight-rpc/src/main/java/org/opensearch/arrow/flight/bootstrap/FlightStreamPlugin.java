@@ -8,20 +8,25 @@
 
 package org.opensearch.arrow.flight.bootstrap;
 
+import org.apache.arrow.memory.BufferAllocator;
+import org.opensearch.Version;
 import org.opensearch.arrow.flight.api.flightinfo.FlightServerInfoAction;
 import org.opensearch.arrow.flight.api.flightinfo.NodesFlightInfoAction;
 import org.opensearch.arrow.flight.api.flightinfo.TransportNodesFlightInfoAction;
+import org.opensearch.arrow.flight.transport.ArrowOutboundHandler;
 import org.opensearch.arrow.spi.StreamManager;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.Booleans;
 import org.opensearch.common.network.NetworkService;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.IndexScopedSettings;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
+import org.opensearch.common.util.BigArrays;
 import org.opensearch.common.util.FeatureFlags;
 import org.opensearch.common.util.PageCacheRecycler;
 import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
@@ -29,6 +34,7 @@ import org.opensearch.core.indices.breaker.CircuitBreakerService;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;
+import org.opensearch.node.Node;
 import org.opensearch.plugins.ActionPlugin;
 import org.opensearch.plugins.ClusterPlugin;
 import org.opensearch.plugins.ExtensiblePlugin;
@@ -43,9 +49,13 @@ import org.opensearch.script.ScriptService;
 import org.opensearch.telemetry.tracing.Tracer;
 import org.opensearch.threadpool.ExecutorBuilder;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.OutboundHandler;
+import org.opensearch.transport.ProtocolOutboundHandler;
+import org.opensearch.transport.StatsTracker;
 import org.opensearch.transport.TcpTransport;
 import org.opensearch.transport.Transport;
 import org.opensearch.transport.TransportService;
+import org.opensearch.transport.TransportSettings;
 import org.opensearch.transport.client.Client;
 import org.opensearch.watcher.ResourceWatcherService;
 
@@ -56,6 +66,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeSet;
 import java.util.function.Supplier;
 
 /**
@@ -71,7 +82,7 @@ public class FlightStreamPlugin extends Plugin
 
     private final FlightService flightService;
     private final boolean isArrowStreamsEnabled;
-
+    private ArrowOutboundHandler arrowOutboundHandler;
     /**
      * Constructor for FlightStreamPluginImpl.
      * @param settings The settings for the FlightStreamPlugin.
@@ -116,6 +127,7 @@ public class FlightStreamPlugin extends Plugin
         flightService.setClusterService(clusterService);
         flightService.setThreadPool(threadPool);
         flightService.setClient(client);
+        flightService.setOutboundHandler(arrowOutboundHandler);
         return List.of(flightService);
     }
 
@@ -271,5 +283,11 @@ public class FlightStreamPlugin extends Plugin
                 addAll(ServerConfig.getSettings());
             }
         };
+    }
+
+    @Override
+    public Map<String, Supplier<ProtocolOutboundHandler>> getProtocolOutboundHandler(Settings settings,
+                                                                                     ThreadPool threadPool) {
+        return Map.of("FLIGHT", () -> flightService.getOutBoundHandler(settings, threadPool));
     }
 }

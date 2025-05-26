@@ -6,21 +6,18 @@
  * compatible open source license.
  */
 
-package org.opensearch.arrow.flight.impl;
+package org.opensearch.arrow.flight.transport;
 
-import org.apache.arrow.flight.CallOptions;
 import org.apache.arrow.flight.FlightClient;
-import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightStream;
-import org.apache.arrow.flight.Location;
 import org.apache.arrow.flight.Ticket;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.opensearch.arrow.flight.bootstrap.FlightClientManager;
+import org.opensearch.arrow.flight.impl.FlightStreamReader;
 import org.opensearch.arrow.spi.StreamReader;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.io.stream.BytesStreamOutput;
 import org.opensearch.core.action.ActionListener;
-import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.transport.ConnectTransportException;
 import org.opensearch.transport.ConnectionManager;

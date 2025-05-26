@@ -67,4 +67,7 @@ public abstract class ProtocolOutboundHandler {
         final String action,
         final Exception error
     ) throws IOException;
+
+
+    protected abstract void setMessageListener(TransportMessageListener listener);
 }

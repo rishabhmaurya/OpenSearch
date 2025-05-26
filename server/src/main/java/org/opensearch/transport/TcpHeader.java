@@ -82,7 +82,19 @@ public class TcpHeader {
         int contentSize,
         int variableHeaderSize
     ) throws IOException {
-        output.writeBytes(PREFIX);
+        writeHeader(output, requestId, status, version, contentSize, variableHeaderSize, PREFIX);
+    }
+
+    public static void writeHeader(
+        StreamOutput output,
+        long requestId,
+        byte status,
+        Version version,
+        int contentSize,
+        int variableHeaderSize,
+        byte[] prefix
+    ) throws IOException {
+        output.writeBytes(prefix);
         // write the size, the size indicates the remaining message size, not including the size int
         output.writeInt(contentSize + REQUEST_ID_SIZE + STATUS_SIZE + VERSION_ID_SIZE + VARIABLE_HEADER_SIZE);
         output.writeLong(requestId);

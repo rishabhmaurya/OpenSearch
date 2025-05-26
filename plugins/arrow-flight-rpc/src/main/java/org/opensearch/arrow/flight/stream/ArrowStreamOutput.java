@@ -23,7 +23,9 @@ import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.opensearch.common.Nullable;
+import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.core.common.io.stream.NamedWriteable;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.common.io.stream.Writeable;
@@ -31,6 +33,7 @@ import org.opensearch.core.common.io.stream.Writeable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,7 +118,8 @@ import java.util.function.BiConsumer;
  *       {@link NamedWriteable#getWriteableName()} value.</li>
  * </ul>
  */
-class ArrowStreamOutput extends StreamOutput {
+@ExperimentalApi
+public class ArrowStreamOutput extends StreamOutput {
     private final BufferAllocator allocator;
     private final Map<String, VectorSchemaRoot> roots;
     private final PathManager pathManager;
@@ -295,11 +299,13 @@ class ArrowStreamOutput extends StreamOutput {
     }
 
     public VectorSchemaRoot getUnifiedRoot() {
-        List<FieldVector> allFields = new ArrayList<>();
+        List<FieldVector> newFieldVectors = new ArrayList<>();
+        List<Field> newFields = new ArrayList<>();
         for (VectorSchemaRoot root : roots.values()) {
-            allFields.addAll(root.getFieldVectors());
+            newFieldVectors.addAll(root.getFieldVectors());
+            newFields.addAll(root.getSchema().getFields());
         }
-        return new VectorSchemaRoot(allFields);
+        return new VectorSchemaRoot(newFields, newFieldVectors);
     }
 
     @Override

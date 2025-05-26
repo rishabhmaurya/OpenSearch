@@ -65,6 +65,7 @@ public class InboundHandler {
         ThreadPool threadPool,
         BigArrays bigArrays,
         OutboundHandler outboundHandler,
+        ProtocolOutboundHandler streamOutboundHandler,
         NamedWriteableRegistry namedWriteableRegistry,
         TransportHandshaker handshaker,
         TransportKeepAlive keepAlive,
@@ -88,7 +89,25 @@ public class InboundHandler {
                 requestHandlers,
                 responseHandlers,
                 tracer,
-                keepAlive
+                keepAlive,
+                null
+            ),
+            TransportProtocol.FLIGHT,
+            new NativeMessageHandler(
+                nodeName,
+                version,
+                features,
+                statsTracker,
+                threadPool,
+                bigArrays,
+                outboundHandler,
+                namedWriteableRegistry,
+                handshaker,
+                requestHandlers,
+                responseHandlers,
+                tracer,
+                keepAlive,
+                streamOutboundHandler
             )
         );
     }

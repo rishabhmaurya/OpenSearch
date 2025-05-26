@@ -31,6 +31,7 @@
 
 package org.opensearch.plugins;
 
+import org.opensearch.Version;
 import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.common.lifecycle.AbstractLifecycleComponent;
 import org.opensearch.common.network.NetworkService;
@@ -48,6 +49,9 @@ import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.http.HttpServerTransport;
 import org.opensearch.telemetry.tracing.Tracer;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.OutboundHandler;
+import org.opensearch.transport.ProtocolOutboundHandler;
+import org.opensearch.transport.StatsTracker;
 import org.opensearch.transport.Transport;
 import org.opensearch.transport.TransportInterceptor;
 
@@ -215,6 +219,11 @@ public interface NetworkPlugin {
         SecureHttpTransportSettingsProvider secureHttpTransportSettingsProvider,
         Tracer tracer
     ) {
+        return Collections.emptyMap();
+    }
+
+    default Map<String, Supplier<ProtocolOutboundHandler>> getProtocolOutboundHandler(Settings settings,
+                                                                                      ThreadPool threadPool){
         return Collections.emptyMap();
     }
 }

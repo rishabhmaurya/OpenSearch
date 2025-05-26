@@ -32,6 +32,7 @@
 
 package org.opensearch.common.network;
 
+import org.opensearch.Version;
 import org.opensearch.action.support.replication.ReplicationTask;
 import org.opensearch.cluster.routing.allocation.command.AllocateEmptyPrimaryAllocationCommand;
 import org.opensearch.cluster.routing.allocation.command.AllocateReplicaAllocationCommand;
@@ -64,6 +65,7 @@ import org.opensearch.tasks.RawTaskStatus;
 import org.opensearch.tasks.Task;
 import org.opensearch.telemetry.tracing.Tracer;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.ProtocolOutboundHandler;
 import org.opensearch.transport.Transport;
 import org.opensearch.transport.TransportInterceptor;
 import org.opensearch.transport.TransportRequest;
@@ -261,8 +263,13 @@ public final class NetworkModule {
                 networkService,
                 tracer
             );
+
+            Map<String, Supplier<ProtocolOutboundHandler>> outboundHandlers = plugin.getProtocolOutboundHandler(settings, threadPool);
             for (Map.Entry<String, Supplier<Transport>> entry : transportFactory.entrySet()) {
                 registerTransport(entry.getKey(), entry.getValue());
+            }
+            if (!outboundHandlers.isEmpty()) {
+                networkService.setOutboundHandler(outboundHandlers.get("FLIGHT").get());
             }
 
             // Register any HTTP secure transports if available

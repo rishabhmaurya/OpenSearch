@@ -35,6 +35,7 @@ package org.opensearch.transport.nativeprotocol;
 import org.opensearch.Version;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.CheckedSupplier;
+import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.common.io.stream.ReleasableBytesStreamOutput;
 import org.opensearch.common.lease.Releasable;
 import org.opensearch.common.util.BigArrays;
@@ -62,15 +63,17 @@ import java.util.Set;
  *
  * @opensearch.internal
  */
-public final class NativeOutboundHandler extends ProtocolOutboundHandler {
-    private final String nodeName;
-    private final Version version;
-    private final String[] features;
-    private final StatsTracker statsTracker;
-    private final ThreadPool threadPool;
-    private final BigArrays bigArrays;
-    private volatile TransportMessageListener messageListener = TransportMessageListener.NOOP_LISTENER;
-    private final OutboundHandler handler;
+@ExperimentalApi
+public class NativeOutboundHandler extends ProtocolOutboundHandler {
+    public final String nodeName;
+    public final Version version;
+    public final String[] features;
+    public final StatsTracker statsTracker;
+    public final ThreadPool threadPool;
+    public final BigArrays bigArrays;
+    public volatile TransportMessageListener messageListener = TransportMessageListener.NOOP_LISTENER;
+    public final OutboundHandler handler;
+    public final OutboundHandler streamHandler;
 
     public NativeOutboundHandler(
         String nodeName,
@@ -81,6 +84,19 @@ public final class NativeOutboundHandler extends ProtocolOutboundHandler {
         BigArrays bigArrays,
         OutboundHandler handler
     ) {
+        this(nodeName, version, features, statsTracker, threadPool, bigArrays, handler, null);
+    }
+
+    public NativeOutboundHandler(
+        String nodeName,
+        Version version,
+        String[] features,
+        StatsTracker statsTracker,
+        ThreadPool threadPool,
+        BigArrays bigArrays,
+        OutboundHandler handler,
+        OutboundHandler streamHandler
+    ) {
         this.nodeName = nodeName;
         this.version = version;
         this.features = features;
@@ -88,6 +104,7 @@ public final class NativeOutboundHandler extends ProtocolOutboundHandler {
         this.threadPool = threadPool;
         this.bigArrays = bigArrays;
         this.handler = handler;
+        this.streamHandler = streamHandler;
     }
 
     /**
@@ -121,6 +138,36 @@ public final class NativeOutboundHandler extends ProtocolOutboundHandler {
         sendMessage(channel, message, listener);
     }
 
+    /**
+     * Sends the request to the given channel. This method should be used to send {@link TransportRequest}
+     * objects back to the caller.
+     */
+    public void sendStreamRequest(
+        final DiscoveryNode node,
+        final TcpChannel channel,
+        final long requestId,
+        final String action,
+        final TransportRequest request,
+        final TransportRequestOptions options,
+        final Version channelVersion,
+        final boolean compressRequest,
+        final boolean isHandshake
+    ) throws IOException, TransportException {
+        Version version = Version.min(this.version, channelVersion);
+        NativeOutboundMessage.Request message = new NativeOutboundMessage.Request(
+            threadPool.getThreadContext(),
+            features,
+            request,
+            version,
+            action,
+            requestId,
+            isHandshake,
+            compressRequest,
+            "FLIGHT"
+        );
+        ActionListener<Void> listener = ActionListener.wrap(() -> messageListener.onRequestSent(node, requestId, action, request, options));
+        sendMessage(channel, message, listener);
+    }
     /**
      * Sends the response to the given channel. This method should be used to send {@link TransportResponse}
      * objects back to the caller.
@@ -186,6 +233,7 @@ public final class NativeOutboundHandler extends ProtocolOutboundHandler {
         handler.sendBytes(channel, sendContext);
     }
 
+    @Override
     public void setMessageListener(TransportMessageListener listener) {
         if (messageListener == TransportMessageListener.NOOP_LISTENER) {
             messageListener = listener;
@@ -199,7 +247,7 @@ public final class NativeOutboundHandler extends ProtocolOutboundHandler {
      *
      * @opensearch.internal
      */
-    private static class MessageSerializer implements CheckedSupplier<BytesReference, IOException>, Releasable {
+    public static class MessageSerializer implements CheckedSupplier<BytesReference, IOException>, Releasable {
 
         private final NativeOutboundMessage message;
         private final BigArrays bigArrays;

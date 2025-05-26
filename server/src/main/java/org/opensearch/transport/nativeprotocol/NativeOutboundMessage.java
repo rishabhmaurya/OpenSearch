@@ -55,10 +55,15 @@ import java.util.Set;
 abstract class NativeOutboundMessage extends NetworkMessage {
 
     private final Writeable message;
-
+    private final String protocol;
     NativeOutboundMessage(ThreadContext threadContext, Version version, byte status, long requestId, Writeable message) {
+        this(threadContext, version, status, requestId, message, null);
+    }
+
+    NativeOutboundMessage(ThreadContext threadContext, Version version, byte status, long requestId, Writeable message, String protocol) {
         super(threadContext, version, status, requestId);
         this.message = message;
+        this.protocol = protocol;
     }
 
     BytesReference serialize(BytesStreamOutput bytesStream) throws IOException {
@@ -84,7 +89,11 @@ abstract class NativeOutboundMessage extends NetworkMessage {
 
         bytesStream.seek(0);
         final int contentSize = reference.length() - TcpHeader.headerSize(version);
-        TcpHeader.writeHeader(bytesStream, requestId, status, version, contentSize, variableHeaderLength);
+        if (protocol != null && protocol.equals("FLIGHT")) {
+            TcpHeader.writeHeader(bytesStream, requestId, status, version, contentSize, variableHeaderLength, new byte[]{ (byte) 'F', (byte) 'S' });
+        } else {
+            TcpHeader.writeHeader(bytesStream, requestId, status, version, contentSize, variableHeaderLength);
+        }
         return reference;
     }
 
@@ -123,7 +132,7 @@ abstract class NativeOutboundMessage extends NetworkMessage {
      *
      * @opensearch.internal
      */
-    static class Request extends NativeOutboundMessage {
+    public static class Request extends NativeOutboundMessage {
 
         private final String[] features;
         private final String action;
@@ -138,7 +147,21 @@ abstract class NativeOutboundMessage extends NetworkMessage {
             boolean isHandshake,
             boolean compress
         ) {
-            super(threadContext, version, setStatus(compress, isHandshake, message), requestId, message);
+            this(threadContext, features,message, version, action, requestId, isHandshake, compress, null);
+        }
+
+        Request(
+            ThreadContext threadContext,
+            String[] features,
+            Writeable message,
+            Version version,
+            String action,
+            long requestId,
+            boolean isHandshake,
+            boolean compress,
+            String protocol
+        ) {
+            super(threadContext, version, setStatus(compress, isHandshake, message), requestId, message, protocol);
             this.features = features;
             this.action = action;
         }

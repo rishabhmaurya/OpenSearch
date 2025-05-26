@@ -8,15 +8,24 @@
 
 package org.opensearch.arrow.flight;
 
+import org.apache.arrow.flatbuf.Int;
 import org.apache.arrow.flight.CallOptions;
 import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.FlightRuntimeException;
+import org.apache.arrow.flight.FlightStream;
+import org.apache.arrow.flight.Ticket;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.junit.BeforeClass;
+import org.opensearch.Version;
+import org.opensearch.action.OriginalIndices;
+import org.opensearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.arrow.flight.bootstrap.FlightClientManager;
 import org.opensearch.arrow.flight.bootstrap.FlightService;
 import org.opensearch.arrow.flight.bootstrap.FlightStreamPlugin;
@@ -26,8 +35,25 @@ import org.opensearch.arrow.spi.StreamReader;
 import org.opensearch.arrow.spi.StreamTicket;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.unit.TimeValue;
+import org.opensearch.common.util.BigArrays;
+import org.opensearch.core.action.ActionListener;
+import org.opensearch.core.common.Strings;
+import org.opensearch.core.common.bytes.BytesArray;
+import org.opensearch.core.common.bytes.BytesReference;
+import org.opensearch.core.common.io.stream.StreamOutput;
+import org.opensearch.index.IndexNotFoundException;
+import org.opensearch.index.IndexService;
+import org.opensearch.index.shard.IndexShard;
+import org.opensearch.indices.IndicesService;
 import org.opensearch.plugins.Plugin;
+import org.opensearch.search.internal.AliasFilter;
+import org.opensearch.search.internal.ShardSearchRequest;
 import org.opensearch.test.OpenSearchIntegTestCase;
+import org.opensearch.transport.FakeTcpChannel;
+import org.opensearch.transport.OutboundHandler;
+import org.opensearch.transport.TransportRequestOptions;
+import org.opensearch.transport.TransportService;
+import org.opensearch.transport.nativeprotocol.NativeOutboundHandler;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -36,19 +62,29 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.opensearch.action.search.SearchTransportService.QUERY_ACTION_NAME;
 import static org.opensearch.common.util.FeatureFlags.ARROW_STREAMS;
 
-@OpenSearchIntegTestCase.ClusterScope(scope = OpenSearchIntegTestCase.Scope.SUITE, numDataNodes = 5)
+@OpenSearchIntegTestCase.ClusterScope(scope = OpenSearchIntegTestCase.Scope.SUITE, maxNumDataNodes = 1)
 public class ArrowFlightServerIT extends OpenSearchIntegTestCase {
 
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
         return Collections.singleton(FlightStreamPlugin.class);
     }
+    @BeforeClass
+    public static void setUp1() {
+        System.setProperty("io.netty.allocator.numDirectArenas", "1");
+        System.setProperty("io.netty.noUnsafe", "false");
+        System.setProperty("io.netty.tryUnsafe", "true");
+        System.setProperty("io.netty.tryReflectionSetAccessible", "true");
+    }
 
     @Override
     public void setUp() throws Exception {
         super.setUp();
+        createIndex("index");
+        ensureSearchable("index");
         ensureGreen();
         for (DiscoveryNode node : getClusterState().nodes()) {
             FlightService flightService = internalCluster().getInstance(FlightService.class, node.getName());
@@ -59,6 +95,68 @@ public class ArrowFlightServerIT extends OpenSearchIntegTestCase {
                     flightClientManager.getFlightClient(node.getId()).isPresent()
                 );
             }, 3, TimeUnit.SECONDS);
+        }
+    }
+
+    @LockFeatureFlag(ARROW_STREAMS)
+    public void testArrowFlightProducer() throws Exception {
+        for (DiscoveryNode node : getClusterState().nodes()) {
+            if (node.isDataNode() == false) {
+                continue;
+            }
+            IndicesService indicesService = internalCluster().getInstance((IndicesService.class));
+            IndexService indexService;
+            try {
+                indexService = indicesService.indexServiceSafe(resolveIndex("index"));
+            } catch (IndexNotFoundException e) {
+                continue;
+            }
+            FlightService flightService = internalCluster().getInstance(FlightService.class, node.getName());
+            FlightClientManager flightClientManager = flightService.getFlightClientManager();
+            FlightClient flightClient = flightClientManager.getFlightClient(node.getId()).get();
+            assertNotNull(flightClient);
+            SearchRequest searchRequest = new SearchRequest().allowPartialSearchResults(true);
+            TransportService transportService = internalCluster().getInstance((TransportService.class));
+
+            IndexShard indexShard = indexService.getShard((Integer) indexService.shardIds().toArray()[0]);
+            ShardSearchRequest request = new ShardSearchRequest(
+                new OriginalIndices(new String[]{"index"}, IndicesOptions.STRICT_EXPAND_OPEN),
+                searchRequest,
+                indexShard.shardId(),
+                1,
+                new AliasFilter(null, Strings.EMPTY_ARRAY),
+                1.0f,
+                10,
+                null,
+                new String[0]
+            );
+            OutboundHandler handler = new OutboundHandler(null, transportService.getThreadPool());
+            NativeOutboundHandler nativeOutboundHandler = new NativeOutboundHandler(
+                node.getName(),
+                Version.CURRENT,
+                new String[0],
+                null,
+                transportService.getThreadPool(),
+                BigArrays.NON_RECYCLING_INSTANCE,
+                handler
+            );
+            final BytesReference[] ref = new BytesReference[1];
+            FakeTcpChannel channel = new FakeTcpChannel() {
+                @Override
+                public void sendMessage(BytesReference reference, ActionListener<Void> listener) {
+                    ref[0] = reference;
+                }
+            };
+            nativeOutboundHandler.sendStreamRequest(node, channel, 1, QUERY_ACTION_NAME, request, TransportRequestOptions.EMPTY, Version.CURRENT, false, false);
+            byte[] ticketBytes = Arrays.copyOfRange(((BytesArray) ref[0]).array(), 0, ref[0].length());
+            Ticket ticket = new Ticket(ticketBytes);
+            try (FlightStream stream = flightClient.getStream(ticket)) {
+                while (stream.next()) {
+                    VectorSchemaRoot root = stream.getRoot();
+                    assertNotNull(root.getSchema());
+                }
+            }
+            break;
         }
     }
 

@@ -65,6 +65,22 @@ public final class ChannelActionListener<Response extends TransportResponse, Req
         }
     }
 
+    public void sendResponseBatch(Response response) {
+        try {
+            channel.sendResponseBatch(response);
+        } catch (Exception e) {
+            onFailure(e);
+        }
+    }
+
+    public void complete() {
+        try {
+            channel.complete();
+        } catch (Exception e) {
+            onFailure(e);
+        }
+    }
+
     @Override
     public void onFailure(Exception e) {
         TransportChannel.sendErrorResponse(channel, actionName, request, e);
