@@ -216,7 +216,35 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
             )
         );
         this.keepAlive = new TransportKeepAlive(threadPool, this.outboundHandler::sendBytes);
-        this.inboundHandler = new InboundHandler(
+        this.inboundHandler = createInboundHandler(nodeName,
+            version,
+            features,
+            statsTracker,
+            threadPool,
+            bigArrays,
+            outboundHandler,
+            namedWriteableRegistry,
+            handshaker,
+            keepAlive,
+            requestHandlers,
+            responseHandlers,
+            tracer);
+    }
+
+    protected InboundHandler createInboundHandler(String nodeName,
+                                                  Version version,
+                                                  String[] features,
+                                                  StatsTracker statsTracker,
+                                                  ThreadPool threadPool,
+                                                  BigArrays bigArrays,
+                                                  OutboundHandler outboundHandler,
+                                                  NamedWriteableRegistry namedWriteableRegistry,
+                                                  TransportHandshaker handshaker,
+                                                  TransportKeepAlive keepAlive,
+                                                  RequestHandlers requestHandlers,
+                                                  ResponseHandlers responseHandlers,
+                                                  Tracer tracer) {
+        return new InboundHandler(
             nodeName,
             version,
             features,
@@ -239,6 +267,10 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
 
     public StatsTracker getStatsTracker() {
         return statsTracker;
+    }
+
+    public PageCacheRecycler getPageCacheRecycler() {
+        return pageCacheRecycler;
     }
 
     public ThreadPool getThreadPool() {
@@ -276,7 +308,7 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
         private final boolean compress;
         private final AtomicBoolean isClosing = new AtomicBoolean(false);
 
-        NodeChannels(DiscoveryNode node, List<TcpChannel> channels, ConnectionProfile connectionProfile, Version handshakeVersion) {
+        public NodeChannels(DiscoveryNode node, List<TcpChannel> channels, ConnectionProfile connectionProfile, Version handshakeVersion) {
             this.node = node;
             this.channels = Collections.unmodifiableList(channels);
             assert channels.size() == connectionProfile.getNumConnections() : "expected channels size to be == "
@@ -921,7 +953,7 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
      *
      * @throws IllegalStateException if the transport is not started / open
      */
-    private void ensureOpen() {
+    protected void ensureOpen() {
         if (lifecycle.started() == false) {
             throw new IllegalStateException("transport has been stopped");
         }

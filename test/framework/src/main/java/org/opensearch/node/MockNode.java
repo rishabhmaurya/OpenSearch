@@ -215,6 +215,7 @@ public class MockNode extends Node {
     protected TransportService newTransportService(
         Settings settings,
         Transport transport,
+        Transport streamTransport,
         ThreadPool threadPool,
         TransportInterceptor interceptor,
         Function<BoundTransportAddress, DiscoveryNode> localNodeFactory,
@@ -230,6 +231,7 @@ public class MockNode extends Node {
             return super.newTransportService(
                 settings,
                 transport,
+                streamTransport,
                 threadPool,
                 interceptor,
                 localNodeFactory,

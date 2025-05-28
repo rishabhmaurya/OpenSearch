@@ -36,6 +36,7 @@ import org.opensearch.common.annotation.PublicApi;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.Writeable;
 import org.opensearch.core.transport.TransportResponse;
+import org.opensearch.transport.stream.StreamTransportResponse;
 
 import java.io.IOException;
 import java.util.function.Function;
@@ -49,6 +50,12 @@ import java.util.function.Function;
 public interface TransportResponseHandler<T extends TransportResponse> extends Writeable.Reader<T> {
 
     void handleResponse(T response);
+
+    default void handleStreamResponse(StreamTransportResponse<T> response) {
+        if (response.hasNext()) {
+            handleResponse(response.next());
+        }
+    }
 
     void handleException(TransportException exp);
 

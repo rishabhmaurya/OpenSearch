@@ -67,6 +67,7 @@ import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.ClusterStateObserver;
 import org.opensearch.cluster.InternalClusterInfoService;
 import org.opensearch.cluster.NodeConnectionsService;
+import org.opensearch.cluster.StreamNodeConnectionsService;
 import org.opensearch.cluster.action.index.MappingUpdatedAction;
 import org.opensearch.cluster.applicationtemplates.SystemTemplatesPlugin;
 import org.opensearch.cluster.applicationtemplates.SystemTemplatesService;
@@ -272,6 +273,7 @@ import org.opensearch.threadpool.ExecutorBuilder;
 import org.opensearch.threadpool.RunnableTaskExecutionListener;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.RemoteClusterService;
+import org.opensearch.transport.StreamTransportService;
 import org.opensearch.transport.Transport;
 import org.opensearch.transport.TransportInterceptor;
 import org.opensearch.transport.TransportService;
@@ -315,6 +317,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
@@ -1216,13 +1219,17 @@ public class Node implements Closeable {
             }
             new TemplateUpgradeService(client, clusterService, threadPool, indexTemplateMetadataUpgraders);
             final Transport transport = networkModule.getTransportSupplier().get();
+            final Transport streamTransport = networkModule.getStreamTransportSupplier().get();
+
             Set<String> taskHeaders = Stream.concat(
                 pluginsService.filterPlugins(ActionPlugin.class).stream().flatMap(p -> p.getTaskHeaders().stream()),
                 Stream.of(Task.X_OPAQUE_ID)
             ).collect(Collectors.toSet());
+
             final TransportService transportService = newTransportService(
                 settings,
                 transport,
+                streamTransport,
                 threadPool,
                 networkModule.getTransportInterceptor(),
                 localNodeFactory,
@@ -1230,8 +1237,13 @@ public class Node implements Closeable {
                 taskHeaders,
                 tracer
             );
+
+            final StreamTransportService streamTransportService = new StreamTransportService(settings, streamTransport, threadPool, networkModule.getTransportInterceptor(),
+                new LocalNodeFactory(settings, nodeEnvironment.nodeId(), remoteStoreNodeService), settingsModule.getClusterSettings(), taskHeaders, tracer);
             TopNSearchTasksLogger taskConsumer = new TopNSearchTasksLogger(settings, settingsModule.getClusterSettings());
             transportService.getTaskManager().registerTaskResourceConsumer(taskConsumer);
+            streamTransportService.getTaskManager().registerTaskResourceConsumer(taskConsumer);
+
             this.extensionsManager.initializeServicesAndRestHandler(
                 actionModule,
                 settingsModule,
@@ -1523,6 +1535,7 @@ public class Node implements Closeable {
                     .toInstance(new SearchPhaseController(namedWriteableRegistry, searchService::aggReduceContextBuilder));
                 b.bind(Transport.class).toInstance(transport);
                 b.bind(TransportService.class).toInstance(transportService);
+                b.bind(StreamTransportService.class).toInstance(streamTransportService);
                 b.bind(NetworkService.class).toInstance(networkService);
                 b.bind(UpdateHelper.class).toInstance(new UpdateHelper(scriptService));
                 b.bind(MetadataIndexUpgradeService.class).toInstance(metadataIndexUpgradeService);
@@ -1636,6 +1649,7 @@ public class Node implements Closeable {
     protected TransportService newTransportService(
         Settings settings,
         Transport transport,
+        Transport streamTransport,
         ThreadPool threadPool,
         TransportInterceptor interceptor,
         Function<BoundTransportAddress, DiscoveryNode> localNodeFactory,
@@ -1643,7 +1657,7 @@ public class Node implements Closeable {
         Set<String> taskHeaders,
         Tracer tracer
     ) {
-        return new TransportService(settings, transport, threadPool, interceptor, localNodeFactory, clusterSettings, taskHeaders, tracer);
+        return new TransportService(settings, transport, streamTransport, threadPool, interceptor, localNodeFactory, clusterSettings, taskHeaders, tracer);
     }
 
     /**
@@ -1706,6 +1720,10 @@ public class Node implements Closeable {
         nodeConnectionsService.start();
         clusterService.setNodeConnectionsService(nodeConnectionsService);
 
+        final StreamNodeConnectionsService streamNodeConnectionsService = injector.getInstance(StreamNodeConnectionsService.class);
+        streamNodeConnectionsService.start();
+        clusterService.setStreamNodeConnectionsService(streamNodeConnectionsService);
+
         injector.getInstance(GatewayService.class).start();
         Discovery discovery = injector.getInstance(Discovery.class);
         discovery.setNodeConnectionsService(nodeConnectionsService);
@@ -1713,13 +1731,21 @@ public class Node implements Closeable {
 
         // Start the transport service now so the publish address will be added to the local disco node in ClusterService
         TransportService transportService = injector.getInstance(TransportService.class);
+        StreamTransportService streamTransportService = injector.getInstance(StreamTransportService.class);
+
         transportService.getTaskManager().setTaskResultsService(injector.getInstance(TaskResultsService.class));
         transportService.getTaskManager().setTaskCancellationService(new TaskCancellationService(transportService));
 
+        streamTransportService.getTaskManager().setTaskResultsService(injector.getInstance(TaskResultsService.class));
+        streamTransportService.getTaskManager().setTaskCancellationService(new TaskCancellationService(streamTransportService));
+
         TaskResourceTrackingService taskResourceTrackingService = injector.getInstance(TaskResourceTrackingService.class);
         transportService.getTaskManager().setTaskResourceTrackingService(taskResourceTrackingService);
+        streamTransportService.getTaskManager().setTaskResourceTrackingService(taskResourceTrackingService);
+
         runnableTaskListener.set(taskResourceTrackingService);
 
+        streamTransportService.start();
         transportService.start();
         assert localNodeFactory.getNode() != null;
         assert transportService.getLocalNode().equals(localNodeFactory.getNode())
@@ -1786,8 +1812,11 @@ public class Node implements Closeable {
         discovery.start(); // start before cluster service so that it can set initial state on ClusterApplierService
         clusterService.start();
         assert clusterService.localNode().equals(localNodeFactory.getNode())
-            : "clusterService has a different local node than the factory provided";
+            : "clusterService has a different local node than the factory provided" + clusterService.localNode() + " vs "
+              + localNodeFactory.getNode();
         transportService.acceptIncomingRequests();
+        streamTransportService.acceptIncomingRequests();
+
         discovery.startInitialJoin();
         final TimeValue initialStateTimeout = DiscoverySettings.INITIAL_STATE_TIMEOUT_SETTING.get(settings());
         configureNodeAndClusterIdStateListener(clusterService);
@@ -1878,6 +1907,7 @@ public class Node implements Closeable {
         injector.getInstance(GatewayService.class).stop();
         injector.getInstance(SearchService.class).stop();
         injector.getInstance(TransportService.class).stop();
+        injector.getInstance(StreamTransportService.class).stop();
         nodeService.getTaskCancellationMonitoringService().stop();
 
         pluginLifecycleComponents.forEach(LifecycleComponent::stop);
@@ -1947,6 +1977,7 @@ public class Node implements Closeable {
         toClose.add(injector.getInstance(SearchService.class));
         toClose.add(() -> stopWatch.stop().start("transport"));
         toClose.add(injector.getInstance(TransportService.class));
+        toClose.add(injector.getInstance(StreamTransportService.class));
         toClose.add(nodeService.getTaskCancellationMonitoringService());
         toClose.add(injector.getInstance(RemoteStorePinnedTimestampService.class));
 
