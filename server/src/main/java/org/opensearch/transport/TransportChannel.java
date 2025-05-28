@@ -38,6 +38,7 @@ import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.Version;
 import org.opensearch.common.annotation.PublicApi;
 import org.opensearch.core.transport.TransportResponse;
+import org.opensearch.transport.stream.StreamTransportResponse;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -55,6 +56,10 @@ public interface TransportChannel {
     String getProfileName();
 
     String getChannelType();
+
+    default void sendStreamResponse(StreamTransportResponse<?> response) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
     void sendResponse(TransportResponse response) throws IOException;
 

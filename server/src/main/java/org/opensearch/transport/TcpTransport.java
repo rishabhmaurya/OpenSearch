@@ -276,7 +276,7 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
         private final boolean compress;
         private final AtomicBoolean isClosing = new AtomicBoolean(false);
 
-        NodeChannels(DiscoveryNode node, List<TcpChannel> channels, ConnectionProfile connectionProfile, Version handshakeVersion) {
+        public NodeChannels(DiscoveryNode node, List<TcpChannel> channels, ConnectionProfile connectionProfile, Version handshakeVersion) {
             this.node = node;
             this.channels = Collections.unmodifiableList(channels);
             assert channels.size() == connectionProfile.getNumConnections() : "expected channels size to be == "
@@ -921,7 +921,7 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
      *
      * @throws IllegalStateException if the transport is not started / open
      */
-    private void ensureOpen() {
+    protected void ensureOpen() {
         if (lifecycle.started() == false) {
             throw new IllegalStateException("transport has been stopped");
         }

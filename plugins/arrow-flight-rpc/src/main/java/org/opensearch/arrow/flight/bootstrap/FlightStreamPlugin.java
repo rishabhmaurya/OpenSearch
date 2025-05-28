@@ -8,9 +8,13 @@
 
 package org.opensearch.arrow.flight.bootstrap;
 
+import org.apache.arrow.flight.NoOpFlightProducer;
+import org.opensearch.Version;
 import org.opensearch.arrow.flight.api.flightinfo.FlightServerInfoAction;
 import org.opensearch.arrow.flight.api.flightinfo.NodesFlightInfoAction;
 import org.opensearch.arrow.flight.api.flightinfo.TransportNodesFlightInfoAction;
+import org.opensearch.arrow.flight.bootstrap.tls.DefaultSslContextProvider;
+import org.opensearch.arrow.flight.bootstrap.tls.SslContextProvider;
 import org.opensearch.arrow.spi.StreamManager;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.node.DiscoveryNode;
@@ -114,7 +118,7 @@ public class FlightStreamPlugin extends Plugin
         flightService.setClusterService(clusterService);
         flightService.setThreadPool(threadPool);
         flightService.setClient(client);
-        return List.of(flightService);
+        return List.of();
     }
 
     /**
@@ -144,7 +148,66 @@ public class FlightStreamPlugin extends Plugin
             return Collections.emptyMap();
         }
         flightService.setSecureTransportSettingsProvider(secureTransportSettingsProvider);
-        return Collections.emptyMap();
+        SslContextProvider sslContextProvider = ServerConfig.isSslEnabled()
+            ? new DefaultSslContextProvider(secureTransportSettingsProvider)
+            : null;
+        return Collections.singletonMap(
+            "FLIGHT",
+            () -> new FlightTransport(
+                settings,
+                Version.CURRENT,
+                threadPool,
+                pageCacheRecycler,
+                circuitBreakerService,
+                namedWriteableRegistry,
+                networkService,
+                tracer,
+                sslContextProvider,
+                new NoOpFlightProducer()
+            )
+        );
+    }
+
+    /**
+     * Gets the secure transports for the FlightStream plugin.
+     * @param settings The settings for the plugin.
+     * @param threadPool The thread pool instance.
+     * @param pageCacheRecycler The page cache recycler instance.
+     * @param circuitBreakerService The circuit breaker service instance.
+     * @param namedWriteableRegistry The named writeable registry.
+     * @param networkService The network service instance.
+     * @param tracer The tracer instance.
+     * @return A map of secure transports.
+     */
+    @Override
+    public Map<String, Supplier<Transport>> getTransports(
+        Settings settings,
+        ThreadPool threadPool,
+        PageCacheRecycler pageCacheRecycler,
+        CircuitBreakerService circuitBreakerService,
+        NamedWriteableRegistry namedWriteableRegistry,
+        NetworkService networkService,
+        Tracer tracer
+    ) {
+        if (!isArrowStreamsEnabled) {
+            return Collections.emptyMap();
+        }
+        SslContextProvider sslContextProvider = null;
+        return Collections.singletonMap(
+            "FLIGHT",
+            () -> new FlightTransport(
+                settings,
+                Version.CURRENT,
+                threadPool,
+                pageCacheRecycler,
+                circuitBreakerService,
+                namedWriteableRegistry,
+                networkService,
+                tracer,
+                sslContextProvider,
+                new NoOpFlightProducer()
+            )
+        );
     }
 
     /**
@@ -209,7 +272,8 @@ public class FlightStreamPlugin extends Plugin
         if (!isArrowStreamsEnabled) {
             return Collections.emptyList();
         }
-        return List.of(new ActionHandler<>(NodesFlightInfoAction.INSTANCE, TransportNodesFlightInfoAction.class));
+        return List.of();
+        // return List.of(new ActionHandler<>(NodesFlightInfoAction.INSTANCE, TransportNodesFlightInfoAction.class));
     }
 
     /**
@@ -222,7 +286,7 @@ public class FlightStreamPlugin extends Plugin
         if (!isArrowStreamsEnabled) {
             return;
         }
-        flightService.getFlightClientManager().buildClientAsync(localNode.getId());
+//        flightService.getFlightClientManager().buildClientAsync(localNode.getId());
     }
 
     /**

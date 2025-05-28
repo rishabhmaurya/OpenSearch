@@ -118,8 +118,8 @@ public class TransportService extends AbstractLifecycleComponent
     private final TransportInterceptor.AsyncSender asyncSender;
     private final Function<BoundTransportAddress, DiscoveryNode> localNodeFactory;
     private final boolean remoteClusterClient;
-    private final Transport.ResponseHandlers responseHandlers;
-    private final TransportInterceptor interceptor;
+    protected final Transport.ResponseHandlers responseHandlers;
+    protected final TransportInterceptor interceptor;
 
     // An LRU (don't really care about concurrency here) that holds the latest timed out requests so if they
     // do show up, we can print more descriptive information about them
@@ -142,7 +142,7 @@ public class TransportService extends AbstractLifecycleComponent
     volatile String[] tracerLogExclude;
 
     private final RemoteClusterService remoteClusterService;
-    private final Tracer tracer;
+    protected final Tracer tracer;
 
     /** if set will call requests sent to this id to shortcut and executed locally */
     volatile DiscoveryNode localNode = null;
@@ -1027,7 +1027,7 @@ public class TransportService extends AbstractLifecycleComponent
         }
     }
 
-    private void sendLocalRequest(long requestId, final String action, final TransportRequest request, TransportRequestOptions options) {
+    protected void sendLocalRequest(long requestId, final String action, final TransportRequest request, TransportRequestOptions options) {
         final DirectResponseChannel channel = new DirectResponseChannel(localNode, action, requestId, this, threadPool);
         try {
             onRequestSent(localNode, requestId, action, request, options);
@@ -1123,7 +1123,7 @@ public class TransportService extends AbstractLifecycleComponent
         )
     );
 
-    private void validateActionName(String actionName) {
+    protected void validateActionName(String actionName) {
         // TODO we should makes this a hard validation and throw an exception but we need a good way to add backwards layer
         // for it. Maybe start with a deprecation layer
         if (isValidActionName(actionName) == false) {
@@ -1643,7 +1643,7 @@ public class TransportService extends AbstractLifecycleComponent
         return threadPool;
     }
 
-    private boolean isLocalNode(DiscoveryNode discoveryNode) {
+    protected boolean isLocalNode(DiscoveryNode discoveryNode) {
         return Objects.requireNonNull(discoveryNode, "discovery node must not be null").equals(localNode);
     }
 
@@ -1693,7 +1693,7 @@ public class TransportService extends AbstractLifecycleComponent
         }
     }
 
-    private <T extends TransportResponse> void sendRequestAsync(
+    protected <T extends TransportResponse> void sendRequestAsync(
         final Transport.Connection connection,
         final String action,
         final TransportRequest request,
