@@ -37,6 +37,7 @@ import org.opensearch.common.Nullable;
 import org.opensearch.common.concurrent.CompletableContext;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.bytes.BytesReference;
+import org.opensearch.search.aggregations.bucket.terms.AggregatorProfiler;
 import org.opensearch.transport.TcpChannel;
 import org.opensearch.transport.TransportException;
 
@@ -158,7 +159,10 @@ public class Netty4TcpChannel implements TcpChannel {
 
     @Override
     public void sendMessage(BytesReference reference, ActionListener<Void> listener) {
+        long startTime = System.nanoTime();
         channel.writeAndFlush(Netty4Utils.toByteBuf(reference), addPromise(listener, channel));
+        long sendChannelTime = System.nanoTime() - startTime;
+        AggregatorProfiler.getInstance().recordTime(AggregatorProfiler.Operation.SEND_CHANNEL, sendChannelTime);
 
         if (channel.eventLoop().isShutdown()) {
             listener.onFailure(new TransportException("Cannot send message, event loop is shutting down."));

@@ -32,6 +32,8 @@
 package org.opensearch.search.aggregations.support;
 
 import org.apache.lucene.index.DirectoryReader;
+import org.opensearch.search.aggregations.bucket.terms.AggregatorProfiler;
+import static org.opensearch.search.aggregations.bucket.terms.AggregatorProfiler.Operation.*;
 import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
@@ -261,15 +263,25 @@ public abstract class ValuesSource {
 
                 @Override
                 public SortedSetDocValues ordinalsValues(LeafReaderContext context) {
-                    final LeafOrdinalsFieldData atomicFieldData = indexFieldData.load(context);
-                    return atomicFieldData.getOrdinalsValues();
+                    long startTime = System.nanoTime();
+                    try {
+                        final LeafOrdinalsFieldData atomicFieldData = indexFieldData.load(context);
+                        return atomicFieldData.getOrdinalsValues();
+                    } finally {
+                        AggregatorProfiler.getInstance().recordTime(SEGMENT_ORDINAL_COMPUTATION, System.nanoTime() - startTime);
+                    }
                 }
 
                 @Override
                 public SortedSetDocValues globalOrdinalsValues(LeafReaderContext context) {
-                    final IndexOrdinalsFieldData global = indexFieldData.loadGlobal((DirectoryReader) context.parent.reader());
-                    final LeafOrdinalsFieldData atomicFieldData = global.load(context);
-                    return atomicFieldData.getOrdinalsValues();
+                    long startTime = System.nanoTime();
+                    try {
+                        final IndexOrdinalsFieldData global = indexFieldData.loadGlobal((DirectoryReader) context.parent.reader());
+                        final LeafOrdinalsFieldData atomicFieldData = global.load(context);
+                        return atomicFieldData.getOrdinalsValues();
+                    } finally {
+                        AggregatorProfiler.getInstance().recordTime(GLOBAL_ORDINAL_COMPUTATION, System.nanoTime() - startTime);
+                    }
                 }
 
                 @Override

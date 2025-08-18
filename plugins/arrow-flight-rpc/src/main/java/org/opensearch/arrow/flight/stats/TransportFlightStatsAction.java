@@ -14,6 +14,7 @@ import org.opensearch.action.support.nodes.TransportNodesAction;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.core.common.io.stream.StreamInput;
+import org.opensearch.search.aggregations.bucket.terms.AggregatorProfiler;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
 
@@ -93,6 +94,7 @@ public class TransportFlightStatsAction extends TransportNodesAction<
     @Override
     protected FlightNodeStats nodeOperation(FlightStatsRequest.NodeRequest request) {
         FlightMetrics metrics = statsCollector.collectStats();
-        return new FlightNodeStats(clusterService.localNode(), metrics);
+        AggregatorProfiler.ProfileResult aggregatorStats = AggregatorProfiler.getInstance().getAndResetResult();
+        return new FlightNodeStats(clusterService.localNode(), metrics, aggregatorStats);
     }
 }

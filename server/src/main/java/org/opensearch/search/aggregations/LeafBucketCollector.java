@@ -34,6 +34,7 @@ package org.opensearch.search.aggregations;
 
 import org.apache.lucene.search.LeafCollector;
 import org.apache.lucene.search.Scorable;
+import org.opensearch.search.aggregations.bucket.terms.AggregatorProfiler;
 import org.opensearch.search.aggregations.bucket.terms.LongKeyedBucketOrds;
 
 import java.io.IOException;

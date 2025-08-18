@@ -37,6 +37,7 @@ import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.common.io.stream.Writeable;
 import org.opensearch.search.aggregations.InternalAggregation.ReduceContext;
+import org.opensearch.search.aggregations.bucket.terms.AggregatorProfiler;
 import org.opensearch.search.aggregations.pipeline.PipelineAggregator;
 import org.opensearch.search.aggregations.pipeline.SiblingPipelineAggregator;
 import org.opensearch.search.aggregations.support.AggregationPath;
@@ -136,7 +137,6 @@ public final class InternalAggregations extends Aggregations implements Writeabl
         if (reduced == null) {
             return null;
         }
-
         if (context.isFinalReduce()) {
             List<InternalAggregation> reducedInternalAggs = reduced.getInternalAggregations();
             reducedInternalAggs = reducedInternalAggs.stream()
@@ -163,6 +163,7 @@ public final class InternalAggregations extends Aggregations implements Writeabl
         if (aggregationsList.isEmpty()) {
             return null;
         }
+        long startTime = System.nanoTime();
 
         // first we collect all aggregations of the same type and list them together
         Map<String, List<InternalAggregation>> aggByName = new HashMap<>();
@@ -190,6 +191,11 @@ public final class InternalAggregations extends Aggregations implements Writeabl
                 // no need for reduce phase
                 reducedAggregations.add(first);
             }
+        }
+        if (!context.isFinalReduce()) {
+            AggregatorProfiler.getInstance().recordTime(AggregatorProfiler.Operation.PARTIAL_REDUCE, System.nanoTime() - startTime);
+        } else {
+            AggregatorProfiler.getInstance().recordTime(AggregatorProfiler.Operation.FINAL_REDUCE, System.nanoTime() - startTime);
         }
 
         return new InternalAggregations(reducedAggregations);

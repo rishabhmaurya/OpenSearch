@@ -89,6 +89,7 @@ import java.util.function.LongUnaryOperator;
 
 import static org.opensearch.search.aggregations.InternalOrder.isKeyOrder;
 import static org.apache.lucene.index.SortedSetDocValues.NO_MORE_DOCS;
+import static org.opensearch.search.aggregations.bucket.terms.AggregatorProfiler.Operation.*;
 
 /**
  * An aggregator of string values that relies on global ordinals in order to build buckets.
@@ -108,6 +109,7 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
     protected int segmentsWithSingleValuedOrds = 0;
     protected int segmentsWithMultiValuedOrds = 0;
     protected CardinalityUpperBound cardinalityUpperBound;
+    private final AggregatorProfiler profiler = AggregatorProfiler.getInstance();
 
     public GlobalOrdinalsStringTermsAggregator(
         String name,
@@ -250,6 +252,9 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
 
     @Override
     public LeafBucketCollector getLeafCollector(LeafReaderContext ctx, LeafBucketCollector sub) throws IOException {
+        profiler.incrementSegmentCount();
+        profiler.addDocumentCount(ctx.reader().maxDoc());
+
         SortedSetDocValues globalOrds = this.getGlobalOrds(ctx);
         collectionStrategy.globalOrdsReady(globalOrds);
         SortedDocValues singleValues = DocValues.unwrapSingleton(globalOrds);
@@ -263,25 +268,41 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
                 return resultStrategy.wrapCollector(new LeafBucketCollectorBase(sub, globalOrds) {
                     @Override
                     public void collect(int doc, long owningBucketOrd) throws IOException {
+                        long advanceStart = System.nanoTime();
                         if (false == singleValues.advanceExact(doc)) {
+                            profiler.recordTime(ADVANCE_EXACT, System.nanoTime() - advanceStart);
                             return;
                         }
+                        profiler.recordTime(ADVANCE_EXACT, System.nanoTime() - advanceStart);
+
                         int globalOrd = singleValues.ordValue();
+
+                        long collectStart = System.nanoTime();
                         collectionStrategy.collectGlobalOrd(owningBucketOrd, doc, globalOrd, sub);
+                        profiler.recordTime(BIGARRAY_OPERATIONS, System.nanoTime() - collectStart);
+                        profiler.recordBigArraysMemoryUsage(context.bigArrays().getMemoryUsage());
                     }
                 });
             }
             return resultStrategy.wrapCollector(new LeafBucketCollectorBase(sub, globalOrds) {
                 @Override
                 public void collect(int doc, long owningBucketOrd) throws IOException {
+                    long advanceStart = System.nanoTime();
                     if (false == singleValues.advanceExact(doc)) {
+                        profiler.recordTime(ADVANCE_EXACT, System.nanoTime() - advanceStart);
                         return;
                     }
+                    profiler.recordTime(ADVANCE_EXACT, System.nanoTime() - advanceStart);
+
                     int globalOrd = singleValues.ordValue();
                     if (false == acceptedGlobalOrdinals.test(globalOrd)) {
                         return;
                     }
+
+                    long collectStart = System.nanoTime();
                     collectionStrategy.collectGlobalOrd(owningBucketOrd, doc, globalOrd, sub);
+                    profiler.recordTime(BIGARRAY_OPERATIONS, System.nanoTime() - collectStart);
+                    profiler.recordBigArraysMemoryUsage(context.bigArrays().getMemoryUsage());
                 }
             });
         }
@@ -294,13 +315,26 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
             return resultStrategy.wrapCollector(new LeafBucketCollectorBase(sub, globalOrds) {
                 @Override
                 public void collect(int doc, long owningBucketOrd) throws IOException {
+                    long advanceStart = System.nanoTime();
                     if (false == globalOrds.advanceExact(doc)) {
+                        profiler.recordTime(ADVANCE_EXACT, System.nanoTime() - advanceStart);
                         return;
                     }
+                    profiler.recordTime(ADVANCE_EXACT, System.nanoTime() - advanceStart);
+
                     int count = globalOrds.docValueCount();
                     long globalOrd;
-                    while ((count-- > 0) && (globalOrd = globalOrds.nextOrd()) != SortedSetDocValues.NO_MORE_DOCS) {
+                    while ((count-- > 0)) {
+                        long nextOrdStart = System.nanoTime();
+                        globalOrd = globalOrds.nextOrd();
+                        if(globalOrd == SortedSetDocValues.NO_MORE_DOCS) {
+                            break;
+                        }
+                        profiler.recordTime(NEXT_ORD, System.nanoTime() - nextOrdStart);
+                        long collectStart = System.nanoTime();
                         collectionStrategy.collectGlobalOrd(owningBucketOrd, doc, globalOrd, sub);
+                        profiler.recordTime(BIGARRAY_OPERATIONS, System.nanoTime() - collectStart);
+                        profiler.recordBigArraysMemoryUsage(context.bigArrays().getMemoryUsage());
                     }
                 }
             });
@@ -308,16 +342,31 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
         return resultStrategy.wrapCollector(new LeafBucketCollectorBase(sub, globalOrds) {
             @Override
             public void collect(int doc, long owningBucketOrd) throws IOException {
+                long advanceStart = System.nanoTime();
                 if (false == globalOrds.advanceExact(doc)) {
+                    profiler.recordTime(ADVANCE_EXACT, System.nanoTime() - advanceStart);
                     return;
                 }
+                profiler.recordTime(ADVANCE_EXACT, System.nanoTime() - advanceStart);
+
                 int count = globalOrds.docValueCount();
                 long globalOrd;
-                while ((count-- > 0) && (globalOrd = globalOrds.nextOrd()) != SortedSetDocValues.NO_MORE_DOCS) {
+                while ((count-- > 0)) {
+                    long nextOrdStart = System.nanoTime();
+                    globalOrd = globalOrds.nextOrd();
+                    if(globalOrd == SortedSetDocValues.NO_MORE_DOCS) {
+                        break;
+                    }
+                    profiler.recordTime(NEXT_ORD, System.nanoTime() - nextOrdStart);
+
                     if (false == acceptedGlobalOrdinals.test(globalOrd)) {
                         continue;
                     }
+
+                    long collectStart = System.nanoTime();
                     collectionStrategy.collectGlobalOrd(owningBucketOrd, doc, globalOrd, sub);
+                    profiler.recordTime(BIGARRAY_OPERATIONS, System.nanoTime() - collectStart);
+                    profiler.recordBigArraysMemoryUsage(context.bigArrays().getMemoryUsage());
                 }
             }
         });
@@ -385,7 +434,12 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
 
     @Override
     public InternalAggregation[] buildAggregations(long[] owningBucketOrds) throws IOException {
-        return resultStrategy.buildAggregations(owningBucketOrds);
+        long startTime = System.nanoTime();
+        try {
+            return resultStrategy.buildAggregations(owningBucketOrds);
+        } finally {
+            profiler.recordTime(BUILD_AGGREGATIONS, System.nanoTime() - startTime);
+        }
     }
 
     @Override
@@ -1009,7 +1063,10 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
         StringTerms.Bucket convertTempBucketToRealBucket(OrdBucket temp) throws IOException {
             // Recreate DocValues as needed for concurrent segment search
             SortedSetDocValues values = getDocValues();
+
+            long lookupStart = System.nanoTime();
             BytesRef term = BytesRef.deepCopyOf(values.lookupOrd(temp.globalOrd));
+            profiler.recordTime(LOOKUP_ORD, System.nanoTime() - lookupStart);
 
             StringTerms.Bucket result = new StringTerms.Bucket(term, temp.docCount, null, showTermDocCountError, 0, format);
             result.bucketOrd = temp.bucketOrd;

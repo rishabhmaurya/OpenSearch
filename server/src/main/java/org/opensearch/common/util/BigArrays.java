@@ -883,4 +883,14 @@ public class BigArrays {
         final long newSize = overSize(minSize, PageCacheRecycler.OBJECT_PAGE_SIZE, RamUsageEstimator.NUM_BYTES_OBJECT_REF);
         return resize(array, newSize);
     }
+
+    /**
+     * Get the current memory usage tracked by the circuit breaker for this BigArrays instance
+     */
+    public long getMemoryUsage() {
+        if (breakerService != null) {
+            return breakerService.getBreaker(breakerName).getUsed();
+        }
+        return 0;
+    }
 }

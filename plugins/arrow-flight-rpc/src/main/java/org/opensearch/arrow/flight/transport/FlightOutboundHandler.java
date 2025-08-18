@@ -22,6 +22,7 @@ import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.io.stream.BytesStreamOutput;
 import org.opensearch.core.common.bytes.BytesReference;
 import org.opensearch.core.transport.TransportResponse;
+import org.opensearch.search.aggregations.bucket.terms.AggregatorProfiler;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.ProtocolOutboundHandler;
 import org.opensearch.transport.StatsTracker;
@@ -107,8 +108,12 @@ class FlightOutboundHandler extends ProtocolOutboundHandler {
         }
         try {
             try (VectorStreamOutput out = new VectorStreamOutput(flightChannel.getAllocator(), flightChannel.getRoot())) {
+                long serializationTime = System.nanoTime();
                 response.writeTo(out);
+                AggregatorProfiler.getInstance().recordTime(AggregatorProfiler.Operation.SERIALIZATION, serializationTime);
+                long sendChannelStart = System.nanoTime();
                 flightChannel.sendBatch(getHeaderBuffer(requestId, nodeVersion, features), out);
+                AggregatorProfiler.getInstance().recordTime(AggregatorProfiler.Operation.SEND_CHANNEL, System.nanoTime() - sendChannelStart);
                 messageListener.onResponseSent(requestId, action, response);
             }
         } catch (StreamException e) {

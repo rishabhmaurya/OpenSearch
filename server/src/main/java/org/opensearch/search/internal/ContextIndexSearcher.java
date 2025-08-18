@@ -88,8 +88,11 @@ import org.opensearch.search.query.QueryPhase;
 import org.opensearch.search.query.QuerySearchResult;
 import org.opensearch.search.sort.FieldSortBuilder;
 import org.opensearch.search.sort.MinAndMax;
+import org.opensearch.search.aggregations.bucket.terms.AggregatorProfiler;
 
 import java.io.IOException;
+
+import static org.opensearch.search.aggregations.bucket.terms.AggregatorProfiler.Operation.SEND_BATCH;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -359,6 +362,7 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
         // catch early terminated exception and rethrow?
         Bits liveDocs = ctx.reader().getLiveDocs();
         BitSet liveDocsBitSet = getSparseBitSetOrNull(liveDocs);
+        long startTime = System.nanoTime();
         if (liveDocsBitSet == null) {
             BulkScorer bulkScorer = weight.bulkScorer(ctx);
             if (bulkScorer != null) {
@@ -394,7 +398,8 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
                 }
             }
         }
-
+        AggregatorProfiler.getInstance().recordTime(AggregatorProfiler.Operation.BUCKET_COLLECTION,
+            System.nanoTime() - startTime);
         if (searchContext.isStreamSearch()) {
             logger.debug(
                 "Stream intermediate aggregation for segment [{}], shard [{}]",
@@ -413,24 +418,31 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
     }
 
     void sendBatch(List<InternalAggregation> batch) {
-        InternalAggregations batchAggResult = new InternalAggregations(batch);
+        long startTime = System.nanoTime();
+        try {
+            InternalAggregations batchAggResult = new InternalAggregations(batch);
 
-        final QuerySearchResult queryResult = searchContext.queryResult();
-        // clone the query result to avoid issue in concurrent scenario
-        final QuerySearchResult cloneResult = new QuerySearchResult(
-            queryResult.getContextId(),
-            queryResult.getSearchShardTarget(),
-            queryResult.getShardSearchRequest()
-        );
-        cloneResult.aggregations(batchAggResult);
-        // set a dummy topdocs
-        cloneResult.topDocs(new TopDocsAndMaxScore(Lucene.EMPTY_TOP_DOCS, Float.NaN), new DocValueFormat[0]);
-        // set a dummy fetch
-        final FetchSearchResult fetchResult = searchContext.fetchResult();
-        fetchResult.hits(SearchHits.empty());
-        final QueryFetchSearchResult result = new QueryFetchSearchResult(cloneResult, fetchResult);
-        // flush back
-        searchContext.getStreamChannelListener().onStreamResponse(result, false);
+            final QuerySearchResult queryResult = searchContext.queryResult();
+            // clone the query result to avoid issue in concurrent scenario
+            final QuerySearchResult cloneResult = new QuerySearchResult(
+                queryResult.getContextId(),
+                queryResult.getSearchShardTarget(),
+                queryResult.getShardSearchRequest()
+            );
+            cloneResult.aggregations(batchAggResult);
+            // set a dummy topdocs
+            cloneResult.topDocs(new TopDocsAndMaxScore(Lucene.EMPTY_TOP_DOCS, Float.NaN), new DocValueFormat[0]);
+            // set a dummy fetch
+            final FetchSearchResult fetchResult = searchContext.fetchResult();
+            fetchResult.hits(SearchHits.empty());
+            final QueryFetchSearchResult result = new QueryFetchSearchResult(cloneResult, fetchResult);
+            // flush back
+            searchContext.getStreamChannelListener().onStreamResponse(result, false);
+        } finally {
+            // Profile sendBatch for stream aggregations
+            AggregatorProfiler streamProfiler = AggregatorProfiler.getInstance();
+            streamProfiler.recordTime(SEND_BATCH, System.nanoTime() - startTime);
+        }
     }
 
     private Weight wrapWeight(Weight weight) {

@@ -43,6 +43,7 @@ import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.bytes.BytesReference;
 import org.opensearch.core.common.transport.TransportAddress;
 import org.opensearch.core.transport.TransportResponse;
+import org.opensearch.search.aggregations.bucket.terms.AggregatorProfiler;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.OutboundHandler;
 import org.opensearch.transport.ProtocolOutboundHandler;
@@ -215,7 +216,11 @@ public final class NativeOutboundHandler extends ProtocolOutboundHandler {
         @Override
         public BytesReference get() throws IOException {
             bytesStreamOutput = new ReleasableBytesStreamOutput(bigArrays);
-            return message.serialize(bytesStreamOutput);
+            long startTime = System.nanoTime();
+            BytesReference result = message.serialize(bytesStreamOutput);
+            long serializationTime = System.nanoTime() - startTime;
+            AggregatorProfiler.getInstance().recordTime(AggregatorProfiler.Operation.SERIALIZATION, serializationTime);
+            return result;
         }
 
         @Override

@@ -36,6 +36,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import static org.opensearch.search.aggregations.InternalOrder.isKeyOrder;
+import static org.opensearch.search.aggregations.bucket.terms.AggregatorProfiler.Operation.*;
 
 /**
  * Stream search terms aggregation
@@ -47,6 +48,7 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
     protected int segmentsWithSingleValuedOrds = 0;
     protected int segmentsWithMultiValuedOrds = 0;
     protected final ResultStrategy<?, ?, ?> resultStrategy;
+    private final AggregatorProfiler profiler = AggregatorProfiler.getInstance();
 
     public StreamStringTermsAggregator(
         String name,
@@ -81,7 +83,12 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
 
     @Override
     public InternalAggregation[] buildAggregations(long[] owningBucketOrds) throws IOException {
-        return resultStrategy.buildAggregationsBatch(owningBucketOrds);
+        long startTime = System.nanoTime();
+        try {
+            return resultStrategy.buildAggregationsBatch(owningBucketOrds);
+        } finally {
+            profiler.recordTime(BUILD_AGGREGATIONS, System.nanoTime() - startTime);
+        }
     }
 
     @Override
@@ -91,15 +98,23 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
 
     @Override
     public LeafBucketCollector getLeafCollector(LeafReaderContext ctx, LeafBucketCollector sub) throws IOException {
+        long startTime = System.nanoTime();
+        profiler.incrementSegmentCount();
+        profiler.addDocumentCount(ctx.reader().maxDoc());
+
         this.sortedDocValuesPerBatch = valuesSource.ordinalsValues(ctx);
         this.valueCount = sortedDocValuesPerBatch.getValueCount(); // for streaming case, the value count is reset to per batch
+
         // cardinality
+        long bigArrayStart = System.nanoTime();
         if (docCounts == null) {
             this.docCounts = context.bigArrays().newLongArray(valueCount, true);
         } else {
             // TODO: check performance of grow vs creating a new one
             this.docCounts = context.bigArrays().grow(docCounts, valueCount);
         }
+        profiler.recordTime(BIGARRAY_OPERATIONS, System.nanoTime() - bigArrayStart);
+        profiler.recordBigArraysMemoryUsage(context.bigArrays().getMemoryUsage());
 
         SortedDocValues singleValues = DocValues.unwrapSingleton(sortedDocValuesPerBatch);
         if (singleValues != null) {
@@ -111,11 +126,18 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
             return resultStrategy.wrapCollector(new LeafBucketCollectorBase(sub, sortedDocValuesPerBatch) {
                 @Override
                 public void collect(int doc, long owningBucketOrd) throws IOException {
+                    long advanceStart = System.nanoTime();
                     if (false == singleValues.advanceExact(doc)) {
+                        profiler.recordTime(ADVANCE_EXACT, System.nanoTime() - advanceStart);
                         return;
                     }
+                    profiler.recordTime(ADVANCE_EXACT, System.nanoTime() - advanceStart);
+
                     int ordinal = singleValues.ordValue();
+
+                    long collectStart = System.nanoTime();
                     collectExistingBucket(sub, doc, ordinal);
+                    profiler.recordTime(BIGARRAY_OPERATIONS, System.nanoTime() - collectStart);
                 }
             });
 
@@ -128,13 +150,25 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
         return resultStrategy.wrapCollector(new LeafBucketCollectorBase(sub, sortedDocValuesPerBatch) {
             @Override
             public void collect(int doc, long owningBucketOrd) throws IOException {
+                long advanceStart = System.nanoTime();
                 if (false == sortedDocValuesPerBatch.advanceExact(doc)) {
+                    profiler.recordTime(ADVANCE_EXACT, System.nanoTime() - advanceStart);
                     return;
                 }
+                profiler.recordTime(ADVANCE_EXACT, System.nanoTime() - advanceStart);
+
                 int count = sortedDocValuesPerBatch.docValueCount();
                 long ordinal;
-                while ((count-- > 0) && (ordinal = sortedDocValuesPerBatch.nextOrd()) != SortedSetDocValues.NO_MORE_DOCS) {
+                while ((count-- > 0)) {
+                    long nextOrdStart = System.nanoTime();
+                    ordinal = sortedDocValuesPerBatch.nextOrd();
+                    if (ordinal == SortedSetDocValues.NO_MORE_DOCS) {
+                        break;
+                    }
+                    profiler.recordTime(NEXT_ORD, System.nanoTime() - nextOrdStart);
+                    long collectStart = System.nanoTime();
                     collectExistingBucket(sub, doc, ordinal);
+                    profiler.recordTime(BIGARRAY_OPERATIONS, System.nanoTime() - collectStart);
                 }
             }
         });
@@ -310,7 +344,9 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
         @Override
         StringTerms.Bucket buildFinalBucket(long ordinal, long docCount) throws IOException {
             // Recreate DocValues as needed for concurrent segment search
+            long lookupStart = System.nanoTime();
             BytesRef term = BytesRef.deepCopyOf(sortedDocValuesPerBatch.lookupOrd(ordinal));
+            profiler.recordTime(LOOKUP_ORD, System.nanoTime() - lookupStart);
 
             StringTerms.Bucket result = new StringTerms.Bucket(term, docCount, null, showTermDocCountError, 0, format);
             result.bucketOrd = ordinal;

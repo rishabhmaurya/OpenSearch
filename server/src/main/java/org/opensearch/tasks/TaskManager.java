@@ -62,6 +62,8 @@ import org.opensearch.core.tasks.TaskCancelledException;
 import org.opensearch.core.tasks.TaskId;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TcpChannel;
+import org.opensearch.action.search.SearchShardTask;
+import org.opensearch.search.aggregations.bucket.terms.AggregatorProfiler;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -297,6 +299,12 @@ public class TaskManager implements ClusterStateApplier {
      */
     public Task unregister(Task task) {
         logger.trace("unregister task for id: {}", task.getId());
+
+        if ("indices:data/read/search[phase/query]".equals(task.getAction())) {
+            long taskDuration = System.nanoTime() - task.getStartTimeNanos();
+            AggregatorProfiler.getInstance().recordTime(AggregatorProfiler.Operation.QUERY_TASK, taskDuration);
+        }
+
         List<Exception> exceptions = new ArrayList<>();
         for (TaskEventListeners taskEventListener : taskEventListeners) {
             try {

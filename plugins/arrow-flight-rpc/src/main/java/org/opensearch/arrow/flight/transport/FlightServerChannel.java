@@ -90,7 +90,7 @@ class FlightServerChannel implements TcpChannel {
      *
      * @param output StreamOutput for the response
      */
-    public synchronized void sendBatch(ByteBuffer header, VectorStreamOutput output) {
+    public void sendBatch(ByteBuffer header, VectorStreamOutput output) {
         if (cancelled) {
             throw StreamException.cancelled("Cannot flush more batches. Stream cancelled by the client");
         }

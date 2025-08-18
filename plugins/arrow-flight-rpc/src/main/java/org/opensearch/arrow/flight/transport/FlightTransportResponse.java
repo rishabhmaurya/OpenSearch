@@ -19,6 +19,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.core.transport.TransportResponse;
+import org.opensearch.search.aggregations.bucket.terms.AggregatorProfiler;
 import org.opensearch.transport.Header;
 import org.opensearch.transport.TransportResponseHandler;
 import org.opensearch.transport.stream.StreamErrorCode;
@@ -116,7 +117,12 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
                 return deserializeResponse();
             }
 
-            if (flightStream.next()) {
+            long receiveChannelStart = System.nanoTime();
+            boolean hasNext = flightStream.next();
+            long receiveChannelTime = System.nanoTime() - receiveChannelStart;
+            AggregatorProfiler.getInstance().recordTime(AggregatorProfiler.Operation.RECEIVE_CHANNEL, receiveChannelTime);
+            
+            if (hasNext) {
                 currentRoot = flightStream.getRoot();
                 currentHeader = headerContext.getHeader(correlationId);
                 // Capture the batch size before deserialization
@@ -200,7 +206,12 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
         }
         long startTime = System.currentTimeMillis();
         try {
-            if (flightStream.next()) {
+            long receiveChannelStart = System.nanoTime();
+            boolean hasNext = flightStream.next();
+            long receiveChannelTime = System.nanoTime() - receiveChannelStart;
+            AggregatorProfiler.getInstance().recordTime(AggregatorProfiler.Operation.RECEIVE_CHANNEL, receiveChannelTime);
+            
+            if (hasNext) {
                 currentRoot = flightStream.getRoot();
                 currentHeader = headerContext.getHeader(correlationId);
                 // Capture the batch size before deserialization
@@ -229,7 +240,11 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
 
     private T deserializeResponse() {
         try (VectorStreamInput input = new VectorStreamInput(currentRoot, namedWriteableRegistry)) {
-            return handler.read(input);
+            long startTime = System.nanoTime();
+            T result = handler.read(input);
+            long deserializationTime = System.nanoTime() - startTime;
+            AggregatorProfiler.getInstance().recordTime(AggregatorProfiler.Operation.DESERIALIZATION, deserializationTime);
+            return result;
         } catch (IOException e) {
             throw new StreamException(StreamErrorCode.INTERNAL, "Failed to deserialize response", e);
         }

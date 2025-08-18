@@ -48,6 +48,7 @@ import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.transport.TransportAddress;
 import org.opensearch.core.transport.TransportResponse;
+import org.opensearch.search.aggregations.bucket.terms.AggregatorProfiler;
 import org.opensearch.telemetry.tracing.Span;
 import org.opensearch.telemetry.tracing.SpanBuilder;
 import org.opensearch.telemetry.tracing.SpanScope;
@@ -443,7 +444,10 @@ public class NativeMessageHandler implements ProtocolMessageHandler {
     ) {
         final T response;
         try {
+            long startTime = System.nanoTime();
             response = handler.read(stream);
+            long deserializationTime = System.nanoTime() - startTime;
+            AggregatorProfiler.getInstance().recordTime(AggregatorProfiler.Operation.DESERIALIZATION, deserializationTime);
             response.remoteAddress(new TransportAddress(remoteAddress));
             checkStreamIsFullyConsumed(requestId, handler, stream, false);
         } catch (Exception e) {
