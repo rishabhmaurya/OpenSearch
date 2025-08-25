@@ -111,7 +111,7 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
             this.docCounts = context.bigArrays().newLongArray(valueCount, true);
         } else {
             // TODO: check performance of grow vs creating a new one
-            this.docCounts = context.bigArrays().grow(docCounts, valueCount);
+            this.docCounts = context.bigArrays().resize(docCounts, valueCount);
         }
         profiler.recordTime(BIGARRAY_OPERATIONS, System.nanoTime() - bigArrayStart);
         profiler.recordBigArraysMemoryUsage(context.bigArrays().getMemoryUsage());
