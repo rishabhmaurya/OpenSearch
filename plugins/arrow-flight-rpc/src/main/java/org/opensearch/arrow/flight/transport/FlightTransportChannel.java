@@ -96,7 +96,6 @@ class FlightTransportChannel extends TcpTransportChannel {
         if (streamOpen.compareAndSet(true, false)) {
             try {
                 ((FlightOutboundHandler) outboundHandler).completeStream(version, features, getChannel(), requestId, action);
-                release(false);
             } catch (Exception e) {
                 release(true);
                 if (e instanceof StreamException) {
