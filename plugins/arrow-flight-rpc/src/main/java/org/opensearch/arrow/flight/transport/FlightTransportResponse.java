@@ -121,7 +121,7 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
             boolean hasNext = flightStream.next();
             long receiveChannelTime = System.nanoTime() - receiveChannelStart;
             AggregatorProfiler.getInstance().recordTime(AggregatorProfiler.Operation.RECEIVE_CHANNEL, receiveChannelTime);
-            
+
             if (hasNext) {
                 currentRoot = flightStream.getRoot();
                 currentHeader = headerContext.getHeader(correlationId);
@@ -210,7 +210,7 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
             boolean hasNext = flightStream.next();
             long receiveChannelTime = System.nanoTime() - receiveChannelStart;
             AggregatorProfiler.getInstance().recordTime(AggregatorProfiler.Operation.RECEIVE_CHANNEL, receiveChannelTime);
-            
+
             if (hasNext) {
                 currentRoot = flightStream.getRoot();
                 currentHeader = headerContext.getHeader(correlationId);

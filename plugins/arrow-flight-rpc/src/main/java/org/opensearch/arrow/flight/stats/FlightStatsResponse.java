@@ -200,21 +200,25 @@ class FlightStatsResponse extends BaseNodesResponse<FlightNodeStats> implements 
         builder.endObject();
     }
 
-    private void addNodeAggregatorProfilingStats(XContentBuilder builder, Params params, AggregatorProfiler.ProfileResult result) throws IOException {
+    private void addNodeAggregatorProfilingStats(XContentBuilder builder, Params params, AggregatorProfiler.ProfileResult result)
+        throws IOException {
         if (result == null) return;
-
 
         builder.field("segments_processed", result.segmentCount);
         builder.field("total_documents", result.totalDocuments);
         builder.field("bigarrays_memory_bytes", result.bigArraysMemoryUsage);
         builder.startObject("operation_timings_ns");
         result.operationTimes.forEach((op, time) -> {
-            try { builder.field(op, time); } catch (IOException e) {}
+            try {
+                builder.field(op, time);
+            } catch (IOException e) {}
         });
         builder.endObject();
         builder.startObject("operation_counts");
         result.operationCounts.forEach((op, count) -> {
-            try { builder.field(op, count); } catch (IOException e) {}
+            try {
+                builder.field(op, count);
+            } catch (IOException e) {}
         });
         builder.endObject();
         builder.startObject("operation_percentiles_ns");
@@ -249,16 +253,14 @@ class FlightStatsResponse extends BaseNodesResponse<FlightNodeStats> implements 
             totalDocuments += result.totalDocuments;
             maxBigArraysMemory = Math.max(maxBigArraysMemory, result.bigArraysMemoryUsage);
 
-            result.operationTimes.forEach((op, time) ->
-                totalOperationTimes.merge(op, time, Long::sum)
-            );
-            result.operationCounts.forEach((op, count) ->
-                totalOperationCounts.merge(op, count, Long::sum)
-            );
+            result.operationTimes.forEach((op, time) -> totalOperationTimes.merge(op, time, Long::sum));
+            result.operationCounts.forEach((op, count) -> totalOperationCounts.merge(op, count, Long::sum));
             if (result.operationPercentiles != null) {
                 result.operationPercentiles.forEach((op, stats) -> {
-                    maxPercentiles.merge(op, stats, (existing, newStats) -> 
-                        new AggregatorProfiler.PercentileStats(
+                    maxPercentiles.merge(
+                        op,
+                        stats,
+                        (existing, newStats) -> new AggregatorProfiler.PercentileStats(
                             Math.max(existing.p50, newStats.p50),
                             Math.max(existing.p95, newStats.p95),
                             Math.max(existing.p99, newStats.p99),
@@ -275,16 +277,20 @@ class FlightStatsResponse extends BaseNodesResponse<FlightNodeStats> implements 
 
         builder.startObject("total_operation_timings_ns");
         totalOperationTimes.forEach((op, time) -> {
-            try { builder.field(op, time); } catch (IOException e) {}
+            try {
+                builder.field(op, time);
+            } catch (IOException e) {}
         });
         builder.endObject();
 
         builder.startObject("total_operation_counts");
         totalOperationCounts.forEach((op, count) -> {
-            try { builder.field(op, count); } catch (IOException e) {}
+            try {
+                builder.field(op, count);
+            } catch (IOException e) {}
         });
         builder.endObject();
-        
+
         builder.startObject("max_operation_percentiles_ns");
         maxPercentiles.forEach((op, stats) -> {
             try {
