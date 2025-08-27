@@ -929,10 +929,13 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
                 // Get the top buckets
                 // ordered contains the top buckets for the owning bucket
                 topBucketsPerOwningOrd[ordIdx] = buildBuckets(ordered.size());
+                long startTime = System.nanoTime();
                 for (int i = ordered.size() - 1; i >= 0; --i) {
                     topBucketsPerOwningOrd[ordIdx][i] = convertTempBucketToRealBucket(ordered.pop());
                     otherDocCount[ordIdx] -= topBucketsPerOwningOrd[ordIdx][i].getDocCount();
                 }
+                AggregatorProfiler.getInstance().recordTime(AggregatorProfiler.Operation.CONVERT_BUCKETS_AND_POP,
+                    System.nanoTime() - startTime);
             }
 
             buildSubAggs(topBucketsPerOwningOrd);

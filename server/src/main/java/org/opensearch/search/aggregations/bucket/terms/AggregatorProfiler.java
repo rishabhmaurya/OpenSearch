@@ -26,6 +26,7 @@ public class AggregatorProfiler {
 
     public enum Operation {
         BUILD_AGGREGATIONS("buildAggregations"),
+        CONVERT_BUCKETS_AND_POP("convertBucketsAndPop"),
         BUCKET_COLLECTION("bucketCollection"),
         SEGMENT_ORDINAL_COMPUTATION("segmentOrdinalComputation"),
         GLOBAL_ORDINAL_COMPUTATION("globalOrdinalComputation"),
@@ -103,7 +104,8 @@ public class AggregatorProfiler {
                operation == Operation.RECEIVE_CHANNEL ||
                operation == Operation.PARTIAL_REDUCE ||
                operation == Operation.FINAL_REDUCE ||
-               operation == Operation.QUERY_TASK;
+                operation == Operation.CONVERT_BUCKETS_AND_POP ||
+                operation == Operation.QUERY_TASK;
     }
 
     public void incrementSegmentCount() {
