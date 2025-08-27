@@ -899,6 +899,8 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
             for (int ordIdx = 0; ordIdx < owningBucketOrds.length; ordIdx++) {
                 // processing each owning bucket
                 checkCancelled();
+                long startTime = System.nanoTime();
+
                 final int size;
                 if (localBucketCountThresholds.getMinDocCount() == 0) {
                     // if minDocCount == 0 then we can end up with more buckets then maxBucketOrd() returns
@@ -925,11 +927,11 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
                         }
                     }
                 });
-
+                AggregatorProfiler.getInstance().recordTime(BUILD_PQ, System.nanoTime() - startTime);
                 // Get the top buckets
                 // ordered contains the top buckets for the owning bucket
                 topBucketsPerOwningOrd[ordIdx] = buildBuckets(ordered.size());
-                long startTime = System.nanoTime();
+                startTime = System.nanoTime();
                 for (int i = ordered.size() - 1; i >= 0; --i) {
                     topBucketsPerOwningOrd[ordIdx][i] = convertTempBucketToRealBucket(ordered.pop());
                     otherDocCount[ordIdx] -= topBucketsPerOwningOrd[ordIdx][i].getDocCount();
@@ -939,11 +941,12 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
             }
 
             buildSubAggs(topBucketsPerOwningOrd);
-
+            long startTime = System.nanoTime();
             InternalAggregation[] results = new InternalAggregation[owningBucketOrds.length];
             for (int ordIdx = 0; ordIdx < owningBucketOrds.length; ordIdx++) {
                 results[ordIdx] = buildResult(owningBucketOrds[ordIdx], otherDocCount[ordIdx], topBucketsPerOwningOrd[ordIdx]);
             }
+            AggregatorProfiler.getInstance().recordTime(BUILD_RESULT, System.nanoTime() - startTime);
             return results;
         }
 

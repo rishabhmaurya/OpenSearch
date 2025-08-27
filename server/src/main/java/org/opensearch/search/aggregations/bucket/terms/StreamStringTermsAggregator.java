@@ -197,6 +197,7 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
             B[][] topBucketsPerOwningOrd = buildTopBucketsPerOrd(owningBucketOrds.length);
             long[] otherDocCount = new long[owningBucketOrds.length];
             for (int ordIdx = 0; ordIdx < owningBucketOrds.length; ordIdx++) {
+                long startTime = System.nanoTime();
 
                 // processing each owning bucket
                 checkCancelled();
@@ -210,6 +211,8 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
                         }
                     }
                 }
+                AggregatorProfiler.getInstance().recordTime(CONVERT_BUCKETS_AND_POP, System.nanoTime() - startTime);
+
 
                 // Get the top buckets
                 // ordered contains the top buckets for the owning bucket
@@ -223,9 +226,11 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
             buildSubAggs(topBucketsPerOwningOrd);
 
             InternalAggregation[] results = new InternalAggregation[owningBucketOrds.length];
+            long startTime = System.nanoTime();
             for (int ordIdx = 0; ordIdx < owningBucketOrds.length; ordIdx++) {
                 results[ordIdx] = buildResult(owningBucketOrds[ordIdx], otherDocCount[ordIdx], topBucketsPerOwningOrd[ordIdx]);
             }
+            AggregatorProfiler.getInstance().recordTime(BUILD_RESULT, System.nanoTime() - startTime);
             return results;
         }
 

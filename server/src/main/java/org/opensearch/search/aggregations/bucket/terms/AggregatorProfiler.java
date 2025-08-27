@@ -28,6 +28,8 @@ public class AggregatorProfiler {
         BUILD_AGGREGATIONS("buildAggregations"),
         CONVERT_BUCKETS_AND_POP("convertBucketsAndPop"),
         BUCKET_COLLECTION("bucketCollection"),
+        BUILD_RESULT("buildResult"),
+        BUILD_PQ("buildPQ"),
         SEGMENT_ORDINAL_COMPUTATION("segmentOrdinalComputation"),
         GLOBAL_ORDINAL_COMPUTATION("globalOrdinalComputation"),
         BIGARRAY_OPERATIONS("bigArrayOperations"),
@@ -97,7 +99,9 @@ public class AggregatorProfiler {
                operation == Operation.GLOBAL_ORDINAL_COMPUTATION ||
                operation == Operation.BUCKET_COLLECTION ||
                operation == Operation.BUILD_AGGREGATIONS ||
-               operation == Operation.SEND_BATCH ||
+            operation == Operation.BUILD_PQ ||
+            operation == Operation.BUILD_RESULT ||
+            operation == Operation.SEND_BATCH ||
                operation == Operation.SERIALIZATION ||
                operation == Operation.DESERIALIZATION ||
                operation == Operation.SEND_CHANNEL ||
