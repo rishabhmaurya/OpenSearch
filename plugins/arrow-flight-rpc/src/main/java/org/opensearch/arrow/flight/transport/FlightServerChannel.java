@@ -127,6 +127,37 @@ class FlightServerChannel implements TcpChannel {
     }
 
     /**
+     * Sends a VectorSchemaRoot directly without serialization.
+     * Used for VectorTransportResponse to bypass serialization overhead.
+     *
+     * @param header the header buffer
+     * @param vectorSchemaRoot the vector schema root to send directly
+     */
+    public void sendVectorBatch(ByteBuffer header, VectorSchemaRoot vectorSchemaRoot) {
+        if (cancelled) {
+            throw StreamException.cancelled("Cannot flush more batches. Stream cancelled by the client");
+        }
+        if (!open.get()) {
+            throw new IllegalStateException("FlightServerChannel already closed.");
+        }
+        long batchStartTime = System.nanoTime();
+        // Only set for the first batch
+        if (root.isEmpty()) {
+            middleware.setHeader(header);
+            root = Optional.of(vectorSchemaRoot);
+            serverStreamListener.start(root.get());
+        } else {
+            root = Optional.of(vectorSchemaRoot);
+        }
+
+        serverStreamListener.putNext();
+        if (callTracker != null) {
+            long rootSize = FlightUtils.calculateVectorSchemaRootSize(root.get());
+            callTracker.recordBatchSent(rootSize, System.nanoTime() - batchStartTime);
+        }
+    }
+
+    /**
      * Completes the streaming response and closes all pending roots.
      *
      */

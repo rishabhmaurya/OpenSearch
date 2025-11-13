@@ -155,10 +155,19 @@ class FlightOutboundHandler extends ProtocolOutboundHandler {
         }
 
         try {
-            try (VectorStreamOutput out = new VectorStreamOutput(flightChannel.getAllocator(), flightChannel.getRoot())) {
-                task.response().writeTo(out);
-                flightChannel.sendBatch(getHeaderBuffer(task.requestId(), task.nodeVersion(), task.features()), out);
+            // Check if this is a VectorTransportResponse that bypasses serialization
+            if (task.response() instanceof VectorTransportResponse vectorResponse) {
+                // Send VectorSchemaRoot directly without serialization
+                flightChannel.sendVectorBatch(getHeaderBuffer(task.requestId(), task.nodeVersion(), task.features()), 
+                                            vectorResponse.getVectorSchemaRoot());
                 messageListener.onResponseSent(task.requestId(), task.action(), task.response());
+            } else {
+                // Normal serialization path
+                try (VectorStreamOutput out = new VectorStreamOutput(flightChannel.getAllocator(), flightChannel.getRoot())) {
+                    task.response().writeTo(out);
+                    flightChannel.sendBatch(getHeaderBuffer(task.requestId(), task.nodeVersion(), task.features()), out);
+                    messageListener.onResponseSent(task.requestId(), task.action(), task.response());
+                }
             }
         } catch (FlightRuntimeException e) {
             messageListener.onResponseSent(task.requestId(), task.action(), FlightErrorMapper.fromFlightException(e));

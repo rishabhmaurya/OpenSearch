@@ -228,6 +228,14 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
     }
 
     private T deserializeResponse() {
+        // Check if the handler expects VectorTransportResponse - bypass deserialization
+        if (handler instanceof VectorTransportResponseHandler) {
+            @SuppressWarnings("unchecked")
+            T vectorResponse = (T) new VectorTransportResponse(currentRoot);
+            return vectorResponse;
+        }
+        
+        // Normal deserialization path
         try (VectorStreamInput input = new VectorStreamInput(currentRoot, namedWriteableRegistry)) {
             return handler.read(input);
         } catch (IOException e) {
