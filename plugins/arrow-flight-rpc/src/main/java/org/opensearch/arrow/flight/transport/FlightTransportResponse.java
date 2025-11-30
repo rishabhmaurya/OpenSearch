@@ -19,6 +19,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.core.transport.TransportResponse;
+import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.Header;
 import org.opensearch.transport.TransportResponseHandler;
 import org.opensearch.transport.stream.StreamErrorCode;
@@ -27,133 +28,232 @@ import org.opensearch.transport.stream.StreamTransportResponse;
 
 import java.io.IOException;
 import java.util.Objects;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.opensearch.arrow.flight.transport.ClientHeaderMiddleware.CORRELATION_ID_KEY;
 
 /**
- * Arrow Flight implementation of streaming transport responses.
+ * Streaming transport response implementation using Arrow Flight.
  *
- * <p>Handles streaming responses from Arrow Flight servers with lazy batch processing.
- * Headers are extracted when first accessed, and responses are deserialized on demand.
+ * <p>Provides non-blocking reactive handler invocation with continuous prefetching.
+ * Handler is invoked only when first batch is ready. Prefetches up to 100MB of batches
+ * in background to keep consumer fed.
+ *
+ * <p>Thread-safe for concurrent access from prefetch thread and consumer thread.
  */
 class FlightTransportResponse<T extends TransportResponse> implements StreamTransportResponse<T> {
     private static final Logger logger = LogManager.getLogger(FlightTransportResponse.class);
+    private static final long MAX_PREFETCH_BYTES = 100 * 1024 * 1024; // 100MB buffer
+    private static final long INITIAL_POLL_TIMEOUT_MS = 1;
+    private static final long MAX_POLL_TIMEOUT_MS = 100;
 
     private final FlightStream flightStream;
     private final NamedWriteableRegistry namedWriteableRegistry;
     private final HeaderContext headerContext;
-    private final long correlationId;
-    private final FlightTransportConfig config;
-
     private final TransportResponseHandler<T> handler;
-    private boolean isClosed;
+    private final ThreadPool threadPool;
+    private final FlightTransportConfig config;
+    private final long correlationId;
 
-    // Stream state
-    private VectorSchemaRoot currentRoot;
-    private Header currentHeader;
-    private boolean streamInitialized = false;
-    private boolean streamExhausted = false;
-    private boolean firstResponseConsumed = false;
-    private StreamException initializationException;
-    private long currentBatchSize;
+    // Prefetch state
+    private final BlockingQueue<T> prefetchQueue = new LinkedBlockingQueue<>();
+    private final AtomicLong currentPrefetchBytes = new AtomicLong(0);
+    private final CompletableFuture<Void> firstBatchReady = new CompletableFuture<>();
 
-    /**
-     * Creates a new Flight transport response.
-     */
-    public FlightTransportResponse(
+    // Lifecycle flags
+    private volatile boolean streamExhausted = false;
+    private volatile boolean headerFetched = false;
+    private volatile boolean closed = false;
+
+    FlightTransportResponse(
         TransportResponseHandler<T> handler,
         long correlationId,
         FlightClient flightClient,
         HeaderContext headerContext,
         Ticket ticket,
         NamedWriteableRegistry namedWriteableRegistry,
-        FlightTransportConfig config
+        FlightTransportConfig config,
+        ThreadPool threadPool
     ) {
         this.handler = handler;
         this.correlationId = correlationId;
         this.headerContext = Objects.requireNonNull(headerContext, "headerContext must not be null");
         this.namedWriteableRegistry = namedWriteableRegistry;
         this.config = config;
+        this.threadPool = threadPool;
         // Initialize Flight stream with correlation ID header
         FlightCallHeaders callHeaders = new FlightCallHeaders();
         callHeaders.insert(CORRELATION_ID_KEY, String.valueOf(correlationId));
-        HeaderCallOption callOptions = new HeaderCallOption(callHeaders);
-        this.flightStream = flightClient.getStream(ticket, callOptions);
-
-        this.isClosed = false;
+        long start = System.nanoTime();
+        this.flightStream = flightClient.getStream(ticket, new HeaderCallOption(callHeaders));
+        long took = (System.nanoTime() - start) / 1_000_000;
+        if (took > 5) {
+            logger.warn("FlightClient.getStream() took {}ms - gRPC bottleneck!", took);
+        }
     }
 
     /**
-     * Gets the header for the current batch.
-     * If no batch has been fetched yet, fetches the first batch to extract headers.
+     * Starts background prefetching. Returns immediately.
      */
-    public Header getHeader() {
-        ensureOpen();
-        initializeStreamIfNeeded();
-        return currentHeader;
+    void startPrefetching() {
+        Thread.ofVirtual().start(this::prefetchLoop);
     }
 
     /**
-     * Gets the next response from the stream.
+     * Returns future that completes when first batch is ready.
+     */
+    CompletableFuture<Void> getFirstBatchReadyFuture() {
+        return firstBatchReady;
+    }
+
+    /**
+     * Gets handler for this response.
+     */
+    TransportResponseHandler<T> getHandler() {
+        return handler;
+    }
+
+    /**
+     * Gets next batch from stream. Blocks if no batch available yet.
+     * Returns null when stream is exhausted.
+     *
+     * <p>Uses poll-check-poll pattern with exponential backoff to avoid race condition
+     * with stream exhaustion while minimizing platform thread blocking time.
      */
     @Override
     public T nextResponse() {
-        ensureOpen();
-        initializeStreamIfNeeded();
-
-        if (streamExhausted) {
-            if (initializationException != null) {
-                throw initializationException;
-            }
-            return null;
+        if (closed) {
+            throw new StreamException(StreamErrorCode.UNAVAILABLE, "Stream is closed");
         }
 
-        long startTime = System.currentTimeMillis();
         try {
-            if (!firstResponseConsumed) {
-                // First call - use the batch we already fetched during initialization
-                firstResponseConsumed = true;
-                return deserializeResponse();
+            long currentTimeout = INITIAL_POLL_TIMEOUT_MS;
+            
+            while (true) {
+                // Try non-blocking poll first
+                T batch = prefetchQueue.poll();
+                if (batch != null) {
+                    currentPrefetchBytes.addAndGet(-FlightUtils.calculateResponseSize(batch));
+                    return batch;
+                }
+
+                // Check if stream exhausted after poll (avoids race)
+                if (streamExhausted && prefetchQueue.isEmpty()) {
+                    return null;
+                }
+
+                // Poll with exponential backoff: 1ms -> 2ms -> 4ms -> 8ms -> 16ms -> 32ms -> 64ms -> 100ms (max)
+                long waitStart = System.nanoTime();
+                batch = prefetchQueue.poll(currentTimeout, TimeUnit.MILLISECONDS);
+                if (batch != null) {
+                    long waitTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - waitStart);
+                    if (waitTimeMs > 10) {
+                        logger.debug("Client blocked {}ms waiting for batch (server slow), correlationId={}", waitTimeMs, correlationId);
+                    }
+                    currentPrefetchBytes.addAndGet(-FlightUtils.calculateResponseSize(batch));
+                    return batch;
+                }
+                
+                // Exponential backoff: double timeout up to max
+                currentTimeout = Math.min(currentTimeout * 2, MAX_POLL_TIMEOUT_MS);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new StreamException(StreamErrorCode.CANCELLED, "Interrupted while reading stream", e);
+        }
+    }
+
+    /**
+     * Prefetch loop - runs in virtual thread until stream exhausted.
+     */
+    private void prefetchLoop() {
+        try {
+            while (!streamExhausted) {
+                // Wait if buffer full
+                while (currentPrefetchBytes.get() >= MAX_PREFETCH_BYTES && !streamExhausted) {
+                    Thread.sleep(MAX_POLL_TIMEOUT_MS);
+                }
+
+                if (streamExhausted) break;
+
+                T batch = fetchNextBatch();
+                if (batch != null) {
+                    prefetchQueue.offer(batch);
+                    currentPrefetchBytes.addAndGet(FlightUtils.calculateResponseSize(batch));
+
+                    // Signal first batch ready
+                    if (!firstBatchReady.isDone()) {
+                        firstBatchReady.complete(null);
+                    }
+                }
             }
 
-            if (flightStream.next()) {
-                currentRoot = flightStream.getRoot();
-                currentHeader = headerContext.getHeader(correlationId);
-                // Capture the batch size before deserialization
-                currentBatchSize = FlightUtils.calculateVectorSchemaRootSize(currentRoot);
-                return deserializeResponse();
-            } else {
-                streamExhausted = true;
-                return null;
+            // Ensure first batch ready is completed even if stream empty
+            if (!firstBatchReady.isDone()) {
+                firstBatchReady.complete(null);
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            if (!firstBatchReady.isDone()) {
+                firstBatchReady.completeExceptionally(e);
+            }
+        } catch (Exception e) {
+            logger.warn("Prefetch failed for correlationId={}", correlationId, e);
+            if (!firstBatchReady.isDone()) {
+                firstBatchReady.completeExceptionally(e);
+            }
+        }
+    }
+
+    /**
+     * Fetches next batch from Flight stream. Returns null when exhausted.
+     */
+    private T fetchNextBatch() {
+        long startTime = System.currentTimeMillis();
+        try {
+            boolean hasNext = flightStream.next();
+
+            // Fetch header on first batch
+            if (!headerFetched) {
+                headerFetched = true;
+                Header header = headerContext.getHeader(correlationId);
+                if (header != null) {
+                    threadPool.getThreadContext().setHeaders(header.getHeaders());
+                }
+            }
+
+            if (hasNext) {
+                VectorSchemaRoot root = flightStream.getRoot();
+                try (VectorStreamInput input = new VectorStreamInput(root, namedWriteableRegistry)) {
+                    return handler.read(input);
+                }
+            }
+
+            streamExhausted = true;
+            return null;
         } catch (FlightRuntimeException e) {
             streamExhausted = true;
             throw FlightErrorMapper.fromFlightException(e);
-        } catch (Exception e) {
+        } catch (IOException e) {
             streamExhausted = true;
-            throw new StreamException(StreamErrorCode.INTERNAL, "Failed to fetch next batch", e);
+            throw new StreamException(StreamErrorCode.INTERNAL, "Failed to deserialize batch", e);
         } finally {
-            logSlowOperation(startTime);
+            long took = System.currentTimeMillis() - startTime;
+            if (took > config.getSlowLogThreshold().millis()) {
+                logger.warn("Flight stream next() took [{}ms], exceeding threshold [{}ms]",
+                    took, config.getSlowLogThreshold().millis());
+            }
         }
     }
 
-    /**
-     * Gets the size of the current batch in bytes.
-     *
-     * @return the size in bytes, or 0 if no batch is available
-     */
-    public long getCurrentBatchSize() {
-        return currentBatchSize;
-    }
-
-    /**
-     * Cancels the Flight stream.
-     */
     @Override
     public void cancel(String reason, Throwable cause) {
-        if (isClosed) {
-            return;
-        }
+        if (closed) return;
+
         try {
             flightStream.cancel(reason, cause);
             logger.debug("Cancelled flight stream: {}", reason);
@@ -164,88 +264,17 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
         }
     }
 
-    /**
-     * Closes the Flight stream and releases resources.
-     */
     @Override
     public void close() {
-        if (isClosed) {
-            return;
-        }
+        if (closed) return;
+
+        closed = true;
         try {
-            if (currentRoot != null) {
-                currentRoot.close();
-                currentRoot = null;
-            }
             flightStream.close();
         } catch (IllegalStateException ignore) {
-            // this is fine if the allocator is already closed
+            // Allocator already closed
         } catch (Exception e) {
-            throw new StreamException(StreamErrorCode.INTERNAL, "Error while closing flight stream", e);
-        } finally {
-            isClosed = true;
-        }
-    }
-
-    public TransportResponseHandler<T> getHandler() {
-        return handler;
-    }
-
-    /**
-     * Initializes the stream by fetching the first batch to extract headers.
-     */
-    private synchronized void initializeStreamIfNeeded() {
-        if (streamInitialized || streamExhausted) {
-            return;
-        }
-        long startTime = System.currentTimeMillis();
-        try {
-            if (flightStream.next()) {
-                currentRoot = flightStream.getRoot();
-                currentHeader = headerContext.getHeader(correlationId);
-                // Capture the batch size before deserialization
-                currentBatchSize = FlightUtils.calculateVectorSchemaRootSize(currentRoot);
-                streamInitialized = true;
-            } else {
-                streamExhausted = true;
-            }
-        } catch (FlightRuntimeException e) {
-            // TODO maybe add a check - handshake and validate if node is connected
-            // Try to get headers even if stream failed
-            currentHeader = headerContext.getHeader(correlationId);
-            streamExhausted = true;
-            initializationException = FlightErrorMapper.fromFlightException(e);
-            logger.warn("Stream initialization failed", e);
-        } catch (Exception e) {
-            // Try to get headers even if stream failed
-            currentHeader = headerContext.getHeader(correlationId);
-            streamExhausted = true;
-            initializationException = new StreamException(StreamErrorCode.INTERNAL, "Stream initialization failed", e);
-            logger.warn("Stream initialization failed", e);
-        } finally {
-            logSlowOperation(startTime);
-        }
-    }
-
-    private T deserializeResponse() {
-        try (VectorStreamInput input = new VectorStreamInput(currentRoot, namedWriteableRegistry)) {
-            return handler.read(input);
-        } catch (IOException e) {
-            throw new StreamException(StreamErrorCode.INTERNAL, "Failed to deserialize response", e);
-        }
-    }
-
-    private void ensureOpen() {
-        if (isClosed) {
-            throw new StreamException(StreamErrorCode.UNAVAILABLE, "Stream is closed");
-        }
-    }
-
-    private void logSlowOperation(long startTime) {
-        long took = System.currentTimeMillis() - startTime;
-        long thresholdMs = config.getSlowLogThreshold().millis();
-        if (took > thresholdMs) {
-            logger.warn("Flight stream next() took [{}ms], exceeding threshold [{}ms]", took, thresholdMs);
+            throw new StreamException(StreamErrorCode.INTERNAL, "Error closing flight stream", e);
         }
     }
 }

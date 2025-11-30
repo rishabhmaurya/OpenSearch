@@ -68,6 +68,9 @@ class ClientHeaderMiddleware implements FlightClientMiddleware {
         if (correlationId == null) {
             throw new StreamException(StreamErrorCode.INVALID_ARGUMENT, "Missing required header: " + CORRELATION_ID_KEY);
         }
+        if (encodedHeader.isEmpty()) {
+            throw new StreamException(StreamErrorCode.INTERNAL, "Received empty header from server for correlationId: " + correlationId);
+        }
 
         try {
             byte[] headerBuffer = Base64.getDecoder().decode(encodedHeader);
@@ -87,7 +90,8 @@ class ClientHeaderMiddleware implements FlightClientMiddleware {
             }
 
             // Store the header in context for later retrieval
-            context.setHeader(Long.parseLong(correlationId), header);
+            long corrId = Long.parseLong(correlationId);
+            context.setHeader(corrId, header);
         } catch (IOException e) {
             throw new StreamException(StreamErrorCode.INTERNAL, "Failed to decode header", e);
         } catch (NumberFormatException e) {

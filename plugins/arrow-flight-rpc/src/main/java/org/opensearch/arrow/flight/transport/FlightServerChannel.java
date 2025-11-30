@@ -130,10 +130,14 @@ class FlightServerChannel implements TcpChannel {
      * Completes the streaming response and closes all pending roots.
      *
      */
-    public void completeStream() {
+    public void completeStream(ByteBuffer header) {
         try {
             if (!open.get()) {
                 throw new IllegalStateException("FlightServerChannel already closed.");
+            }
+            if (root.isEmpty()) {
+                // Set header if no batches were sent
+                middleware.setHeader(header);
             }
             serverStreamListener.completed();
         } finally {

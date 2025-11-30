@@ -101,12 +101,6 @@ class MetricsTrackingResponseHandler<T extends TransportResponse> implements Tra
         private final FlightTransportResponse<T> delegate;
         private final FlightCallTracker callTracker;
 
-        /**
-         * Creates a new metrics tracking stream response.
-         *
-         * @param delegate the delegate stream response
-         * @param callTracker the call tracker for metrics
-         */
         MetricsTrackingStreamResponse(FlightTransportResponse<T> delegate, FlightCallTracker callTracker) {
             this.delegate = delegate;
             this.callTracker = callTracker;
@@ -118,7 +112,7 @@ class MetricsTrackingResponseHandler<T extends TransportResponse> implements Tra
             callTracker.recordBatchRequested();
             T response = delegate.nextResponse();
             if (response != null) {
-                long batchSize = delegate.getCurrentBatchSize();
+                long batchSize = FlightUtils.calculateResponseSize(response);
                 long processingTimeNanos = System.nanoTime() - startTime;
                 callTracker.recordBatchReceived(batchSize, processingTimeNanos);
             }

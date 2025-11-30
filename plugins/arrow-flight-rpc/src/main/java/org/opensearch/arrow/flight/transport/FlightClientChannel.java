@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 class FlightClientChannel implements TcpChannel {
     private static final Logger logger = LogManager.getLogger(FlightClientChannel.class);
+    private static final AtomicLong GLOBAL_CHANNEL_COUNTER = new AtomicLong();
     private final AtomicLong correlationIdGenerator = new AtomicLong();
     private final FlightClient client;
     private final DiscoveryNode node;
@@ -114,6 +115,11 @@ class FlightClientChannel implements TcpChannel {
         this.closeListeners = new CopyOnWriteArrayList<>();
         this.stats = new ChannelStats();
         this.isClosed = false;
+        // Initialize with timestamp + global counter to ensure uniqueness even when multiple channels
+        // are created in the same millisecond. Upper bits: timestamp, lower 20 bits: channel ID
+        long channelId = GLOBAL_CHANNEL_COUNTER.incrementAndGet() & 0xFFFFF; // 20 bits for channel ID
+        long initialValue = (System.currentTimeMillis() << 20) | channelId;
+        this.correlationIdGenerator.set(initialValue);
         if (statsCollector != null) {
             statsCollector.incrementClientChannelsActive();
         }
@@ -215,6 +221,8 @@ class FlightClientChannel implements TcpChannel {
             // ticket will contain the serialized headers
             Ticket ticket = serializeToTicket(reference);
             TransportResponseHandler<?> handler = responseHandlers.onResponseReceived(requestId, messageListener);
+            // Correlation ID is monotonically increasing from initial (timestamp + channelId) value
+            // This ensures uniqueness across all channels and all requests
             long correlationId = correlationIdGenerator.incrementAndGet();
 
             if (callTracker != null) {
@@ -228,10 +236,12 @@ class FlightClientChannel implements TcpChannel {
                 headerContext,
                 ticket,
                 namedWriteableRegistry,
-                config
+                config,
+                threadPool
             );
 
-            processStreamResponse(streamResponse);
+            // Start fetching first batch in background, invoke handler when ready
+            startFetchingAndInvokeHandler(streamResponse);
             listener.onResponse(null);
         } catch (Exception e) {
             if (callTracker != null) {
@@ -246,39 +256,34 @@ class FlightClientChannel implements TcpChannel {
         throw new IllegalStateException("sendMessage must be accompanied with requestId for FlightClientChannel, use the right variant.");
     }
 
-    private void processStreamResponse(FlightTransportResponse<?> streamResponse) {
-        try {
-            executeWithThreadContext(streamResponse);
-        } catch (Exception e) {
-            handleStreamException(streamResponse, e);
-        }
-    }
-
+    /**
+     * Starts prefetching and invokes handler immediately.
+     * Handler will block on nextResponse() until data available.
+     */
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    private void executeWithThreadContext(FlightTransportResponse<?> streamResponse) {
-        final ThreadContext threadContext = threadPool.getThreadContext();
-        final String executor = streamResponse.getHandler().executor();
+    private void startFetchingAndInvokeHandler(FlightTransportResponse<?> streamResponse) {
+        // Start prefetching in background
+        streamResponse.startPrefetching();
+        
+        // Invoke handler immediately - it will block on nextResponse() until first batch ready
+        TransportResponseHandler handler = streamResponse.getHandler();
+        String executor = handler.executor();
+        
+        // Streaming handlers must not use SAME executor
         if (ThreadPool.Names.SAME.equals(executor)) {
-            executeHandler(threadContext, streamResponse);
-        } else {
-            threadPool.executor(executor).execute(() -> executeHandler(threadContext, streamResponse));
+            throw new IllegalStateException(
+                "Stream transport handlers cannot use SAME executor. " +
+                "Specify an explicit thread pool (e.g., GENERIC, SEARCH, etc.)"
+            );
         }
-    }
-
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    private void executeHandler(ThreadContext threadContext, FlightTransportResponse<?> streamResponse) {
-        try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-            Header header = streamResponse.getHeader();
-            if (header == null) {
-                throw new StreamException(StreamErrorCode.INTERNAL, "Header is null");
+        
+        threadPool.executor(executor).execute(() -> {
+            try {
+                handler.handleStreamResponse(streamResponse);
+            } catch (Exception e) {
+                handleStreamException(streamResponse, e);
             }
-            TransportResponseHandler handler = streamResponse.getHandler();
-            threadContext.setHeaders(header.getHeaders());
-            handler.handleStreamResponse(streamResponse);
-        } catch (Exception e) {
-            cleanupStreamResponse(streamResponse);
-            throw e;
-        }
+        });
     }
 
     private void cleanupStreamResponse(StreamTransportResponse<?> streamResponse) {
