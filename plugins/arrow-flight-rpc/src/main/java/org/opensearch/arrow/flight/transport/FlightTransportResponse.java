@@ -51,7 +51,10 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
     private static final long INITIAL_POLL_TIMEOUT_MS = 1;
     private static final long MAX_POLL_TIMEOUT_MS = 100;
 
-    private final FlightStream flightStream;
+    private final FlightClient flightClient;
+    private final Ticket ticket;
+    private final FlightCallHeaders callHeaders;
+    private volatile FlightStream flightStream;
     private final NamedWriteableRegistry namedWriteableRegistry;
     private final HeaderContext headerContext;
     private final TransportResponseHandler<T> handler;
@@ -85,22 +88,30 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
         this.namedWriteableRegistry = namedWriteableRegistry;
         this.config = config;
         this.threadPool = threadPool;
-        // Initialize Flight stream with correlation ID header
-        FlightCallHeaders callHeaders = new FlightCallHeaders();
-        callHeaders.insert(CORRELATION_ID_KEY, String.valueOf(correlationId));
-        long start = System.nanoTime();
-        this.flightStream = flightClient.getStream(ticket, new HeaderCallOption(callHeaders));
-        long took = (System.nanoTime() - start) / 1_000_000;
-        if (took > 5) {
-            logger.warn("FlightClient.getStream() took {}ms - gRPC bottleneck!", took);
-        }
+        this.flightClient = flightClient;
+        this.ticket = ticket;
+        // Prepare call headers for later use
+        this.callHeaders = new FlightCallHeaders();
+        this.callHeaders.insert(CORRELATION_ID_KEY, String.valueOf(correlationId));
     }
 
     /**
      * Starts background prefetching. Returns immediately.
+     * getStream() call happens on virtual thread to avoid blocking caller.
      */
     void startPrefetching() {
-        Thread.ofVirtual().start(this::prefetchLoop);
+        Thread.ofVirtual().start(() -> {
+            // Call getStream() on virtual thread instead of constructor
+            long start = System.nanoTime();
+            this.flightStream = flightClient.getStream(ticket, new HeaderCallOption(callHeaders));
+            long took = (System.nanoTime() - start) / 1_000_000;
+            if (took > 5) {
+                logger.warn("FlightClient.getStream() took {}ms - gRPC bottleneck!", took);
+            }
+            
+            // Now start prefetching
+            prefetchLoop();
+        });
     }
 
     /**
