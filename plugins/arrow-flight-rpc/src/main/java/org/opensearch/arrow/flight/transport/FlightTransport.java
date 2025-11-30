@@ -50,6 +50,7 @@ import org.opensearch.transport.TcpTransport;
 import org.opensearch.transport.Transport;
 import org.opensearch.transport.TransportHandshaker;
 import org.opensearch.transport.TransportKeepAlive;
+import org.opensearch.transport.TransportRequestOptions;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -90,6 +91,7 @@ class FlightTransport extends TcpTransport {
     private final SslContextProvider sslContextProvider;
     private FlightProducer flightProducer;
     private final ConcurrentMap<String, ClientHolder> flightClients = new ConcurrentHashMap<>();
+    private final AtomicInteger clientIdCounter = new AtomicInteger(0);
     private final EventLoopGroup bossEventLoopGroup;
     private final EventLoopGroup workerEventLoopGroup;
     private final ExecutorService serverExecutor;
@@ -315,7 +317,8 @@ class FlightTransport extends TcpTransport {
     @Override
     protected TcpChannel initiateChannel(DiscoveryNode node) throws IOException {
         String nodeId = node.getId();
-        ClientHolder holder = flightClients.computeIfAbsent(nodeId, id -> {
+        String clientKey = nodeId + "-" + clientIdCounter.getAndIncrement();
+        ClientHolder holder = flightClients.computeIfAbsent(clientKey, id -> {
             TransportAddress publishAddress = node.getStreamAddress();
             String address = publishAddress.getAddress();
             int flightPort = publishAddress.address().getPort();
@@ -366,8 +369,14 @@ class FlightTransport extends TcpTransport {
     public void openConnection(DiscoveryNode node, ConnectionProfile profile, ActionListener<Transport.Connection> listener) {
         try {
             ensureOpen();
-            TcpChannel channel = initiateChannel(node);
-            List<TcpChannel> channels = Collections.singletonList(channel);
+            int numConnections = profile.getNumConnectionsPerType(TransportRequestOptions.Type.STREAM);
+            List<TcpChannel> channels = new ArrayList<>(numConnections);
+            
+            // Create multiple FlightClient instances (connection pool)
+            for (int i = 0; i < numConnections; i++) {
+                channels.add(initiateChannel(node));
+            }
+            
             NodeChannels nodeChannels = new NodeChannels(node, channels, profile, getVersion());
             listener.onResponse(nodeChannels);
         } catch (Exception e) {
