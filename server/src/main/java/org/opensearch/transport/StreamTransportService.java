@@ -44,13 +44,6 @@ public class StreamTransportService extends TransportService {
 
     private volatile TimeValue streamTransportReqTimeout;
 
-    public static final Setting<Integer> CONNECTIONS_PER_NODE_STREAM = Setting.intSetting(
-        "transport.connections_per_node.stream",
-        10,
-        1,
-        Setting.Property.NodeScope
-    );
-
     public StreamTransportService(
         Settings settings,
         Transport streamTransport,
@@ -68,9 +61,15 @@ public class StreamTransportService extends TransportService {
             threadPool,
             transportInterceptor,
             localNodeFactory,
-            // Use multiple connections per node for better parallelism
+            // it's a single channel profile and let underlying client handle parallelism by creating multiple channels as needed
             new ClusterConnectionManager(
-                buildStreamConnectionProfile(settings),
+                ConnectionProfile.buildSingleChannelProfile(
+                    TransportRequestOptions.Type.STREAM,
+                    PROBE_CONNECT_TIMEOUT_SETTING.get(settings),
+                    PROBE_HANDSHAKE_TIMEOUT_SETTING.get(settings),
+                    TimeValue.MINUS_ONE,
+                    false
+                ),
                 streamTransport
             ),
             tracer,
@@ -134,22 +133,5 @@ public class StreamTransportService extends TransportService {
 
     private void setStreamTransportReqTimeout(TimeValue streamTransportReqTimeout) {
         this.streamTransportReqTimeout = streamTransportReqTimeout;
-    }
-
-    private static ConnectionProfile buildStreamConnectionProfile(Settings settings) {
-        int connectionsPerNode = CONNECTIONS_PER_NODE_STREAM.get(settings);
-        ConnectionProfile.Builder builder = new ConnectionProfile.Builder();
-        builder.addConnections(connectionsPerNode, TransportRequestOptions.Type.STREAM);
-        // Add 0 connections for other types (required by ConnectionProfile)
-        builder.addConnections(0, TransportRequestOptions.Type.RECOVERY);
-        builder.addConnections(0, TransportRequestOptions.Type.BULK);
-        builder.addConnections(0, TransportRequestOptions.Type.REG);
-        builder.addConnections(0, TransportRequestOptions.Type.STATE);
-        builder.addConnections(0, TransportRequestOptions.Type.PING);
-        builder.setConnectTimeout(PROBE_CONNECT_TIMEOUT_SETTING.get(settings));
-        builder.setHandshakeTimeout(PROBE_HANDSHAKE_TIMEOUT_SETTING.get(settings));
-        builder.setPingInterval(TimeValue.MINUS_ONE);
-        builder.setCompressionEnabled(false);
-        return builder.build();
     }
 }
