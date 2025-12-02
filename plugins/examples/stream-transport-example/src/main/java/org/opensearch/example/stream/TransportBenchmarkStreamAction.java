@@ -122,9 +122,10 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         AtomicLong totalBytes = new AtomicLong();
         AtomicLong activeRequests = new AtomicLong(0);
         AtomicReference<Map<String, Object>> capturedTiming = new AtomicReference<>();
+        AtomicLong slowestRequestLatency = new AtomicLong(0);
 
         String[] poolNames = request.isUseStreamTransport()
-            ? new String[]{"flight-grpc", "flight-client", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME}
+            ? new String[]{"flight-grpc", "flight-client", "flight-server", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME}
             : new String[]{StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME};
         ThreadPoolSnapshot beforeStats = captureThreadPoolStats(poolNames);
 
@@ -144,7 +145,7 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
                 try {
                     boolean useStream = request.isUseStreamTransport() && streamTransportService != null;
                     if (useStream) {
-                        sendStreamRequest(targetNode, request, requestStart, totalRows, totalBytes, latencies, latch, capturedTiming);
+                        sendStreamRequest(targetNode, request, requestStart, totalRows, totalBytes, latencies, latch, capturedTiming, slowestRequestLatency);
                     } else {
                         sendRegularRequest(targetNode, request, requestStart, totalRows, totalBytes, latencies, latch);
                     }
@@ -195,7 +196,7 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
 
     private void handleStreamTransportRequest(BenchmarkStreamRequest request, TransportChannel channel) {
         long serverReceiveNanos = System.nanoTime();
-        String serverReceiveThreadPoolState = captureThreadPoolState(new String[]{"flight-grpc", "flight-client", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME});
+        String serverReceiveThreadPoolState = captureThreadPoolState(new String[]{"flight-grpc", "flight-client", "flight-server", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME});
         String correlationId = request.getCorrelationId();
         long startTime = System.nanoTime();
         logger.debug("[{}] [SERVER-1] Handler invoked", correlationId);
@@ -219,7 +220,7 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
                 BenchmarkDataResponse response;
                 if (rowsSent == 0) {
                     long serverGeneratedNanos = System.nanoTime();
-                    String serverGeneratedThreadPoolState = captureThreadPoolState(new String[]{"flight-grpc", "flight-client", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME});
+                    String serverGeneratedThreadPoolState = captureThreadPoolState(new String[]{"flight-grpc", "flight-client", "flight-server", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME});
                     
                     // Capture timing points 5-7 (simulated Flight transport timing) with realistic delays
                     long serverSentToQueueNanos = serverGeneratedNanos + 50_000; // 0.05ms queue delay
@@ -277,17 +278,18 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         AtomicLong totalBytes,
         List<Long> latencies,
         CountDownLatch latch,
-        java.util.concurrent.atomic.AtomicReference<java.util.Map<String, Object>> capturedTiming
+        java.util.concurrent.atomic.AtomicReference<java.util.Map<String, Object>> capturedTiming,
+        AtomicLong slowestRequestLatency
     ) {
         long clientStartNanos = System.nanoTime();
-        String clientStartThreadPoolState = captureThreadPoolState(new String[]{"flight-grpc", "flight-client", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME});
+        String clientStartThreadPoolState = captureThreadPoolState(new String[]{"flight-grpc", "flight-client", "flight-server", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME});
         request.setClientStartNanos(clientStartNanos);
         request.setClientStartThreadPoolState(clientStartThreadPoolState);
         
         String correlationId = "req-" + System.nanoTime() + "-" + Thread.currentThread().getId();
         request.setCorrelationId(correlationId);
         long clientSendNanos = System.nanoTime();
-        String clientSendThreadPoolState = captureThreadPoolState(new String[]{"flight-grpc", "flight-client", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME});
+        String clientSendThreadPoolState = captureThreadPoolState(new String[]{"flight-grpc", "flight-client", "flight-server", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME});
         request.setClientSendNanos(clientSendNanos);
         request.setClientSendThreadPoolState(clientSendThreadPoolState);
         logger.debug("[{}] [CLIENT-1] sendRequest called", correlationId);
@@ -318,54 +320,14 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
                             long clientReceivedHeaderNanos = System.nanoTime();
                             BenchmarkDataResponse firstResponse = streamResponse.nextResponse();
                             long clientReceivedMessageNanos = System.nanoTime();
+                            BenchmarkDataResponse slowestResponse = firstResponse;
+                            long slowestClientReceivedHeaderNanos = clientReceivedHeaderNanos;
+                            long slowestClientReceivedMessageNanos = clientReceivedMessageNanos;
+                            
                             if (firstResponse != null) {
                                 long batchReceivedTime = System.nanoTime();
                                 batchCount++;
                                 firstBatchTime = batchReceivedTime;
-                                
-                                Map<String, Object> timing = new HashMap<>();
-                                
-                                // Raw timestamps (nanoseconds)
-                                timing.put("client_start_ns", firstResponse.getClientStartNanos());
-                                timing.put("client_send_ns", firstResponse.getClientSendNanos());
-                                timing.put("server_receive_ns", firstResponse.getServerReceiveNanos());
-                                timing.put("server_generated_first_batch_ns", firstResponse.getServerGeneratedFirstBatchNanos());
-                                timing.put("server_sent_to_queue_ns", firstResponse.getServerSentToQueueNanos());
-                                timing.put("message_picked_from_queue_ns", firstResponse.getMessagePickedFromQueueNanos());
-                                timing.put("message_written_to_channel_ns", firstResponse.getMessageWrittenToChannelNanos());
-                                timing.put("client_received_header_ns", clientReceivedHeaderNanos);
-                                timing.put("client_received_message_ns", clientReceivedMessageNanos);
-                                
-                                // Calculated latencies (milliseconds) - only calculate if timestamps are valid
-                                if (firstResponse.getClientStartNanos() > 0 && clientReceivedMessageNanos > firstResponse.getClientStartNanos()) {
-                                    timing.put("total_latency_ms", (clientReceivedMessageNanos - firstResponse.getClientStartNanos()) / 1_000_000.0);
-                                }
-                                if (firstResponse.getClientSendNanos() > 0 && firstResponse.getServerReceiveNanos() > firstResponse.getClientSendNanos()) {
-                                    timing.put("network_latency_ms", (firstResponse.getServerReceiveNanos() - firstResponse.getClientSendNanos()) / 1_000_000.0);
-                                }
-                                if (firstResponse.getServerReceiveNanos() > 0 && firstResponse.getServerGeneratedFirstBatchNanos() > firstResponse.getServerReceiveNanos()) {
-                                    timing.put("server_processing_to_first_batch_ms", (firstResponse.getServerGeneratedFirstBatchNanos() - firstResponse.getServerReceiveNanos()) / 1_000_000.0);
-                                }
-                                if (firstResponse.getServerGeneratedFirstBatchNanos() > 0 && firstResponse.getServerSentToQueueNanos() > firstResponse.getServerGeneratedFirstBatchNanos()) {
-                                    timing.put("first_batch_generation_to_queue_ms", (firstResponse.getServerSentToQueueNanos() - firstResponse.getServerGeneratedFirstBatchNanos()) / 1_000_000.0);
-                                }
-                                if (firstResponse.getServerSentToQueueNanos() > 0 && firstResponse.getMessageWrittenToChannelNanos() > firstResponse.getServerSentToQueueNanos()) {
-                                    timing.put("first_batch_queue_to_network_ms", (firstResponse.getMessageWrittenToChannelNanos() - firstResponse.getServerSentToQueueNanos()) / 1_000_000.0);
-                                }
-                                if (firstResponse.getMessageWrittenToChannelNanos() > 0 && clientReceivedHeaderNanos > firstResponse.getMessageWrittenToChannelNanos()) {
-                                    timing.put("first_batch_network_to_header_ms", (clientReceivedHeaderNanos - firstResponse.getMessageWrittenToChannelNanos()) / 1_000_000.0);
-                                }
-                                if (clientReceivedHeaderNanos > 0 && clientReceivedMessageNanos > clientReceivedHeaderNanos) {
-                                    timing.put("header_to_first_batch_ms", (clientReceivedMessageNanos - clientReceivedHeaderNanos) / 1_000_000.0);
-                                }
-                                
-                                // Thread pool states
-                                timing.put("threadpool_client_start", firstResponse.getClientStartThreadPoolState());
-                                timing.put("threadpool_client_send", firstResponse.getClientSendThreadPoolState());
-                                timing.put("threadpool_server_receive", firstResponse.getServerReceiveThreadPoolState());
-                                timing.put("threadpool_server_generated", firstResponse.getServerGeneratedThreadPoolState());
-                                
-                                capturedTiming.set(timing);
                                 
                                 totalBytes.addAndGet(firstResponse.getPayloadSize());
                                 long timeToFirstBatch = TimeUnit.NANOSECONDS.toMillis(firstBatchTime - consumeStartTime);
@@ -418,6 +380,48 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
                             long processingTime = TimeUnit.NANOSECONDS.toMillis(endTime - handlerInvokedTime);
                             long streamingTime = firstBatchTime > 0 ? TimeUnit.NANOSECONDS.toMillis(lastBatchTime - firstBatchTime) : 0;
                             long timeInNextResponse = TimeUnit.NANOSECONDS.toMillis(endTime - consumeStartTime);
+                            
+                            // Capture timing for slowest request only
+                            if (slowestResponse != null && totalLatency > slowestRequestLatency.get()) {
+                                slowestRequestLatency.set(totalLatency);
+                                Map<String, Object> timing = new HashMap<>();
+                                timing.put("client_start_ns", slowestResponse.getClientStartNanos());
+                                timing.put("client_send_ns", slowestResponse.getClientSendNanos());
+                                timing.put("server_receive_ns", slowestResponse.getServerReceiveNanos());
+                                timing.put("server_generated_first_batch_ns", slowestResponse.getServerGeneratedFirstBatchNanos());
+                                timing.put("server_sent_to_queue_ns", slowestResponse.getServerSentToQueueNanos());
+                                timing.put("message_picked_from_queue_ns", slowestResponse.getMessagePickedFromQueueNanos());
+                                timing.put("message_written_to_channel_ns", slowestResponse.getMessageWrittenToChannelNanos());
+                                timing.put("client_received_header_ns", slowestClientReceivedHeaderNanos);
+                                timing.put("client_received_message_ns", slowestClientReceivedMessageNanos);
+                                
+                                if (slowestResponse.getClientStartNanos() > 0 && slowestClientReceivedMessageNanos > slowestResponse.getClientStartNanos()) {
+                                    timing.put("total_latency_ms", (slowestClientReceivedMessageNanos - slowestResponse.getClientStartNanos()) / 1_000_000.0);
+                                }
+                                if (slowestResponse.getClientSendNanos() > 0 && slowestResponse.getServerReceiveNanos() > slowestResponse.getClientSendNanos()) {
+                                    timing.put("network_latency_ms", (slowestResponse.getServerReceiveNanos() - slowestResponse.getClientSendNanos()) / 1_000_000.0);
+                                }
+                                if (slowestResponse.getServerReceiveNanos() > 0 && slowestResponse.getServerGeneratedFirstBatchNanos() > slowestResponse.getServerReceiveNanos()) {
+                                    timing.put("server_processing_to_first_batch_ms", (slowestResponse.getServerGeneratedFirstBatchNanos() - slowestResponse.getServerReceiveNanos()) / 1_000_000.0);
+                                }
+                                if (slowestResponse.getServerGeneratedFirstBatchNanos() > 0 && slowestResponse.getServerSentToQueueNanos() > slowestResponse.getServerGeneratedFirstBatchNanos()) {
+                                    timing.put("first_batch_generation_to_queue_ms", (slowestResponse.getServerSentToQueueNanos() - slowestResponse.getServerGeneratedFirstBatchNanos()) / 1_000_000.0);
+                                }
+                                if (slowestResponse.getServerSentToQueueNanos() > 0 && slowestResponse.getMessageWrittenToChannelNanos() > slowestResponse.getServerSentToQueueNanos()) {
+                                    timing.put("first_batch_queue_to_network_ms", (slowestResponse.getMessageWrittenToChannelNanos() - slowestResponse.getServerSentToQueueNanos()) / 1_000_000.0);
+                                }
+                                if (slowestResponse.getMessageWrittenToChannelNanos() > 0 && slowestClientReceivedHeaderNanos > slowestResponse.getMessageWrittenToChannelNanos()) {
+                                    timing.put("first_batch_network_to_header_ms", (slowestClientReceivedHeaderNanos - slowestResponse.getMessageWrittenToChannelNanos()) / 1_000_000.0);
+                                }
+                                if (slowestClientReceivedHeaderNanos > 0 && slowestClientReceivedMessageNanos > slowestClientReceivedHeaderNanos) {
+                                    timing.put("header_to_first_batch_ms", (slowestClientReceivedMessageNanos - slowestClientReceivedHeaderNanos) / 1_000_000.0);
+                                }
+                                timing.put("threadpool_client_start", slowestResponse.getClientStartThreadPoolState());
+                                timing.put("threadpool_client_send", slowestResponse.getClientSendThreadPoolState());
+                                timing.put("threadpool_server_receive", slowestResponse.getServerReceiveThreadPoolState());
+                                timing.put("threadpool_server_generated", slowestResponse.getServerGeneratedThreadPoolState());
+                                capturedTiming.set(timing);
+                            }
                             
                             if (totalLatency > 5000) {
                                 logger.warn("[CLIENT] Total: {}ms, network: {}ms, startConsume: {}ms, nextResponse: {}ms, streaming: {}ms, batches: {}",
