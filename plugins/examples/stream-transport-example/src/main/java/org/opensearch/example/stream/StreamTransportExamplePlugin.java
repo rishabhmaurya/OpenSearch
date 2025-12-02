@@ -49,7 +49,7 @@ public class StreamTransportExamplePlugin extends Plugin implements ActionPlugin
             new FixedExecutorBuilder(
                 settings,
                 BENCHMARK_THREAD_POOL_NAME,
-                Math.max(100, Runtime.getRuntime().availableProcessors() * 10),
+                Math.max(2000, Runtime.getRuntime().availableProcessors() * 10),
                 10000,
                 "thread_pool." + BENCHMARK_THREAD_POOL_NAME,
                 false

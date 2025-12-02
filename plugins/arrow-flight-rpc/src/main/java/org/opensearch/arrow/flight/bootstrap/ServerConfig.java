@@ -90,7 +90,7 @@ public class ServerConfig {
 
     static final Setting<Integer> FLIGHT_EVENT_LOOP_THREADS = Setting.intSetting(
         "flight.event_loop.threads",
-        Math.max(1, NettyRuntime.availableProcessors() * 2),
+        3000,
         1,
         Setting.Property.NodeScope
     );
@@ -204,7 +204,8 @@ public class ServerConfig {
                 ARROW_ENABLE_DEBUG_ALLOCATOR,
                 ARROW_ENABLE_UNSAFE_MEMORY_ACCESS,
                 ARROW_SSL_ENABLE,
-                FLIGHT_EVENT_LOOP_THREADS
+                FLIGHT_EVENT_LOOP_THREADS,
+                FLIGHT_THREAD_POOL_MIN_SIZE
             )
         );
     }
