@@ -112,6 +112,18 @@ public final class ServerComponents implements AutoCloseable {
         Setting.Property.NodeScope
     );
 
+    /**
+     * Setting for server worker event loop thread multiplier.
+     * Worker threads = cores * multiplier. Higher values handle more concurrent connections.
+     */
+    public static final Setting<Integer> SETTING_FLIGHT_WORKER_THREAD_MULTIPLIER = intSetting(
+        "arrow.flight.server.worker_thread_multiplier",
+        16,
+        1,
+        64,
+        Setting.Property.NodeScope
+    );
+
     private static final Logger logger = LogManager.getLogger(ServerComponents.class);
 
     private static final String GRPC_WORKER_ELG = "os-grpc-worker-ELG";

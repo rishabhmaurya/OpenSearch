@@ -366,7 +366,8 @@ public class FlightStreamPlugin extends Plugin
                 ServerComponents.SETTING_FLIGHT_BIND_HOST,
                 ServerComponents.SETTING_FLIGHT_PUBLISH_HOST,
                 ServerComponents.SETTING_FLIGHT_PUBLISH_PORT,
-                ServerComponents.SETTING_FLIGHT_CLIENT_POOL_SIZE
+                ServerComponents.SETTING_FLIGHT_CLIENT_POOL_SIZE,
+                ServerComponents.SETTING_FLIGHT_WORKER_THREAD_MULTIPLIER
             )
         ) {
             {

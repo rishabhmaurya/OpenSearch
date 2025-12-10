@@ -78,6 +78,7 @@ import static org.opensearch.arrow.flight.bootstrap.ServerComponents.SETTING_FLI
 import static org.opensearch.arrow.flight.bootstrap.ServerComponents.SETTING_FLIGHT_PORTS;
 import static org.opensearch.arrow.flight.bootstrap.ServerComponents.SETTING_FLIGHT_PUBLISH_HOST;
 import static org.opensearch.arrow.flight.bootstrap.ServerComponents.SETTING_FLIGHT_PUBLISH_PORT;
+import static org.opensearch.arrow.flight.bootstrap.ServerComponents.SETTING_FLIGHT_WORKER_THREAD_MULTIPLIER;
 
 @SuppressWarnings("removal")
 class FlightTransport extends TcpTransport {
@@ -143,8 +144,9 @@ class FlightTransport extends TcpTransport {
         this.publishHosts = SETTING_FLIGHT_PUBLISH_HOST.get(settings).toArray(new String[0]);
         this.sslContextProvider = sslContextProvider;
         this.statsCollector = statsCollector;
+        int workerMultiplier = SETTING_FLIGHT_WORKER_THREAD_MULTIPLIER.get(settings);
         this.bossEventLoopGroup = createEventLoopGroup("os-grpc-boss-ELG", 1);
-        this.workerEventLoopGroup = createEventLoopGroup("os-grpc-worker-ELG", Runtime.getRuntime().availableProcessors() * 8);
+        this.workerEventLoopGroup = createEventLoopGroup("os-grpc-worker-ELG", Runtime.getRuntime().availableProcessors() * workerMultiplier);
         this.serverExecutor = threadPool.executor(ServerConfig.GRPC_EXECUTOR_THREAD_POOL_NAME);
         this.clientExecutor = threadPool.executor(ServerConfig.FLIGHT_CLIENT_THREAD_POOL_NAME);
         this.threadPool = threadPool;
