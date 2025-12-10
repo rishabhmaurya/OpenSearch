@@ -62,15 +62,11 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
     private final FlightTransportConfig config;
     private final long correlationId;
 
-    // Prefetch state
-    private final BlockingQueue<T> prefetchQueue = new LinkedBlockingQueue<>();
-    private final AtomicLong currentPrefetchBytes = new AtomicLong(0);
-    private final CompletableFuture<Void> firstBatchReady = new CompletableFuture<>();
-
     // Lifecycle flags
     private volatile boolean streamExhausted = false;
     private volatile boolean headerFetched = false;
     private volatile boolean closed = false;
+    private final Object streamLock = new Object();
 
     FlightTransportResponse(
         TransportResponseHandler<T> handler,
@@ -96,29 +92,23 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
     }
 
     /**
-     * Starts background prefetching. Returns immediately.
-     * getStream() call happens on virtual thread to avoid blocking caller.
+     * Initializes the FlightStream. FlightStream itself handles async I/O via gRPC.
      */
     void startPrefetching() {
-        Thread.ofVirtual().start(() -> {
-            // Call getStream() on virtual thread instead of constructor
-            long start = System.nanoTime();
-            this.flightStream = flightClient.getStream(ticket, new HeaderCallOption(callHeaders));
-            long took = (System.nanoTime() - start) / 1_000_000;
-            if (took > 5) {
-                logger.warn("FlightClient.getStream() took {}ms - gRPC bottleneck!", took);
-            }
-            
-            // Now start prefetching
-            prefetchLoop();
-        });
+        // Initialize stream - gRPC handles async I/O internally
+        long start = System.nanoTime();
+        this.flightStream = flightClient.getStream(ticket, new HeaderCallOption(callHeaders));
+        long took = (System.nanoTime() - start) / 1_000_000;
+        if (took > 5) {
+            logger.warn("FlightClient.getStream() took {}ms", took);
+        }
     }
 
     /**
      * Returns future that completes when first batch is ready.
      */
     CompletableFuture<Void> getFirstBatchReadyFuture() {
-        return firstBatchReady;
+        return null;
     }
 
     /**
@@ -129,11 +119,8 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
     }
 
     /**
-     * Gets next batch from stream. Blocks if no batch available yet.
+     * Gets next batch from stream. FlightStream.next() blocks efficiently using gRPC's async I/O.
      * Returns null when stream is exhausted.
-     *
-     * <p>Uses poll-check-poll pattern with exponential backoff to avoid race condition
-     * with stream exhaustion while minimizing platform thread blocking time.
      */
     @Override
     public T nextResponse() {
@@ -141,79 +128,12 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
             throw new StreamException(StreamErrorCode.UNAVAILABLE, "Stream is closed");
         }
 
-        try {
-            long currentTimeout = INITIAL_POLL_TIMEOUT_MS;
-            
-            while (true) {
-                // Try non-blocking poll first
-                T batch = prefetchQueue.poll();
-                if (batch != null) {
-                    currentPrefetchBytes.addAndGet(-FlightUtils.calculateResponseSize(batch));
-                    return batch;
-                }
-
-                // Check if stream exhausted after poll (avoids race)
-                if (streamExhausted && prefetchQueue.isEmpty()) {
-                    return null;
-                }
-
-                // Poll with short timeout to minimize parking overhead
-                batch = prefetchQueue.poll(currentTimeout, TimeUnit.MILLISECONDS);
-                if (batch != null) {
-                    currentPrefetchBytes.addAndGet(-FlightUtils.calculateResponseSize(batch));
-                    return batch;
-                }
-                
-                // Exponential backoff: double timeout up to max
-                currentTimeout = Math.min(currentTimeout * 2, MAX_POLL_TIMEOUT_MS);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new StreamException(StreamErrorCode.CANCELLED, "Interrupted while reading stream", e);
-        }
+        //synchronized (streamLock) {
+            return fetchNextBatch();
+        //}
     }
 
-    /**
-     * Prefetch loop - runs in virtual thread until stream exhausted.
-     */
-    private void prefetchLoop() {
-        try {
-            while (!streamExhausted) {
-                // Wait if buffer full
-                while (currentPrefetchBytes.get() >= MAX_PREFETCH_BYTES && !streamExhausted) {
-                    Thread.sleep(MAX_POLL_TIMEOUT_MS);
-                }
 
-                if (streamExhausted) break;
-
-                T batch = fetchNextBatch();
-                if (batch != null) {
-                    prefetchQueue.offer(batch);
-                    currentPrefetchBytes.addAndGet(FlightUtils.calculateResponseSize(batch));
-
-                    // Signal first batch ready
-                    if (!firstBatchReady.isDone()) {
-                        firstBatchReady.complete(null);
-                    }
-                }
-            }
-
-            // Ensure first batch ready is completed even if stream empty
-            if (!firstBatchReady.isDone()) {
-                firstBatchReady.complete(null);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            if (!firstBatchReady.isDone()) {
-                firstBatchReady.completeExceptionally(e);
-            }
-        } catch (Exception e) {
-            logger.warn("Prefetch failed for correlationId={}", correlationId, e);
-            if (!firstBatchReady.isDone()) {
-                firstBatchReady.completeExceptionally(e);
-            }
-        }
-    }
 
     /**
      * Fetches next batch from Flight stream. Returns null when exhausted.
