@@ -114,9 +114,10 @@ class FlightTransport extends TcpTransport {
         "flight-server-header-middleware"
     );
 
-    private record ClientHolder(Location location, List<FlightClient> flightClients, List<EventLoopGroup> eventLoopGroups, HeaderContext context) {
-        FlightClient getClient(int index) {
-            return flightClients.get(index % flightClients.size());
+    private record ClientHolder(Location location, List<FlightClient> flightClients, List<EventLoopGroup> eventLoopGroups, HeaderContext context, AtomicInteger roundRobinCounter) {
+        FlightClient getNextClient() {
+            int index = roundRobinCounter.getAndIncrement() % flightClients.size();
+            return flightClients.get(Math.abs(index));
         }
     }
 
@@ -358,15 +359,13 @@ class FlightTransport extends TcpTransport {
                     .build();
                 clients.add(client);
             }
-            return new ClientHolder(location, clients, eventLoopGroups, context);
+            return new ClientHolder(location, clients, eventLoopGroups, context, new AtomicInteger(0));
         });
         
-        // Round-robin client selection based on channel counter
-        int clientIndex = GLOBAL_CHANNEL_COUNTER.incrementAndGet() % holder.flightClients().size();
-        
+        // Round-robin client selection using per-node counter
         FlightClientChannel channel = new FlightClientChannel(
             boundAddress,
-            holder.getClient(clientIndex),
+            holder.getNextClient(),
             node,
             holder.location(),
             holder.context(),
