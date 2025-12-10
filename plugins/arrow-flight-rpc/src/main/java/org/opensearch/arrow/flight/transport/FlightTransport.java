@@ -114,7 +114,7 @@ class FlightTransport extends TcpTransport {
         "flight-server-header-middleware"
     );
 
-    private record ClientHolder(Location location, List<FlightClient> flightClients, HeaderContext context) {
+    private record ClientHolder(Location location, List<FlightClient> flightClients, List<EventLoopGroup> eventLoopGroups, HeaderContext context) {
         FlightClient getClient(int index) {
             return flightClients.get(index % flightClients.size());
         }
@@ -286,6 +286,9 @@ class FlightTransport extends TcpTransport {
                 for (FlightClient client : holder.flightClients()) {
                     client.close();
                 }
+                for (EventLoopGroup elg : holder.eventLoopGroups()) {
+                    gracefullyShutdownELG(elg, "client-elg");
+                }
             }
             flightClients.clear();
             clientAllocator.close();
@@ -335,22 +338,27 @@ class FlightTransport extends TcpTransport {
             HeaderContext context = new HeaderContext();
             ClientHeaderMiddleware.Factory factory = new ClientHeaderMiddleware.Factory(context, getVersion());
             
-            // Create pool of clients per node to distribute load across event loops
+            // Create pool of clients per node, each with dedicated event loop group
             List<FlightClient> clients = new ArrayList<>(clientPoolSize);
+            List<EventLoopGroup> eventLoopGroups = new ArrayList<>(clientPoolSize);
             for (int i = 0; i < clientPoolSize; i++) {
                 BufferAllocator allocator = clientAllocator.newChildAllocator("client-" + nodeId + "-" + i, 0, clientAllocator.getLimit());
+                // Each client gets its own event loop group with 1 thread to ensure distribution
+                EventLoopGroup clientEventLoopGroup = createEventLoopGroup("client-" + nodeId + "-elg-" + i, 1);
+                eventLoopGroups.add(clientEventLoopGroup);
+                
                 FlightClient client = OSFlightClient.builder()
                     .allocator(allocator)
                     .location(location)
                     .channelType(ServerConfig.clientChannelType())
-                    .eventLoopGroup(workerEventLoopGroup)
+                    .eventLoopGroup(clientEventLoopGroup)
                     .sslContext(sslContextProvider != null ? sslContextProvider.getClientSslContext() : null)
                     .executor(clientExecutor)
                     .intercept(factory)
                     .build();
                 clients.add(client);
             }
-            return new ClientHolder(location, clients, context);
+            return new ClientHolder(location, clients, eventLoopGroups, context);
         });
         
         // Round-robin client selection based on channel counter
