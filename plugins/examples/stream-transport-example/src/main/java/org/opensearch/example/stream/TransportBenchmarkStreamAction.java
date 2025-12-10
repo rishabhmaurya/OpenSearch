@@ -100,14 +100,12 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
 
     @Override
     protected void doExecute(Task task, BenchmarkStreamRequest request, ActionListener<BenchmarkStreamResponse> listener) {
-        threadPool.executor(request.getThreadPool()).execute(() -> {
-            try {
-                BenchmarkStreamResponse response = executeBenchmark(request);
-                listener.onResponse(response);
-            } catch (Exception e) {
-                listener.onFailure(e);
-            }
-        });
+        try {
+            BenchmarkStreamResponse response = executeBenchmark(request);
+            listener.onResponse(response);
+        } catch (Exception e) {
+            listener.onFailure(e);
+        }
     }
 
     private BenchmarkStreamResponse executeBenchmark(BenchmarkStreamRequest request) throws Exception {
@@ -195,7 +193,7 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
     private void handleStreamTransportRequest(BenchmarkStreamRequest request, TransportChannel channel) {
         String correlationId = request.getCorrelationId();
         logger.debug("[{}] [SERVER-1] Handler invoked", correlationId);
-        
+
         try {
             int totalRows = request.getRows();
             int batchSize = request.getBatchSize();
@@ -246,10 +244,10 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
                             while ((response = streamResponse.nextResponse()) != null) {
                                 totalBytes.addAndGet(response.getPayloadSize());
                             }
-                            
+
                             long endTime = System.nanoTime();
                             long totalLatency = TimeUnit.NANOSECONDS.toMillis(endTime - requestStart);
-                            
+
                             totalRows.addAndGet(request.getRows());
                             latencies.add(totalLatency);
                             streamResponse.close();
