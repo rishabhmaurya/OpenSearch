@@ -177,11 +177,15 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
     }
 
     private void handleRegularTransportRequest(BenchmarkStreamRequest request, TransportChannel channel) {
+        logger.warn("[DATA-NODE] Handler invoked, rows={}", request.getRows());
         try {
             long bytes = calculateTotalBytes(request);
             byte[] payload = generateSyntheticData(bytes);
+            logger.warn("[DATA-NODE] Sending response, bytes={}", bytes);
             channel.sendResponse(new BenchmarkDataResponse(payload));
+            logger.warn("[DATA-NODE] Response sent successfully");
         } catch (Exception e) {
+            logger.error("[DATA-NODE] Handler error", e);
             try {
                 channel.sendResponse(e);
             } catch (IOException ioException) {
@@ -292,6 +296,7 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         List<Long> latencies,
         CountDownLatch latch
     ) {
+        logger.warn("[COORDINATOR] Sending request to {}, rows={}", targetNode.getId(), request.getRows());
         try {
             transportService.sendRequest(
             targetNode,
@@ -300,6 +305,7 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
             new TransportResponseHandler<BenchmarkDataResponse>() {
                 @Override
                 public void handleResponse(BenchmarkDataResponse response) {
+                    logger.warn("[COORDINATOR] Received response, bytes={}", response.getPayloadSize());
                     totalRows.addAndGet(request.getRows());
                     totalBytes.addAndGet(response.getPayloadSize());
                     latencies.add(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - requestStart));
@@ -308,7 +314,7 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
 
                 @Override
                 public void handleException(TransportException exp) {
-                    logger.error("Regular transport request failed", exp);
+                    logger.error("[COORDINATOR] Transport exception", exp);
                     latch.countDown();
                 }
 
