@@ -148,9 +148,18 @@ public abstract class FlightTransportTestBase extends OpenSearchTestCase {
         ThreadPool customThreadPool,
         Transport.ResponseHandlers handlers
     ) {
+        // Create a mock ClientHolder with single client for testing
+        FlightTransport.ClientHolder clientHolder = new FlightTransport.ClientHolder(
+            serverLocation,
+            Collections.singletonList(flightClient),
+            Collections.emptyList(),
+            headerContext,
+            new AtomicInteger(0)
+        );
+        
         return new FlightClientChannel(
             boundAddress,
-            flightClient,
+            clientHolder,
             remoteNode,
             serverLocation,
             headerContext,

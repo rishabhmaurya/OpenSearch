@@ -49,7 +49,7 @@ class FlightClientChannel implements TcpChannel {
     private static final Logger logger = LogManager.getLogger(FlightClientChannel.class);
     private static final AtomicLong GLOBAL_CHANNEL_COUNTER = new AtomicLong();
     private final AtomicLong correlationIdGenerator = new AtomicLong();
-    private final FlightClient client;
+    private final FlightTransport.ClientHolder clientHolder;
     private final DiscoveryNode node;
     private final BoundTransportAddress boundAddress;
     private final Location location;
@@ -71,7 +71,7 @@ class FlightClientChannel implements TcpChannel {
     /**
      * Constructs a new FlightClientChannel for handling Arrow Flight streams.
      *
-     * @param client                 the Arrow Flight client
+     * @param clientHolder           the client holder with pool of Flight clients
      * @param node                   the discovery node for this channel
      * @param location               the flight server location
      * @param headerContext          the context for header management
@@ -85,7 +85,7 @@ class FlightClientChannel implements TcpChannel {
      */
     public FlightClientChannel(
         BoundTransportAddress boundTransportAddress,
-        FlightClient client,
+        FlightTransport.ClientHolder clientHolder,
         DiscoveryNode node,
         Location location,
         HeaderContext headerContext,
@@ -98,7 +98,7 @@ class FlightClientChannel implements TcpChannel {
         FlightTransportConfig config
     ) {
         this.boundAddress = boundTransportAddress;
-        this.client = client;
+        this.clientHolder = clientHolder;
         this.node = node;
         this.location = location;
         this.headerContext = headerContext;
@@ -229,6 +229,9 @@ class FlightClientChannel implements TcpChannel {
                 handler = new MetricsTrackingResponseHandler<>(handler, callTracker);
             }
 
+            // Select client using round-robin for this request
+            FlightClient client = clientHolder.getNextClient();
+            
             FlightTransportResponse<?> streamResponse = new FlightTransportResponse<>(
                 handler,
                 correlationId,
