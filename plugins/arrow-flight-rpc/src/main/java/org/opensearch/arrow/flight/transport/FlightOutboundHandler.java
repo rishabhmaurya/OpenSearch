@@ -155,11 +155,10 @@ class FlightOutboundHandler extends ProtocolOutboundHandler {
         }
 
         try {
-            try (VectorStreamOutput out = new VectorStreamOutput(flightChannel.getAllocator(), flightChannel.getRoot())) {
-                task.response().writeTo(out);
-                flightChannel.sendBatch(getHeaderBuffer(task.requestId(), task.nodeVersion(), task.features()), out);
-                messageListener.onResponseSent(task.requestId(), task.action(), task.response());
-            }
+            VectorStreamOutput out = flightChannel.getOrCreateOutput();
+            task.response().writeTo(out);
+            flightChannel.sendBatch(getHeaderBuffer(task.requestId(), task.nodeVersion(), task.features()), out);
+            messageListener.onResponseSent(task.requestId(), task.action(), task.response());
         } catch (FlightRuntimeException e) {
             messageListener.onResponseSent(task.requestId(), task.action(), FlightErrorMapper.fromFlightException(e));
         } catch (Exception e) {

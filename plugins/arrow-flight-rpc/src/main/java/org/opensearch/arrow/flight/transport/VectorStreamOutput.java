@@ -25,6 +25,8 @@ class VectorStreamOutput extends StreamOutput {
     private int row = 0;
     private final VarBinaryVector vector;
     private Optional<VectorSchemaRoot> root = Optional.empty();
+    private byte[] tempBuffer = new byte[8192]; // Reusable buffer for small writes
+    private int tempBufferPos = 0;
 
     public VectorStreamOutput(BufferAllocator allocator, Optional<VectorSchemaRoot> root) {
         if (root.isPresent()) {
@@ -33,26 +35,44 @@ class VectorStreamOutput extends StreamOutput {
         } else {
             Field field = new Field("0", new FieldType(true, new ArrowType.Binary(), null, null), null);
             vector = (VarBinaryVector) field.createVector(allocator);
+            // Pre-allocate with reasonable capacity to avoid repeated allocations
+            vector.setInitialCapacity(16);
+            vector.allocateNew();
         }
-        vector.allocateNew();
     }
 
     @Override
     public void writeByte(byte b) throws IOException {
-        vector.setInitialCapacity(row + 1);
-        vector.setSafe(row++, new byte[] { b });
+        // Buffer small writes to reduce vector operations
+        if (tempBufferPos < tempBuffer.length) {
+            tempBuffer[tempBufferPos++] = b;
+        } else {
+            flushTempBuffer();
+            tempBuffer[tempBufferPos++] = b;
+        }
     }
 
     @Override
     public void writeBytes(byte[] b, int offset, int length) throws IOException {
-        vector.setInitialCapacity(row + 1);
         if (length == 0) {
             return;
         }
         if (b.length < (offset + length)) {
             throw new IllegalArgumentException("Illegal offset " + offset + "/length " + length + " for byte[] of length " + b.length);
         }
+        // Flush temp buffer first if it has data
+        if (tempBufferPos > 0) {
+            flushTempBuffer();
+        }
+        // Write directly to vector for large writes
         vector.setSafe(row++, b, offset, length);
+    }
+    
+    private void flushTempBuffer() {
+        if (tempBufferPos > 0) {
+            vector.setSafe(row++, tempBuffer, 0, tempBufferPos);
+            tempBufferPos = 0;
+        }
     }
 
     @Override
@@ -69,10 +89,13 @@ class VectorStreamOutput extends StreamOutput {
     @Override
     public void reset() throws IOException {
         row = 0;
+        tempBufferPos = 0;
         vector.clear();
     }
 
     public VectorSchemaRoot getRoot() {
+        // Flush any remaining buffered data
+        flushTempBuffer();
         vector.setValueCount(row);
         if (!root.isPresent()) {
             root = Optional.of(new VectorSchemaRoot(List.of(vector)));

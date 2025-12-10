@@ -53,6 +53,7 @@ class FlightServerChannel implements TcpChannel {
     private final FlightCallTracker callTracker;
     private volatile boolean cancelled = false;
     private final ExecutorService executor;
+    private VectorStreamOutput cachedOutput = null;
 
     public FlightServerChannel(
         ServerStreamListener serverStreamListener,
@@ -92,6 +93,18 @@ class FlightServerChannel implements TcpChannel {
      */
     public ExecutorService getExecutor() {
         return executor;
+    }
+
+    /**
+     * Gets or creates a reusable VectorStreamOutput
+     */
+    VectorStreamOutput getOrCreateOutput() throws Exception {
+        if (cachedOutput == null) {
+            cachedOutput = new VectorStreamOutput(allocator, root);
+        } else {
+            cachedOutput.reset();
+        }
+        return cachedOutput;
     }
 
     /**
@@ -214,6 +227,14 @@ class FlightServerChannel implements TcpChannel {
             return;
         }
         open.set(false);
+        if (cachedOutput != null) {
+            try {
+                cachedOutput.close();
+            } catch (Exception e) {
+                logger.warn("Error closing cached output", e);
+            }
+            cachedOutput = null;
+        }
         root.ifPresent(VectorSchemaRoot::close);
         notifyCloseListeners();
     }
