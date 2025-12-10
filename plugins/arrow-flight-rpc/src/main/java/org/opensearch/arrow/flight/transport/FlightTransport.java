@@ -132,7 +132,7 @@ class FlightTransport extends TcpTransport {
         this.sslContextProvider = sslContextProvider;
         this.statsCollector = statsCollector;
         this.bossEventLoopGroup = createEventLoopGroup("os-grpc-boss-ELG", 1);
-        this.workerEventLoopGroup = createEventLoopGroup("os-grpc-worker-ELG", Runtime.getRuntime().availableProcessors() * 2);
+        this.workerEventLoopGroup = createEventLoopGroup("os-grpc-worker-ELG", Runtime.getRuntime().availableProcessors() * 4);
         this.serverExecutor = threadPool.executor(ServerConfig.GRPC_EXECUTOR_THREAD_POOL_NAME);
         this.clientExecutor = threadPool.executor(ServerConfig.FLIGHT_CLIENT_THREAD_POOL_NAME);
         this.threadPool = threadPool;
