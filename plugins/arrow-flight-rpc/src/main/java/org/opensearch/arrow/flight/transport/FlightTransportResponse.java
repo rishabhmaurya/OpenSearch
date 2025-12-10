@@ -49,7 +49,7 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
     private static final Logger logger = LogManager.getLogger(FlightTransportResponse.class);
     private static final long MAX_PREFETCH_BYTES = 100 * 1024 * 1024; // 100MB buffer
     private static final long INITIAL_POLL_TIMEOUT_MS = 1;
-    private static final long MAX_POLL_TIMEOUT_MS = 100;
+    private static final long MAX_POLL_TIMEOUT_MS = 10; // Reduced from 100ms to minimize parking overhead
 
     private final FlightClient flightClient;
     private final Ticket ticket;
@@ -157,14 +157,9 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
                     return null;
                 }
 
-                // Poll with exponential backoff: 1ms -> 2ms -> 4ms -> 8ms -> 16ms -> 32ms -> 64ms -> 100ms (max)
-                long waitStart = System.nanoTime();
+                // Poll with short timeout to minimize parking overhead
                 batch = prefetchQueue.poll(currentTimeout, TimeUnit.MILLISECONDS);
                 if (batch != null) {
-                    long waitTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - waitStart);
-                    if (waitTimeMs > 10) {
-                        logger.debug("Client blocked {}ms waiting for batch (server slow), correlationId={}", waitTimeMs, correlationId);
-                    }
                     currentPrefetchBytes.addAndGet(-FlightUtils.calculateResponseSize(batch));
                     return batch;
                 }
