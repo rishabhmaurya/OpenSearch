@@ -38,6 +38,8 @@ public class StreamTransportExamplePlugin extends Plugin implements ActionPlugin
 
     /** Benchmark thread pool name */
     public static final String BENCHMARK_THREAD_POOL_NAME = "benchmark";
+    /** Benchmark response handler thread pool name */
+    public static final String BENCHMARK_RESPONSE_POOL_NAME = "benchmark_response";
 
     /**
      * Constructor
@@ -46,13 +48,25 @@ public class StreamTransportExamplePlugin extends Plugin implements ActionPlugin
 
     @Override
     public List<ExecutorBuilder<?>> getExecutorBuilders(Settings settings) {
-        return Collections.singletonList(
+        int benchmarkMin = settings.getAsInt("thread_pool." + BENCHMARK_THREAD_POOL_NAME + ".min", 10);
+        int benchmarkMax = settings.getAsInt("thread_pool." + BENCHMARK_THREAD_POOL_NAME + ".max", 200);
+        int responseMin = settings.getAsInt("thread_pool." + BENCHMARK_RESPONSE_POOL_NAME + ".min", 10);
+        int responseMax = settings.getAsInt("thread_pool." + BENCHMARK_RESPONSE_POOL_NAME + ".max", 200);
+        
+        return Arrays.asList(
             new ScalingExecutorBuilder(
                 BENCHMARK_THREAD_POOL_NAME,
-                1,
-                50000,
+                benchmarkMin,
+                benchmarkMax,
                 TimeValue.timeValueSeconds(30),
                 "thread_pool." + BENCHMARK_THREAD_POOL_NAME
+            ),
+            new ScalingExecutorBuilder(
+                BENCHMARK_RESPONSE_POOL_NAME,
+                responseMin,
+                responseMax,
+                TimeValue.timeValueSeconds(30),
+                "thread_pool." + BENCHMARK_RESPONSE_POOL_NAME
             )
         );
     }

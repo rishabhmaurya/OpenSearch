@@ -154,7 +154,12 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
             });
         }
 
-        latch.await();
+        logger.warn("[COORDINATOR] Waiting for {} responses, activeRequests={}", latch.getCount(), activeRequests.get());
+        if (!latch.await(60, TimeUnit.SECONDS)) {
+            logger.error("[COORDINATOR] TIMEOUT! Still waiting for {} responses, activeRequests={}", latch.getCount(), activeRequests.get());
+            throw new RuntimeException("Benchmark timeout - " + latch.getCount() + " requests never responded");
+        }
+        logger.warn("[COORDINATOR] All responses received");
         long endTime = System.currentTimeMillis();
         long durationMs = endTime - startTime;
 
@@ -272,7 +277,7 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
 
                 @Override
                 public String executor() {
-                    return StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME;
+                    return StreamTransportExamplePlugin.BENCHMARK_RESPONSE_POOL_NAME;
                 }
 
                 @Override
@@ -320,7 +325,7 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
 
                 @Override
                 public String executor() {
-                    return StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME;
+                    return StreamTransportExamplePlugin.BENCHMARK_RESPONSE_POOL_NAME;
                 }
 
                 @Override
