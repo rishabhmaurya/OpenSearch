@@ -74,6 +74,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 
 import static org.opensearch.arrow.flight.bootstrap.ServerComponents.SETTING_FLIGHT_BIND_HOST;
+import static org.opensearch.arrow.flight.bootstrap.ServerComponents.SETTING_FLIGHT_CLIENT_POOL_SIZE;
 import static org.opensearch.arrow.flight.bootstrap.ServerComponents.SETTING_FLIGHT_PORTS;
 import static org.opensearch.arrow.flight.bootstrap.ServerComponents.SETTING_FLIGHT_PUBLISH_HOST;
 import static org.opensearch.arrow.flight.bootstrap.ServerComponents.SETTING_FLIGHT_PUBLISH_PORT;
@@ -82,6 +83,7 @@ import static org.opensearch.arrow.flight.bootstrap.ServerComponents.SETTING_FLI
 class FlightTransport extends TcpTransport {
     private static final Logger logger = LogManager.getLogger(FlightTransport.class);
     private static final String DEFAULT_PROFILE = "stream_profile";
+    private static final AtomicInteger GLOBAL_CHANNEL_COUNTER = new AtomicInteger(0);
 
     private final PortsRange portRange;
     private final String[] bindHosts;
@@ -106,12 +108,16 @@ class FlightTransport extends TcpTransport {
     private final NamedWriteableRegistry namedWriteableRegistry;
     private final FlightStatsCollector statsCollector;
     private final FlightTransportConfig config = new FlightTransportConfig();
+    private final int clientPoolSize;
 
     final FlightServerMiddleware.Key<ServerHeaderMiddleware> SERVER_HEADER_KEY = FlightServerMiddleware.Key.of(
         "flight-server-header-middleware"
     );
 
-    private record ClientHolder(Location location, FlightClient flightClient, HeaderContext context) {
+    private record ClientHolder(Location location, List<FlightClient> flightClients, HeaderContext context) {
+        FlightClient getClient(int index) {
+            return flightClients.get(index % flightClients.size());
+        }
     }
 
     public FlightTransport(
@@ -138,6 +144,7 @@ class FlightTransport extends TcpTransport {
         this.clientExecutor = threadPool.executor(ServerConfig.FLIGHT_CLIENT_THREAD_POOL_NAME);
         this.threadPool = threadPool;
         this.namedWriteableRegistry = namedWriteableRegistry;
+        this.clientPoolSize = SETTING_FLIGHT_CLIENT_POOL_SIZE.get(settings);
 
         // Create Flight event loop group for request processing
         int eventLoopCount = ServerConfig.getEventLoopThreads();
@@ -276,7 +283,9 @@ class FlightTransport extends TcpTransport {
             }
             serverAllocator.close();
             for (ClientHolder holder : flightClients.values()) {
-                holder.flightClient().close();
+                for (FlightClient client : holder.flightClients()) {
+                    client.close();
+                }
             }
             flightClients.clear();
             clientAllocator.close();
@@ -320,28 +329,36 @@ class FlightTransport extends TcpTransport {
             TransportAddress publishAddress = node.getStreamAddress();
             String address = publishAddress.getAddress();
             int flightPort = publishAddress.address().getPort();
-            // TODO: check feasibility of GRPC_DOMAIN_SOCKET for local connections
-            // This would require server to addListener on GRPC_DOMAIN_SOCKET
             Location location = sslContextProvider != null
                 ? Location.forGrpcTls(address, flightPort)
                 : Location.forGrpcInsecure(address, flightPort);
             HeaderContext context = new HeaderContext();
             ClientHeaderMiddleware.Factory factory = new ClientHeaderMiddleware.Factory(context, getVersion());
-            FlightClient client = OSFlightClient.builder()
-                // TODO configure initial and max reservation setting per client
-                .allocator(clientAllocator)
-                .location(location)
-                .channelType(ServerConfig.clientChannelType())
-                .eventLoopGroup(workerEventLoopGroup)
-                .sslContext(sslContextProvider != null ? sslContextProvider.getClientSslContext() : null)
-                .executor(clientExecutor)
-                .intercept(factory)
-                .build();
-            return new ClientHolder(location, client, context);
+            
+            // Create pool of clients per node to distribute load across event loops
+            List<FlightClient> clients = new ArrayList<>(clientPoolSize);
+            for (int i = 0; i < clientPoolSize; i++) {
+                BufferAllocator allocator = clientAllocator.newChildAllocator("client-" + nodeId + "-" + i, 0, clientAllocator.getLimit());
+                FlightClient client = OSFlightClient.builder()
+                    .allocator(allocator)
+                    .location(location)
+                    .channelType(ServerConfig.clientChannelType())
+                    .eventLoopGroup(workerEventLoopGroup)
+                    .sslContext(sslContextProvider != null ? sslContextProvider.getClientSslContext() : null)
+                    .executor(clientExecutor)
+                    .intercept(factory)
+                    .build();
+                clients.add(client);
+            }
+            return new ClientHolder(location, clients, context);
         });
+        
+        // Round-robin client selection based on channel counter
+        int clientIndex = (int) (GLOBAL_CHANNEL_COUNTER.incrementAndGet() % holder.flightClients().size());
+        
         FlightClientChannel channel = new FlightClientChannel(
             boundAddress,
-            holder.flightClient(),
+            holder.getClient(clientIndex),
             node,
             holder.location(),
             holder.context(),

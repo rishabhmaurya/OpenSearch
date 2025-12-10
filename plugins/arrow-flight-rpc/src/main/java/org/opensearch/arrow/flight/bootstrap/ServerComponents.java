@@ -100,6 +100,18 @@ public final class ServerComponents implements AutoCloseable {
         Setting.Property.NodeScope
     );
 
+    /**
+     * Setting for Arrow Flight client pool size per node.
+     * Higher values distribute load across more event loops but consume more resources.
+     */
+    public static final Setting<Integer> SETTING_FLIGHT_CLIENT_POOL_SIZE = intSetting(
+        "arrow.flight.client.pool_size",
+        4,
+        1,
+        32,
+        Setting.Property.NodeScope
+    );
+
     private static final Logger logger = LogManager.getLogger(ServerComponents.class);
 
     private static final String GRPC_WORKER_ELG = "os-grpc-worker-ELG";
