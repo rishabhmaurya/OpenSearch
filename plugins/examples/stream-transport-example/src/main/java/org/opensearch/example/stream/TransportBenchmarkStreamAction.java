@@ -230,7 +230,8 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
     ) {
         String correlationId = "req-" + System.nanoTime() + "-" + Thread.currentThread().getId();
         request.setCorrelationId(correlationId);
-        streamTransportService.sendRequest(
+        try {
+            streamTransportService.sendRequest(
             targetNode,
             SHARD_ACTION_NAME,
             request,
@@ -276,6 +277,10 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
                 }
             }
         );
+        } catch (Exception e) {
+            logger.error("Failed to send stream request", e);
+            latch.countDown();
+        }
     }
 
     private void sendRegularRequest(
@@ -287,7 +292,8 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         List<Long> latencies,
         CountDownLatch latch
     ) {
-        transportService.sendRequest(
+        try {
+            transportService.sendRequest(
             targetNode,
             SHARD_ACTION_NAME,
             request,
@@ -317,6 +323,10 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
                 }
             }
         );
+        } catch (Exception e) {
+            logger.error("Failed to send regular request", e);
+            latch.countDown();
+        }
     }
 
 
