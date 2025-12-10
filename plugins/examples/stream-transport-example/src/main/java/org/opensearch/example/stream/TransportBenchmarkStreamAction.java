@@ -121,13 +121,11 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         AtomicLong totalRows = new AtomicLong();
         AtomicLong totalBytes = new AtomicLong();
         AtomicLong activeRequests = new AtomicLong(0);
-        AtomicReference<Map<String, Object>> capturedTiming = new AtomicReference<>();
+        // Skip expensive timing and thread pool metrics
+        AtomicReference<Map<String, Object>> capturedTiming = new AtomicReference<>(null);
         AtomicLong slowestRequestLatency = new AtomicLong(0);
 
-        String[] poolNames = request.isUseStreamTransport()
-            ? new String[]{"flight-grpc", "flight-client", "flight-server", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME}
-            : new String[]{StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME};
-        ThreadPoolSnapshot beforeStats = captureThreadPoolStats(poolNames);
+        ThreadPoolSnapshot beforeStats = null;
 
         long startTime = System.currentTimeMillis();
 
@@ -162,11 +160,11 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         long endTime = System.currentTimeMillis();
         long durationMs = endTime - startTime;
 
-        ThreadPoolSnapshot afterStats = captureThreadPoolStats(poolNames);
-        BenchmarkStreamResponse.ThreadPoolStats threadPoolStats = calculateThreadPoolDiff(beforeStats, afterStats);
+        // Skip thread pool stats calculation
+        BenchmarkStreamResponse.ThreadPoolStats threadPoolStats = null;
 
         return calculateStats(totalRows.get(), totalBytes.get(), durationMs, latencies,
-                            request.getParallelRequests(), request.isUseStreamTransport(), threadPoolStats, capturedTiming.get());
+                            request.getParallelRequests(), request.isUseStreamTransport(), threadPoolStats, null);
     }
 
     private DiscoveryNode[] getAvailableNodes() {
@@ -195,15 +193,9 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
     }
 
     private void handleStreamTransportRequest(BenchmarkStreamRequest request, TransportChannel channel) {
-        long serverReceiveNanos = System.nanoTime();
-        String serverReceiveThreadPoolState = captureThreadPoolState(new String[]{"flight-grpc", "flight-client", "flight-server", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME});
         String correlationId = request.getCorrelationId();
-        long startTime = System.nanoTime();
         logger.debug("[{}] [SERVER-1] Handler invoked", correlationId);
         
-        long firstBatchTime = 0;
-        long lastBatchTime = 0;
-        int batchCount = 0;
         try {
             int totalRows = request.getRows();
             int batchSize = request.getBatchSize();
@@ -214,53 +206,10 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
                 long bytesInBatch = rowsInBatch * bytesPerRow;
 
                 byte[] payload = generateSyntheticData(bytesInBatch);
-                long beforeSend = System.nanoTime();
-                logger.debug("[{}] [SERVER-2] Sending batch {}, size={}", correlationId, batchCount + 1, bytesInBatch);
-                
-                BenchmarkDataResponse response;
-                if (rowsSent == 0) {
-                    long serverGeneratedNanos = System.nanoTime();
-                    String serverGeneratedThreadPoolState = captureThreadPoolState(new String[]{"flight-grpc", "flight-client", "flight-server", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME});
-                    
-                    // Capture timing points 5-7 (simulated Flight transport timing) with realistic delays
-                    long serverSentToQueueNanos = serverGeneratedNanos + 50_000; // 0.05ms queue delay
-                    long messagePickedFromQueueNanos = serverSentToQueueNanos + 10_000; // 0.01ms pickup delay  
-                    long messageWrittenToChannelNanos = messagePickedFromQueueNanos + 100_000; // 0.1ms write delay
-                    
-                    // Points 8-9 will be captured on client side
-                    long clientReceivedHeaderNanos = 0;
-                    long clientReceivedMessageNanos = 0;
-                    
-                    response = new BenchmarkDataResponse(payload, request.getClientStartNanos(), request.getClientSendNanos(), 
-                        serverReceiveNanos, serverGeneratedNanos, serverSentToQueueNanos, messagePickedFromQueueNanos,
-                        messageWrittenToChannelNanos, clientReceivedHeaderNanos, clientReceivedMessageNanos,
-                        request.getClientStartThreadPoolState(), request.getClientSendThreadPoolState(), 
-                        serverReceiveThreadPoolState, serverGeneratedThreadPoolState);
-                } else {
-                    response = new BenchmarkDataResponse(payload);
-                }
+                BenchmarkDataResponse response = new BenchmarkDataResponse(payload);
                 channel.sendResponseBatch(response);
-                long afterSend = System.nanoTime();
-                
-                batchCount++;
-                if (firstBatchTime == 0) firstBatchTime = afterSend;
-                lastBatchTime = afterSend;
-                
-                long sendTime = TimeUnit.NANOSECONDS.toMillis(afterSend - beforeSend);
-                logger.debug("[{}] [SERVER-3] Batch {} sent, took={}ms", correlationId, batchCount, sendTime);
-                if (sendTime > 200) {
-                    logger.warn("[{}] [SERVER] Batch {} send took {}ms ({} bytes)", correlationId, batchCount, sendTime, bytesInBatch);
-                }
             }
-            logger.debug("[{}] [SERVER-4] Calling completeStream()", correlationId);
             channel.completeStream();
-            logger.debug("[{}] [SERVER-5] completeStream() returned", correlationId);
-            
-            long took = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
-            long streamingTime = TimeUnit.NANOSECONDS.toMillis(lastBatchTime - firstBatchTime);
-            if (took > 500) {
-                logger.warn("[SERVER] Total handler: {}ms, streaming: {}ms, batches: {}", took, streamingTime, batchCount);
-            }
         } catch (Exception e) {
             try {
                 channel.sendResponse(e);
@@ -281,18 +230,8 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         java.util.concurrent.atomic.AtomicReference<java.util.Map<String, Object>> capturedTiming,
         AtomicLong slowestRequestLatency
     ) {
-        long clientStartNanos = System.nanoTime();
-        String clientStartThreadPoolState = captureThreadPoolState(new String[]{"flight-grpc", "flight-client", "flight-server", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME});
-        request.setClientStartNanos(clientStartNanos);
-        request.setClientStartThreadPoolState(clientStartThreadPoolState);
-        
         String correlationId = "req-" + System.nanoTime() + "-" + Thread.currentThread().getId();
         request.setCorrelationId(correlationId);
-        long clientSendNanos = System.nanoTime();
-        String clientSendThreadPoolState = captureThreadPoolState(new String[]{"flight-grpc", "flight-client", "flight-server", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME});
-        request.setClientSendNanos(clientSendNanos);
-        request.setClientSendThreadPoolState(clientSendThreadPoolState);
-        logger.debug("[{}] [CLIENT-1] sendRequest called", correlationId);
         streamTransportService.sendRequest(
             targetNode,
             SHARD_ACTION_NAME,
@@ -301,132 +240,15 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
             new StreamTransportResponseHandler<BenchmarkDataResponse>() {
                 @Override
                 public void handleStreamResponse(StreamTransportResponse<BenchmarkDataResponse> streamResponse) {
-                    long handlerInvokedTime = System.nanoTime();
-                    long networkTime = TimeUnit.NANOSECONDS.toMillis(handlerInvokedTime - clientSendNanos);
-                    logger.debug("[{}] [CLIENT-2] handleStreamResponse invoked, network={}ms", correlationId, networkTime);
-                    
-                    long consumeStartTime = System.nanoTime();
-                    long timeToStartConsuming = TimeUnit.NANOSECONDS.toMillis(consumeStartTime - handlerInvokedTime);
-                    logger.debug("[{}] [CLIENT-3] Handler started, delay={}ms", correlationId, timeToStartConsuming);
-                    
                     try {
-                            long firstBatchTime = 0;
-                            long lastBatchTime = 0;
-                            int batchCount = 0;
-                            
-                            logger.debug("[{}] [CLIENT-4] Calling first nextResponse()", correlationId);
-                            
-                            // Points 8-9: Capture client-side timing
-                            long clientReceivedHeaderNanos = System.nanoTime();
-                            BenchmarkDataResponse firstResponse = streamResponse.nextResponse();
-                            long clientReceivedMessageNanos = System.nanoTime();
-                            BenchmarkDataResponse slowestResponse = firstResponse;
-                            long slowestClientReceivedHeaderNanos = clientReceivedHeaderNanos;
-                            long slowestClientReceivedMessageNanos = clientReceivedMessageNanos;
-                            
-                            if (firstResponse != null) {
-                                long batchReceivedTime = System.nanoTime();
-                                batchCount++;
-                                firstBatchTime = batchReceivedTime;
-                                
-                                totalBytes.addAndGet(firstResponse.getPayloadSize());
-                                long timeToFirstBatch = TimeUnit.NANOSECONDS.toMillis(firstBatchTime - consumeStartTime);
-                                logger.debug("[{}] [CLIENT-5] Batch {} received, took={}ms, size={}", 
-                                    correlationId, batchCount, timeToFirstBatch, firstResponse.getPayloadSize());
-                            }
-                            
-                            // Point 10 - Collect interim batch metrics separately from first batch
-                            List<Long> interimBatchLatencies = new ArrayList<>();
-                            
+                            // Skip all timing capture, just consume responses
                             BenchmarkDataResponse response;
                             while ((response = streamResponse.nextResponse()) != null) {
-                                long batchReceivedTime = System.nanoTime();
-                                batchCount++;
-                                if (lastBatchTime > 0) {
-                                    long timeSinceLastBatch = TimeUnit.NANOSECONDS.toMillis(batchReceivedTime - lastBatchTime);
-                                    interimBatchLatencies.add(timeSinceLastBatch);
-                                    logger.debug("[{}] [CLIENT-5] Batch {} received, took={}ms, size={}", 
-                                        correlationId, batchCount, timeSinceLastBatch, response.getPayloadSize());
-                                } else {
-                                    // First interim batch - measure from first batch time
-                                    if (firstBatchTime > 0) {
-                                        long timeSinceFirstBatch = TimeUnit.NANOSECONDS.toMillis(batchReceivedTime - firstBatchTime);
-                                        interimBatchLatencies.add(timeSinceFirstBatch);
-                                        logger.debug("[{}] [CLIENT-5] Batch {} received, took={}ms since first, size={}", 
-                                            correlationId, batchCount, timeSinceFirstBatch, response.getPayloadSize());
-                                    }
-                                }
-                                lastBatchTime = batchReceivedTime;
                                 totalBytes.addAndGet(response.getPayloadSize());
                             }
                             
-                            // Add interim batch metrics to timing map
-                            if (!interimBatchLatencies.isEmpty()) {
-                                Map<String, Object> currentTiming = capturedTiming.get();
-                                if (currentTiming != null) {
-                                    currentTiming.put("interim_batch_count", interimBatchLatencies.size());
-                                    currentTiming.put("interim_batch_avg_latency_ms", 
-                                        interimBatchLatencies.stream().mapToLong(Long::longValue).average().orElse(0.0));
-                                    currentTiming.put("interim_batch_max_latency_ms", 
-                                        interimBatchLatencies.stream().mapToLong(Long::longValue).max().orElse(0L));
-                                    currentTiming.put("interim_batch_min_latency_ms", 
-                                        interimBatchLatencies.stream().mapToLong(Long::longValue).min().orElse(0L));
-                                }
-                            }
-                            logger.debug("[{}] [CLIENT-6] All batches consumed, count={}", correlationId, batchCount);
-                            
                             long endTime = System.nanoTime();
                             long totalLatency = TimeUnit.NANOSECONDS.toMillis(endTime - requestStart);
-                            long processingTime = TimeUnit.NANOSECONDS.toMillis(endTime - handlerInvokedTime);
-                            long streamingTime = firstBatchTime > 0 ? TimeUnit.NANOSECONDS.toMillis(lastBatchTime - firstBatchTime) : 0;
-                            long timeInNextResponse = TimeUnit.NANOSECONDS.toMillis(endTime - consumeStartTime);
-                            
-                            // Capture timing for slowest request only
-                            if (slowestResponse != null && totalLatency > slowestRequestLatency.get()) {
-                                slowestRequestLatency.set(totalLatency);
-                                Map<String, Object> timing = new HashMap<>();
-                                timing.put("client_start_ns", slowestResponse.getClientStartNanos());
-                                timing.put("client_send_ns", slowestResponse.getClientSendNanos());
-                                timing.put("server_receive_ns", slowestResponse.getServerReceiveNanos());
-                                timing.put("server_generated_first_batch_ns", slowestResponse.getServerGeneratedFirstBatchNanos());
-                                timing.put("server_sent_to_queue_ns", slowestResponse.getServerSentToQueueNanos());
-                                timing.put("message_picked_from_queue_ns", slowestResponse.getMessagePickedFromQueueNanos());
-                                timing.put("message_written_to_channel_ns", slowestResponse.getMessageWrittenToChannelNanos());
-                                timing.put("client_received_header_ns", slowestClientReceivedHeaderNanos);
-                                timing.put("client_received_message_ns", slowestClientReceivedMessageNanos);
-                                
-                                if (slowestResponse.getClientStartNanos() > 0 && slowestClientReceivedMessageNanos > slowestResponse.getClientStartNanos()) {
-                                    timing.put("total_latency_ms", (slowestClientReceivedMessageNanos - slowestResponse.getClientStartNanos()) / 1_000_000.0);
-                                }
-                                if (slowestResponse.getClientSendNanos() > 0 && slowestResponse.getServerReceiveNanos() > slowestResponse.getClientSendNanos()) {
-                                    timing.put("network_latency_ms", (slowestResponse.getServerReceiveNanos() - slowestResponse.getClientSendNanos()) / 1_000_000.0);
-                                }
-                                if (slowestResponse.getServerReceiveNanos() > 0 && slowestResponse.getServerGeneratedFirstBatchNanos() > slowestResponse.getServerReceiveNanos()) {
-                                    timing.put("server_processing_to_first_batch_ms", (slowestResponse.getServerGeneratedFirstBatchNanos() - slowestResponse.getServerReceiveNanos()) / 1_000_000.0);
-                                }
-                                if (slowestResponse.getServerGeneratedFirstBatchNanos() > 0 && slowestResponse.getServerSentToQueueNanos() > slowestResponse.getServerGeneratedFirstBatchNanos()) {
-                                    timing.put("first_batch_generation_to_queue_ms", (slowestResponse.getServerSentToQueueNanos() - slowestResponse.getServerGeneratedFirstBatchNanos()) / 1_000_000.0);
-                                }
-                                if (slowestResponse.getServerSentToQueueNanos() > 0 && slowestResponse.getMessageWrittenToChannelNanos() > slowestResponse.getServerSentToQueueNanos()) {
-                                    timing.put("first_batch_queue_to_network_ms", (slowestResponse.getMessageWrittenToChannelNanos() - slowestResponse.getServerSentToQueueNanos()) / 1_000_000.0);
-                                }
-                                if (slowestResponse.getMessageWrittenToChannelNanos() > 0 && slowestClientReceivedHeaderNanos > slowestResponse.getMessageWrittenToChannelNanos()) {
-                                    timing.put("first_batch_network_to_header_ms", (slowestClientReceivedHeaderNanos - slowestResponse.getMessageWrittenToChannelNanos()) / 1_000_000.0);
-                                }
-                                if (slowestClientReceivedHeaderNanos > 0 && slowestClientReceivedMessageNanos > slowestClientReceivedHeaderNanos) {
-                                    timing.put("header_to_first_batch_ms", (slowestClientReceivedMessageNanos - slowestClientReceivedHeaderNanos) / 1_000_000.0);
-                                }
-                                timing.put("threadpool_client_start", slowestResponse.getClientStartThreadPoolState());
-                                timing.put("threadpool_client_send", slowestResponse.getClientSendThreadPoolState());
-                                timing.put("threadpool_server_receive", slowestResponse.getServerReceiveThreadPoolState());
-                                timing.put("threadpool_server_generated", slowestResponse.getServerGeneratedThreadPoolState());
-                                capturedTiming.set(timing);
-                            }
-                            
-                            if (totalLatency > 5000) {
-                                logger.warn("[CLIENT] Total: {}ms, network: {}ms, startConsume: {}ms, nextResponse: {}ms, streaming: {}ms, batches: {}",
-                                    totalLatency, networkTime, timeToStartConsuming, timeInNextResponse, streamingTime, batchCount);
-                            }
                             
                             totalRows.addAndGet(request.getRows());
                             latencies.add(totalLatency);
