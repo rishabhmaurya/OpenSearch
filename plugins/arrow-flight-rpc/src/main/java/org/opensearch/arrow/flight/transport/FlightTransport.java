@@ -354,7 +354,7 @@ class FlightTransport extends TcpTransport {
         });
         
         // Round-robin client selection based on channel counter
-        int clientIndex = (int) (GLOBAL_CHANNEL_COUNTER.incrementAndGet() % holder.flightClients().size());
+        int clientIndex = GLOBAL_CHANNEL_COUNTER.incrementAndGet() % holder.flightClients().size();
         
         FlightClientChannel channel = new FlightClientChannel(
             boundAddress,
