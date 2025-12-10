@@ -20,8 +20,9 @@ import org.opensearch.plugins.ActionPlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
+import org.opensearch.common.unit.TimeValue;
 import org.opensearch.threadpool.ExecutorBuilder;
-import org.opensearch.threadpool.FixedExecutorBuilder;
+import org.opensearch.threadpool.ScalingExecutorBuilder;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.util.Arrays;
@@ -46,13 +47,12 @@ public class StreamTransportExamplePlugin extends Plugin implements ActionPlugin
     @Override
     public List<ExecutorBuilder<?>> getExecutorBuilders(Settings settings) {
         return Collections.singletonList(
-            new FixedExecutorBuilder(
-                settings,
+            new ScalingExecutorBuilder(
                 BENCHMARK_THREAD_POOL_NAME,
-                Math.max(2000, Runtime.getRuntime().availableProcessors() * 10),
-                10000,
-                "thread_pool." + BENCHMARK_THREAD_POOL_NAME,
-                false
+                1,
+                50000,
+                TimeValue.timeValueSeconds(30),
+                "thread_pool." + BENCHMARK_THREAD_POOL_NAME
             )
         );
     }
