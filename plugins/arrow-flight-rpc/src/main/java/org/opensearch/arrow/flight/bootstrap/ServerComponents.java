@@ -120,7 +120,7 @@ public final class ServerComponents implements AutoCloseable {
         "arrow.flight.server.worker_thread_multiplier",
         16,
         1,
-        64,
+        1000,
         Setting.Property.NodeScope
     );
 
