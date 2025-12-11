@@ -260,15 +260,11 @@ class FlightClientChannel implements TcpChannel {
     }
 
     /**
-     * Starts prefetching and invokes handler immediately.
-     * Handler will block on nextResponse() until data available.
+     * Starts fetching stream and invokes handler only when stream is ready.
+     * Uses virtual thread to wait for gRPC handshake without blocking platform threads.
      */
     @SuppressWarnings({ "unchecked", "rawtypes" })
     private void startFetchingAndInvokeHandler(FlightTransportResponse<?> streamResponse) {
-        // Start prefetching in background
-        streamResponse.startPrefetching();
-        
-        // Invoke handler immediately - it will block on nextResponse() until first batch ready
         TransportResponseHandler handler = streamResponse.getHandler();
         String executor = handler.executor();
         
@@ -280,9 +276,20 @@ class FlightClientChannel implements TcpChannel {
             );
         }
         
-        threadPool.executor(executor).execute(() -> {
+        // Use virtual thread to wait for stream initialization without blocking platform threads
+        Thread.ofVirtual().start(() -> {
             try {
-                handler.handleStreamResponse(streamResponse);
+                // Wait for stream to be ready (gRPC handshake completes)
+                streamResponse.startPrefetching();
+                
+                // Now submit handler to its designated executor
+                threadPool.executor(executor).execute(() -> {
+                    try {
+                        handler.handleStreamResponse(streamResponse);
+                    } catch (Exception e) {
+                        handleStreamException(streamResponse, e);
+                    }
+                });
             } catch (Exception e) {
                 handleStreamException(streamResponse, e);
             }
