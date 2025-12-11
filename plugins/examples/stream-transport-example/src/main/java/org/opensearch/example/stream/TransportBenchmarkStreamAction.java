@@ -125,6 +125,7 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         AtomicLong sentRequests = new AtomicLong(0);
         AtomicReference<Map<String, Object>> capturedTiming = new AtomicReference<>(null);
         AtomicLong slowestRequestLatency = new AtomicLong(0);
+        AtomicLong refilling = new AtomicLong(0);
 
         long startTime = System.currentTimeMillis();
 
@@ -132,7 +133,7 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         int initialBatch = Math.min(maxInFlight, totalRequests);
         for (int i = 0; i < initialBatch; i++) {
             sendRequest(dataNodes, request, i, totalRequests, sentRequests, activeRequests, 
-                       totalRows, totalBytes, latencies, latch, capturedTiming, slowestRequestLatency, maxInFlight);
+                       totalRows, totalBytes, latencies, latch, capturedTiming, slowestRequestLatency, maxInFlight, refilling);
         }
 
         latch.await();
@@ -149,7 +150,7 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
                             int totalRequests, AtomicLong sentRequests, AtomicLong activeRequests,
                             AtomicLong totalRows, AtomicLong totalBytes, List<Long> latencies, 
                             CountDownLatch latch, AtomicReference<Map<String, Object>> capturedTiming,
-                            AtomicLong slowestRequestLatency, int maxInFlight) {
+                            AtomicLong slowestRequestLatency, int maxInFlight, AtomicLong refilling) {
         DiscoveryNode targetNode = dataNodes[index % dataNodes.length];
         activeRequests.incrementAndGet();
         sentRequests.incrementAndGet();
@@ -159,11 +160,8 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         
         Runnable onComplete = () -> {
             activeRequests.decrementAndGet();
-            long sent = sentRequests.get();
-            if (sent < totalRequests && activeRequests.get() < maxInFlight) {
-                sendRequest(dataNodes, request, (int)sent, totalRequests, sentRequests, activeRequests,
-                           totalRows, totalBytes, latencies, latch, capturedTiming, slowestRequestLatency, maxInFlight);
-            }
+            tryRefill(dataNodes, request, totalRequests, sentRequests, activeRequests, totalRows, totalBytes,
+                     latencies, latch, capturedTiming, slowestRequestLatency, maxInFlight, refilling, useStream);
         };
         
         if (useStream) {
@@ -171,6 +169,41 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
                             capturedTiming, slowestRequestLatency, onComplete);
         } else {
             sendRegularRequest(targetNode, request, requestStart, totalRows, totalBytes, latencies, latch, onComplete);
+        }
+    }
+
+    private void tryRefill(DiscoveryNode[] dataNodes, BenchmarkStreamRequest request, int totalRequests,
+                          AtomicLong sentRequests, AtomicLong activeRequests, AtomicLong totalRows,
+                          AtomicLong totalBytes, List<Long> latencies, CountDownLatch latch,
+                          AtomicReference<Map<String, Object>> capturedTiming, AtomicLong slowestRequestLatency,
+                          int maxInFlight, AtomicLong refilling, boolean useStream) {
+        // Only one thread refills at a time
+        if (refilling.compareAndSet(0, 1)) {
+            try {
+                while (sentRequests.get() < totalRequests && activeRequests.get() < maxInFlight) {
+                    long nextIndex = sentRequests.getAndIncrement();
+                    if (nextIndex < totalRequests) {
+                        DiscoveryNode node = dataNodes[(int)(nextIndex % dataNodes.length)];
+                        activeRequests.incrementAndGet();
+                        long start = System.nanoTime();
+                        Runnable onComplete = () -> {
+                            activeRequests.decrementAndGet();
+                            tryRefill(dataNodes, request, totalRequests, sentRequests, activeRequests, totalRows,
+                                    totalBytes, latencies, latch, capturedTiming, slowestRequestLatency, maxInFlight, refilling, useStream);
+                        };
+                        if (useStream) {
+                            sendStreamRequest(node, request, start, totalRows, totalBytes, latencies, latch,
+                                            capturedTiming, slowestRequestLatency, onComplete);
+                        } else {
+                            sendRegularRequest(node, request, start, totalRows, totalBytes, latencies, latch, onComplete);
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            } finally {
+                refilling.set(0);
+            }
         }
     }
 
