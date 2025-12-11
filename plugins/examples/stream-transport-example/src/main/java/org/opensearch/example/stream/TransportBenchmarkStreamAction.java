@@ -100,12 +100,14 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
 
     @Override
     protected void doExecute(Task task, BenchmarkStreamRequest request, ActionListener<BenchmarkStreamResponse> listener) {
-        try {
-            BenchmarkStreamResponse response = executeBenchmark(request);
-            listener.onResponse(response);
-        } catch (Exception e) {
-            listener.onFailure(e);
-        }
+        threadPool.executor(StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME).execute(() -> {
+            try {
+                BenchmarkStreamResponse response = executeBenchmark(request);
+                listener.onResponse(response);
+            } catch (Exception e) {
+                listener.onFailure(e);
+            }
+        });
     }
 
     private BenchmarkStreamResponse executeBenchmark(BenchmarkStreamRequest request) throws Exception {
