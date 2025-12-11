@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.example.stream;
+package org.opensearch.example.stream.benchmark;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,31 +13,31 @@ import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.core.action.ActionListener;
+import org.opensearch.core.common.io.stream.StreamInput;
+import org.opensearch.example.stream.StreamTransportExamplePlugin;
 import org.opensearch.tasks.Task;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.threadpool.ThreadPoolStats.Stats;
+import org.opensearch.transport.StreamTransportResponseHandler;
 import org.opensearch.transport.StreamTransportService;
+import org.opensearch.transport.TransportChannel;
 import org.opensearch.transport.TransportException;
 import org.opensearch.transport.TransportRequestOptions;
 import org.opensearch.transport.TransportResponseHandler;
 import org.opensearch.transport.TransportService;
-import org.opensearch.transport.StreamTransportResponseHandler;
-import org.opensearch.transport.TransportChannel;
 import org.opensearch.transport.stream.StreamTransportResponse;
-import org.opensearch.core.common.io.stream.StreamInput;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Transport action for benchmarking stream transport performance
@@ -112,97 +112,79 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
 
     private BenchmarkStreamResponse executeBenchmark(BenchmarkStreamRequest request) throws Exception {
         DiscoveryNode[] dataNodes = getAvailableNodes();
-
         int totalRequests = request.getTotalRequests() > 0 ? request.getTotalRequests() : request.getParallelRequests();
-        int parallelRequests = request.getParallelRequests();
-        int maxInFlight = parallelRequests * 2;
+        int maxInFlight = request.getParallelRequests() * 2;
 
-        CountDownLatch latch = new CountDownLatch(totalRequests);
-        List<Long> latencies = Collections.synchronizedList(new ArrayList<>());
-        AtomicLong totalRows = new AtomicLong();
-        AtomicLong totalBytes = new AtomicLong();
-        AtomicLong activeRequests = new AtomicLong(0);
-        AtomicLong sentRequests = new AtomicLong(0);
-        AtomicReference<Map<String, Object>> capturedTiming = new AtomicReference<>(null);
-        AtomicLong slowestRequestLatency = new AtomicLong(0);
-        AtomicLong refilling = new AtomicLong(0);
+        BenchmarkContext ctx = new BenchmarkContext(
+            totalRequests,
+            maxInFlight,
+            dataNodes,
+            request.isUseStreamTransport() && streamTransportService != null
+        );
 
         long startTime = System.currentTimeMillis();
 
-        // Send initial batch
+        // Send initial batch up to 2x parallel limit
         int initialBatch = Math.min(maxInFlight, totalRequests);
         for (int i = 0; i < initialBatch; i++) {
-            sendRequest(dataNodes, request, i, totalRequests, sentRequests, activeRequests, 
-                       totalRows, totalBytes, latencies, latch, capturedTiming, slowestRequestLatency, maxInFlight, refilling);
+            sendRequest(ctx, request, i);
         }
 
-        latch.await();
-        long endTime = System.currentTimeMillis();
-        long durationMs = endTime - startTime;
+        ctx.latch.await();
+        long durationMs = System.currentTimeMillis() - startTime;
 
-        BenchmarkStreamResponse.ThreadPoolStats threadPoolStats = null;
-
-        return calculateStats(totalRows.get(), totalBytes.get(), durationMs, latencies,
-                            request.getParallelRequests(), request.isUseStreamTransport(), threadPoolStats, null);
+        return calculateStats(
+            ctx.totalRows.get(),
+            ctx.totalBytes.get(),
+            durationMs,
+            ctx.latencies,
+            request.getParallelRequests(),
+            ctx.useStream
+        );
     }
 
-    private void sendRequest(DiscoveryNode[] dataNodes, BenchmarkStreamRequest request, int index, 
-                            int totalRequests, AtomicLong sentRequests, AtomicLong activeRequests,
-                            AtomicLong totalRows, AtomicLong totalBytes, List<Long> latencies, 
-                            CountDownLatch latch, AtomicReference<Map<String, Object>> capturedTiming,
-                            AtomicLong slowestRequestLatency, int maxInFlight, AtomicLong refilling) {
-        DiscoveryNode targetNode = dataNodes[index % dataNodes.length];
-        activeRequests.incrementAndGet();
-        sentRequests.incrementAndGet();
+    private void sendRequest(BenchmarkContext ctx, BenchmarkStreamRequest request, int index) {
+        DiscoveryNode targetNode = ctx.dataNodes[index % ctx.dataNodes.length];
+        ctx.activeRequests.incrementAndGet();
+        ctx.sentRequests.incrementAndGet();
 
         long requestStart = System.nanoTime();
-        boolean useStream = request.isUseStreamTransport() && streamTransportService != null;
-        
         Runnable onComplete = () -> {
-            activeRequests.decrementAndGet();
-            tryRefill(dataNodes, request, totalRequests, sentRequests, activeRequests, totalRows, totalBytes,
-                     latencies, latch, capturedTiming, slowestRequestLatency, maxInFlight, refilling, useStream);
+            ctx.activeRequests.decrementAndGet();
+            tryRefill(ctx, request);
         };
-        
-        if (useStream) {
-            sendStreamRequest(targetNode, request, requestStart, totalRows, totalBytes, latencies, latch, 
-                            capturedTiming, slowestRequestLatency, onComplete);
+
+        if (ctx.useStream) {
+            sendStreamRequest(targetNode, request, requestStart, ctx, onComplete);
         } else {
-            sendRegularRequest(targetNode, request, requestStart, totalRows, totalBytes, latencies, latch, onComplete);
+            sendRegularRequest(targetNode, request, requestStart, ctx, onComplete);
         }
     }
 
-    private void tryRefill(DiscoveryNode[] dataNodes, BenchmarkStreamRequest request, int totalRequests,
-                          AtomicLong sentRequests, AtomicLong activeRequests, AtomicLong totalRows,
-                          AtomicLong totalBytes, List<Long> latencies, CountDownLatch latch,
-                          AtomicReference<Map<String, Object>> capturedTiming, AtomicLong slowestRequestLatency,
-                          int maxInFlight, AtomicLong refilling, boolean useStream) {
-        // Only one thread refills at a time
-        if (refilling.compareAndSet(0, 1)) {
+    private void tryRefill(BenchmarkContext ctx, BenchmarkStreamRequest request) {
+        if (ctx.refilling.compareAndSet(0, 1)) {
             try {
-                while (sentRequests.get() < totalRequests && activeRequests.get() < maxInFlight) {
-                    long nextIndex = sentRequests.getAndIncrement();
-                    if (nextIndex < totalRequests) {
-                        DiscoveryNode node = dataNodes[(int)(nextIndex % dataNodes.length)];
-                        activeRequests.incrementAndGet();
+                while (ctx.sentRequests.get() < ctx.totalRequests && ctx.activeRequests.get() < ctx.maxInFlight) {
+                    long nextIndex = ctx.sentRequests.getAndIncrement();
+                    if (nextIndex < ctx.totalRequests) {
+                        DiscoveryNode node = ctx.dataNodes[(int) (nextIndex % ctx.dataNodes.length)];
+                        ctx.activeRequests.incrementAndGet();
                         long start = System.nanoTime();
                         Runnable onComplete = () -> {
-                            activeRequests.decrementAndGet();
-                            tryRefill(dataNodes, request, totalRequests, sentRequests, activeRequests, totalRows,
-                                    totalBytes, latencies, latch, capturedTiming, slowestRequestLatency, maxInFlight, refilling, useStream);
+                            ctx.activeRequests.decrementAndGet();
+                            tryRefill(ctx, request);
                         };
-                        if (useStream) {
-                            sendStreamRequest(node, request, start, totalRows, totalBytes, latencies, latch,
-                                            capturedTiming, slowestRequestLatency, onComplete);
+                        if (ctx.useStream) {
+                            sendStreamRequest(node, request, start, ctx, onComplete);
                         } else {
-                            sendRegularRequest(node, request, start, totalRows, totalBytes, latencies, latch, onComplete);
+                            sendRegularRequest(node, request, start, ctx, onComplete);
                         }
                     } else {
                         break;
                     }
                 }
             } finally {
-                refilling.set(0);
+                ctx.refilling.set(0);
             }
         }
     }
@@ -233,9 +215,6 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
     }
 
     private void handleStreamTransportRequest(BenchmarkStreamRequest request, TransportChannel channel) {
-        String correlationId = request.getCorrelationId();
-        logger.debug("[{}] [SERVER-1] Handler invoked", correlationId);
-
         try {
             int totalRows = request.getRows();
             int batchSize = request.getBatchSize();
@@ -263,67 +242,56 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         DiscoveryNode targetNode,
         BenchmarkStreamRequest request,
         long requestStart,
-        AtomicLong totalRows,
-        AtomicLong totalBytes,
-        List<Long> latencies,
-        CountDownLatch latch,
-        java.util.concurrent.atomic.AtomicReference<java.util.Map<String, Object>> capturedTiming,
-        AtomicLong slowestRequestLatency,
+        BenchmarkContext ctx,
         Runnable onComplete
     ) {
-        String correlationId = "req-" + System.nanoTime() + "-" + Thread.currentThread().getId();
-        request.setCorrelationId(correlationId);
         try {
             streamTransportService.sendRequest(
-            targetNode,
-            SHARD_ACTION_NAME,
-            request,
-            TransportRequestOptions.builder().withType(TransportRequestOptions.Type.STREAM).build(),
-            new StreamTransportResponseHandler<BenchmarkDataResponse>() {
-                @Override
-                public void handleStreamResponse(StreamTransportResponse<BenchmarkDataResponse> streamResponse) {
-                    try {
+                targetNode,
+                SHARD_ACTION_NAME,
+                request,
+                TransportRequestOptions.builder().withType(TransportRequestOptions.Type.STREAM).build(),
+                new StreamTransportResponseHandler<BenchmarkDataResponse>() {
+                    @Override
+                    public void handleStreamResponse(StreamTransportResponse<BenchmarkDataResponse> streamResponse) {
+                        try {
                             BenchmarkDataResponse response;
                             while ((response = streamResponse.nextResponse()) != null) {
-                                totalBytes.addAndGet(response.getPayloadSize());
+                                ctx.totalBytes.addAndGet(response.getPayloadSize());
                             }
-
-                            long endTime = System.nanoTime();
-                            long totalLatency = TimeUnit.NANOSECONDS.toMillis(endTime - requestStart);
-
-                            totalRows.addAndGet(request.getRows());
-                            latencies.add(totalLatency);
+                            ctx.totalRows.addAndGet(request.getRows());
+                            ctx.latencies.add(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - requestStart));
                             streamResponse.close();
-                    } catch (Exception e) {
-                        logger.error("Error processing stream response, correlationId={}", correlationId, e);
-                        streamResponse.cancel("Error", e);
-                    } finally {
-                        latch.countDown();
+                        } catch (Exception e) {
+                            logger.error("Error processing stream response", e);
+                            streamResponse.cancel("Error", e);
+                        } finally {
+                            ctx.latch.countDown();
+                            onComplete.run();
+                        }
+                    }
+
+                    @Override
+                    public void handleException(TransportException exp) {
+                        logger.warn("Stream transport request failed: {}", exp.getMessage());
+                        ctx.latch.countDown();
                         onComplete.run();
                     }
-                }
 
-                @Override
-                public void handleException(TransportException exp) {
-                    logger.error("Stream transport request failed", exp);
-                    latch.countDown();
-                    onComplete.run();
-                }
+                    @Override
+                    public String executor() {
+                        return StreamTransportExamplePlugin.BENCHMARK_RESPONSE_POOL_NAME;
+                    }
 
-                @Override
-                public String executor() {
-                    return StreamTransportExamplePlugin.BENCHMARK_RESPONSE_POOL_NAME;
+                    @Override
+                    public BenchmarkDataResponse read(StreamInput in) throws IOException {
+                        return new BenchmarkDataResponse(in);
+                    }
                 }
-
-                @Override
-                public BenchmarkDataResponse read(StreamInput in) throws IOException {
-                    return new BenchmarkDataResponse(in);
-                }
-            }
-        );
+            );
         } catch (Exception e) {
-            logger.error("Failed to send stream request", e);
-            latch.countDown();
+            logger.warn("Failed to send stream request: {}", e.getMessage());
+            ctx.latch.countDown();
         }
     }
 
@@ -331,31 +299,24 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         DiscoveryNode targetNode,
         BenchmarkStreamRequest request,
         long requestStart,
-        AtomicLong totalRows,
-        AtomicLong totalBytes,
-        List<Long> latencies,
-        CountDownLatch latch,
+        BenchmarkContext ctx,
         Runnable onComplete
     ) {
         try {
-            transportService.sendRequest(
-            targetNode,
-            SHARD_ACTION_NAME,
-            request,
-            new TransportResponseHandler<BenchmarkDataResponse>() {
+            transportService.sendRequest(targetNode, SHARD_ACTION_NAME, request, new TransportResponseHandler<BenchmarkDataResponse>() {
                 @Override
                 public void handleResponse(BenchmarkDataResponse response) {
-                    totalRows.addAndGet(request.getRows());
-                    totalBytes.addAndGet(response.getPayloadSize());
-                    latencies.add(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - requestStart));
-                    latch.countDown();
+                    ctx.totalRows.addAndGet(request.getRows());
+                    ctx.totalBytes.addAndGet(response.getPayloadSize());
+                    ctx.latencies.add(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - requestStart));
+                    ctx.latch.countDown();
                     onComplete.run();
                 }
 
                 @Override
                 public void handleException(TransportException exp) {
-                    logger.error("Transport request failed", exp);
-                    latch.countDown();
+                    logger.warn("Transport request failed: {}", exp.getMessage());
+                    ctx.latch.countDown();
                     onComplete.run();
                 }
 
@@ -368,15 +329,12 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
                 public BenchmarkDataResponse read(StreamInput in) throws IOException {
                     return new BenchmarkDataResponse(in);
                 }
-            }
-        );
+            });
         } catch (Exception e) {
-            logger.error("Failed to send regular request", e);
-            latch.countDown();
+            logger.warn("Failed to send regular request: {}", e.getMessage());
+            ctx.latch.countDown();
         }
     }
-
-
 
     private long calculateTotalBytes(BenchmarkStreamRequest request) {
         return (long) request.getRows() * request.getColumns() * request.getAvgColumnLength();
@@ -390,12 +348,13 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         if (bytes <= 0) return new byte[0];
         if (bytes > Integer.MAX_VALUE) {
             throw new IllegalArgumentException(
-                "Payload size " + bytes + " bytes exceeds max array size for regular transport. "
-                + "Use stream transport (use_stream_transport=true) for payloads larger than 2GB."
+                "Payload size "
+                    + bytes
+                    + " bytes exceeds max array size for regular transport. "
+                    + "Use stream transport (use_stream_transport=true) for payloads larger than 2GB."
             );
         }
         byte[] data = new byte[(int) bytes];
-        // Fill with non-zero pattern to prevent compression
         for (int i = 0; i < data.length; i++) {
             data[i] = (byte) (i & 0xFF);
         }
@@ -408,12 +367,33 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         long durationMs,
         List<Long> latencies,
         int parallelRequests,
-        boolean usedStreamTransport,
-        BenchmarkStreamResponse.ThreadPoolStats threadPoolStats,
-        Map<String, Object> timing
+        boolean usedStreamTransport
     ) {
         if (latencies.isEmpty()) {
-            return new BenchmarkStreamResponse(0, 0, durationMs, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, parallelRequests, usedStreamTransport, threadPoolStats, timing, null);
+            return new BenchmarkStreamResponse(
+                0,
+                0,
+                durationMs,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                parallelRequests,
+                usedStreamTransport,
+                null,
+                null,
+                null
+            );
         }
 
         Collections.sort(latencies);
@@ -436,11 +416,52 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         long p99 = latencies.get(Math.min((int) (latencies.size() * 0.99), latencies.size() - 1));
 
         return new BenchmarkStreamResponse(
-            totalRows, totalBytes, durationMs,
-            throughputRowsPerSec, throughputMbPerSec,
-            min, max, avg, p5, p10, p20, p25, p35, p50, p75, p90, p99,
-            parallelRequests, usedStreamTransport, threadPoolStats, timing, null
+            totalRows,
+            totalBytes,
+            durationMs,
+            throughputRowsPerSec,
+            throughputMbPerSec,
+            min,
+            max,
+            avg,
+            p5,
+            p10,
+            p20,
+            p25,
+            p35,
+            p50,
+            p75,
+            p90,
+            p99,
+            parallelRequests,
+            usedStreamTransport,
+            null,
+            null,
+            null
         );
+    }
+
+    private static class BenchmarkContext {
+        final int totalRequests;
+        final int maxInFlight;
+        final DiscoveryNode[] dataNodes;
+        final boolean useStream;
+        final CountDownLatch latch;
+        final List<Long> latencies;
+        final AtomicLong totalRows = new AtomicLong();
+        final AtomicLong totalBytes = new AtomicLong();
+        final AtomicLong activeRequests = new AtomicLong();
+        final AtomicLong sentRequests = new AtomicLong();
+        final AtomicLong refilling = new AtomicLong();
+
+        BenchmarkContext(int totalRequests, int maxInFlight, DiscoveryNode[] dataNodes, boolean useStream) {
+            this.totalRequests = totalRequests;
+            this.maxInFlight = maxInFlight;
+            this.dataNodes = dataNodes;
+            this.useStream = useStream;
+            this.latch = new CountDownLatch(totalRequests);
+            this.latencies = Collections.synchronizedList(new ArrayList<>(totalRequests));
+        }
     }
 
     private static class ThreadPoolSnapshot {
@@ -472,12 +493,15 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
             availablePools.add(stats.getName());
             for (String poolName : poolNames) {
                 if (stats.getName().equals(poolName)) {
-                    pools.put(poolName, new ThreadPoolSnapshot.PoolStats(
-                        stats.getQueue(),
-                        stats.getCompleted(),
-                        stats.getActive(),
-                        stats.getWaitTimeNanos()
-                    ));
+                    pools.put(
+                        poolName,
+                        new ThreadPoolSnapshot.PoolStats(
+                            stats.getQueue(),
+                            stats.getCompleted(),
+                            stats.getActive(),
+                            stats.getWaitTimeNanos()
+                        )
+                    );
                     break;
                 }
             }
@@ -486,26 +510,25 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
         return new ThreadPoolSnapshot(pools);
     }
 
-    private BenchmarkStreamResponse.ThreadPoolStats calculateThreadPoolDiff(
-        ThreadPoolSnapshot before,
-        ThreadPoolSnapshot after
-    ) {
+    private BenchmarkStreamResponse.ThreadPoolStats calculateThreadPoolDiff(ThreadPoolSnapshot before, ThreadPoolSnapshot after) {
         List<BenchmarkStreamResponse.PoolStat> poolStats = new ArrayList<>();
         for (String poolName : after.pools.keySet()) {
             ThreadPoolSnapshot.PoolStats beforeStats = before.pools.get(poolName);
             ThreadPoolSnapshot.PoolStats afterStats = after.pools.get(poolName);
             if (beforeStats != null && afterStats != null) {
                 long waitTimeDiffNanos = afterStats.totalWaitTimeNanos - beforeStats.totalWaitTimeNanos;
-                poolStats.add(new BenchmarkStreamResponse.PoolStat(
-                    poolName,
-                    afterStats.queue - beforeStats.queue,
-                    afterStats.completed - beforeStats.completed,
-                    afterStats.active,
-                    TimeUnit.NANOSECONDS.toMillis(waitTimeDiffNanos),
-                    afterStats.active,
-                    (int) afterStats.queue,
-                    poolName.contains("flight") ? new int[]{0} : null // Placeholder for event loop pending
-                ));
+                poolStats.add(
+                    new BenchmarkStreamResponse.PoolStat(
+                        poolName,
+                        afterStats.queue - beforeStats.queue,
+                        afterStats.completed - beforeStats.completed,
+                        afterStats.active,
+                        TimeUnit.NANOSECONDS.toMillis(waitTimeDiffNanos),
+                        afterStats.active,
+                        (int) afterStats.queue,
+                        poolName.contains("flight") ? new int[] { 0 } : null // Placeholder for event loop pending
+                    )
+                );
             }
         }
         return new BenchmarkStreamResponse.ThreadPoolStats(poolStats);
@@ -517,8 +540,7 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
             for (String poolName : poolNames) {
                 if (stats.getName().equals(poolName)) {
                     if (state.length() > 0) state.append(", ");
-                    state.append(poolName).append("[a=").append(stats.getActive())
-                        .append(",q=").append(stats.getQueue()).append("]");
+                    state.append(poolName).append("[a=").append(stats.getActive()).append(",q=").append(stats.getQueue()).append("]");
                     break;
                 }
             }

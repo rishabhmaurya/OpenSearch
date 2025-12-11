@@ -2,13 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.example.stream;
+package org.opensearch.example.stream.benchmark;
 
-import org.opensearch.transport.client.node.NodeClient;
+import org.opensearch.example.stream.StreamTransportExamplePlugin;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestToXContentListener;
-import org.opensearch.transport.StreamTransportService;
+import org.opensearch.transport.client.node.NodeClient;
 
 import java.util.List;
 
@@ -19,9 +19,7 @@ import static org.opensearch.rest.RestRequest.Method.POST;
  */
 public class RestBenchmarkStreamAction extends BaseRestHandler {
 
-    /**
-     * Constructor
-     */
+    /** Constructor */
     public RestBenchmarkStreamAction() {}
 
     @Override
@@ -37,7 +35,7 @@ public class RestBenchmarkStreamAction extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
         BenchmarkStreamRequest benchmarkRequest = new BenchmarkStreamRequest();
-        
+
         benchmarkRequest.setRows(request.paramAsInt("rows", 100));
         benchmarkRequest.setColumns(request.paramAsInt("columns", 10));
         benchmarkRequest.setAvgColumnLength(request.paramAsInt("avg_column_length", 100));
@@ -49,10 +47,6 @@ public class RestBenchmarkStreamAction extends BaseRestHandler {
         benchmarkRequest.setThreadPool(request.param("thread_pool", StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME));
         benchmarkRequest.setBatchSize(request.paramAsInt("batch_size", 100));
 
-        return channel -> client.execute(
-            BenchmarkStreamAction.INSTANCE,
-            benchmarkRequest,
-            new RestToXContentListener<>(channel)
-        );
+        return channel -> client.execute(BenchmarkStreamAction.INSTANCE, benchmarkRequest, new RestToXContentListener<>(channel));
     }
 }

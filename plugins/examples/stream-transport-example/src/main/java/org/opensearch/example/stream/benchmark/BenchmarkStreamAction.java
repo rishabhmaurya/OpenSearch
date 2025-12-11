@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.example.stream;
+package org.opensearch.example.stream.benchmark;
 
 import org.opensearch.action.ActionType;
 

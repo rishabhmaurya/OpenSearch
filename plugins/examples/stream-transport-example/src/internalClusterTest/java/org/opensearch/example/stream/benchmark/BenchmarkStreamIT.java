@@ -2,24 +2,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.example.stream;
+package org.opensearch.example.stream.benchmark;
 
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.arrow.flight.transport.FlightStreamPlugin;
 import org.opensearch.cluster.health.ClusterHealthStatus;
+import org.opensearch.example.stream.StreamTransportExamplePlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.test.OpenSearchTestCase.LockFeatureFlag;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
+import static org.opensearch.common.util.FeatureFlags.STREAM_TRANSPORT;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.opensearch.common.util.FeatureFlags.STREAM_TRANSPORT;
 
 @OpenSearchIntegTestCase.ClusterScope(scope = OpenSearchIntegTestCase.Scope.TEST, numDataNodes = 2)
 public class BenchmarkStreamIT extends OpenSearchIntegTestCase {
@@ -154,7 +154,6 @@ public class BenchmarkStreamIT extends OpenSearchIntegTestCase {
 
     @LockFeatureFlag(STREAM_TRANSPORT)
     public void testCustomBatchSize() {
-        // Test with small batch size
         BenchmarkStreamRequest smallBatchRequest = new BenchmarkStreamRequest();
         smallBatchRequest.setRows(100);
         smallBatchRequest.setBatchSize(10);
@@ -164,7 +163,6 @@ public class BenchmarkStreamIT extends OpenSearchIntegTestCase {
         assertThat(smallBatchResponse.getTotalRows(), equalTo(100L));
         assertTrue(smallBatchResponse.isUsedStreamTransport());
 
-        // Test with large batch size
         BenchmarkStreamRequest largeBatchRequest = new BenchmarkStreamRequest();
         largeBatchRequest.setRows(100);
         largeBatchRequest.setBatchSize(500);
@@ -174,7 +172,4 @@ public class BenchmarkStreamIT extends OpenSearchIntegTestCase {
         assertThat(largeBatchResponse.getTotalRows(), equalTo(100L));
         assertTrue(largeBatchResponse.isUsedStreamTransport());
     }
-
-    // Timing metrics test removed - was for debugging instrumentation only
-    // Strategy 2 simplified the code and removed timing capture
 }

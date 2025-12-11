@@ -18,8 +18,8 @@ import org.opensearch.core.action.ActionListener;
 import org.opensearch.tasks.Task;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.StreamTransportService;
-import org.opensearch.transport.TransportService;
 import org.opensearch.transport.TransportChannel;
+import org.opensearch.transport.TransportService;
 import org.opensearch.transport.stream.StreamErrorCode;
 import org.opensearch.transport.stream.StreamException;
 
@@ -39,8 +39,16 @@ public class TransportStreamDataAction extends TransportAction<StreamDataRequest
      * @param actionFilters action filters
      */
     @Inject
-    public TransportStreamDataAction(@Nullable StreamTransportService streamTransportService, TransportService transportService, ActionFilters actionFilters) {
-        super(StreamDataAction.NAME, actionFilters, streamTransportService != null ? streamTransportService.getTaskManager() : transportService.getTaskManager());
+    public TransportStreamDataAction(
+        @Nullable StreamTransportService streamTransportService,
+        TransportService transportService,
+        ActionFilters actionFilters
+    ) {
+        super(
+            StreamDataAction.NAME,
+            actionFilters,
+            streamTransportService != null ? streamTransportService.getTaskManager() : transportService.getTaskManager()
+        );
 
         // Register handler for streaming requests only if stream transport is available
         if (streamTransportService != null) {

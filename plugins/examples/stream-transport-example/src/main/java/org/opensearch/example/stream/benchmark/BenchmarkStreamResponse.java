@@ -2,12 +2,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.example.stream;
+package org.opensearch.example.stream.benchmark;
 
-import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.core.action.ActionResponse;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
+import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.core.xcontent.ToXContentObject;
 import org.opensearch.core.xcontent.XContentBuilder;
 
@@ -39,7 +39,7 @@ public class BenchmarkStreamResponse extends ActionResponse implements ToXConten
     private boolean usedStreamTransport;
     private ThreadPoolStats threadPoolStats;
     private java.util.Map<String, Object> flightTiming;
-    private byte[] payload; // actual data payload
+    private byte[] payload;
 
     /**
      * Constructor from stream input
@@ -103,14 +103,30 @@ public class BenchmarkStreamResponse extends ActionResponse implements ToXConten
      * @param flightTiming flight timing metrics
      * @param payload payload data
      */
-    public BenchmarkStreamResponse(long totalRows, long totalBytes, long durationMs,
-                                   double throughputRowsPerSec, double throughputMbPerSec,
-                                   long minLatencyMs, long maxLatencyMs, long avgLatencyMs,
-                                   long p5LatencyMs, long p10LatencyMs, long p20LatencyMs,
-                                   long p25LatencyMs, long p35LatencyMs, long p50LatencyMs,
-                                   long p75LatencyMs, long p90LatencyMs, long p99LatencyMs,
-                                   int parallelRequests, boolean usedStreamTransport,
-                                   ThreadPoolStats threadPoolStats, java.util.Map<String, Object> flightTiming, byte[] payload) {
+    public BenchmarkStreamResponse(
+        long totalRows,
+        long totalBytes,
+        long durationMs,
+        double throughputRowsPerSec,
+        double throughputMbPerSec,
+        long minLatencyMs,
+        long maxLatencyMs,
+        long avgLatencyMs,
+        long p5LatencyMs,
+        long p10LatencyMs,
+        long p20LatencyMs,
+        long p25LatencyMs,
+        long p35LatencyMs,
+        long p50LatencyMs,
+        long p75LatencyMs,
+        long p90LatencyMs,
+        long p99LatencyMs,
+        int parallelRequests,
+        boolean usedStreamTransport,
+        ThreadPoolStats threadPoolStats,
+        java.util.Map<String, Object> flightTiming,
+        byte[] payload
+    ) {
         this.totalRows = totalRows;
         this.totalBytes = totalBytes;
         this.durationMs = durationMs;
@@ -177,21 +193,21 @@ public class BenchmarkStreamResponse extends ActionResponse implements ToXConten
             .field("total_bytes", totalBytes)
             .humanReadableField("total_size_bytes", "total_size", new ByteSizeValue(totalBytes))
             .field("duration_ms", durationMs)
-            .field("throughput_rows_per_sec", String.format("%.2f", throughputRowsPerSec))
-            .field("throughput_mb_per_sec", String.format("%.2f", throughputMbPerSec))
+            .field("throughput_rows_per_sec", String.format(java.util.Locale.ROOT, "%.2f", throughputRowsPerSec))
+            .field("throughput_mb_per_sec", String.format(java.util.Locale.ROOT, "%.2f", throughputMbPerSec))
             .startObject("latency_ms")
-                .field("min", minLatencyMs)
-                .field("max", maxLatencyMs)
-                .field("avg", avgLatencyMs)
-                .field("p5", p5LatencyMs)
-                .field("p10", p10LatencyMs)
-                .field("p20", p20LatencyMs)
-                .field("p25", p25LatencyMs)
-                .field("p35", p35LatencyMs)
-                .field("p50", p50LatencyMs)
-                .field("p75", p75LatencyMs)
-                .field("p90", p90LatencyMs)
-                .field("p99", p99LatencyMs)
+            .field("min", minLatencyMs)
+            .field("max", maxLatencyMs)
+            .field("avg", avgLatencyMs)
+            .field("p5", p5LatencyMs)
+            .field("p10", p10LatencyMs)
+            .field("p20", p20LatencyMs)
+            .field("p25", p25LatencyMs)
+            .field("p35", p35LatencyMs)
+            .field("p50", p50LatencyMs)
+            .field("p75", p75LatencyMs)
+            .field("p90", p90LatencyMs)
+            .field("p99", p99LatencyMs)
             .endObject()
             .field("parallel_requests", parallelRequests)
             .field("used_stream_transport", usedStreamTransport);
@@ -208,102 +224,161 @@ public class BenchmarkStreamResponse extends ActionResponse implements ToXConten
      * Get total rows
      * @return total rows
      */
-    public long getTotalRows() { return totalRows; }
+    public long getTotalRows() {
+        return totalRows;
+    }
+
     /**
      * Get total bytes
      * @return total bytes
      */
-    public long getTotalBytes() { return totalBytes; }
+    public long getTotalBytes() {
+        return totalBytes;
+    }
+
     /**
      * Get duration in milliseconds
      * @return duration in milliseconds
      */
-    public long getDurationMs() { return durationMs; }
+    public long getDurationMs() {
+        return durationMs;
+    }
+
     /**
      * Get throughput in rows per second
      * @return throughput in rows per second
      */
-    public double getThroughputRowsPerSec() { return throughputRowsPerSec; }
+    public double getThroughputRowsPerSec() {
+        return throughputRowsPerSec;
+    }
+
     /**
      * Get throughput in MB per second
      * @return throughput in MB per second
      */
-    public double getThroughputMbPerSec() { return throughputMbPerSec; }
+    public double getThroughputMbPerSec() {
+        return throughputMbPerSec;
+    }
+
     /**
      * Get minimum latency in milliseconds
      * @return minimum latency in milliseconds
      */
-    public long getMinLatencyMs() { return minLatencyMs; }
+    public long getMinLatencyMs() {
+        return minLatencyMs;
+    }
+
     /**
      * Get maximum latency in milliseconds
      * @return maximum latency in milliseconds
      */
-    public long getMaxLatencyMs() { return maxLatencyMs; }
+    public long getMaxLatencyMs() {
+        return maxLatencyMs;
+    }
+
     /**
      * Get average latency in milliseconds
      * @return average latency in milliseconds
      */
-    public long getAvgLatencyMs() { return avgLatencyMs; }
+    public long getAvgLatencyMs() {
+        return avgLatencyMs;
+    }
+
     /**
      * Get p5 latency in milliseconds
      * @return p5 latency in milliseconds
      */
-    public long getP5LatencyMs() { return p5LatencyMs; }
+    public long getP5LatencyMs() {
+        return p5LatencyMs;
+    }
+
     /**
      * Get p10 latency in milliseconds
      * @return p10 latency in milliseconds
      */
-    public long getP10LatencyMs() { return p10LatencyMs; }
+    public long getP10LatencyMs() {
+        return p10LatencyMs;
+    }
+
     /**
      * Get p20 latency in milliseconds
      * @return p20 latency in milliseconds
      */
-    public long getP20LatencyMs() { return p20LatencyMs; }
+    public long getP20LatencyMs() {
+        return p20LatencyMs;
+    }
+
     /**
      * Get p25 latency in milliseconds
      * @return p25 latency in milliseconds
      */
-    public long getP25LatencyMs() { return p25LatencyMs; }
+    public long getP25LatencyMs() {
+        return p25LatencyMs;
+    }
+
     /**
      * Get p35 latency in milliseconds
      * @return p35 latency in milliseconds
      */
-    public long getP35LatencyMs() { return p35LatencyMs; }
+    public long getP35LatencyMs() {
+        return p35LatencyMs;
+    }
+
     /**
      * Get p50 latency in milliseconds
      * @return p50 latency in milliseconds
      */
-    public long getP50LatencyMs() { return p50LatencyMs; }
+    public long getP50LatencyMs() {
+        return p50LatencyMs;
+    }
+
     /**
      * Get p75 latency in milliseconds
      * @return p75 latency in milliseconds
      */
-    public long getP75LatencyMs() { return p75LatencyMs; }
+    public long getP75LatencyMs() {
+        return p75LatencyMs;
+    }
+
     /**
      * Get p90 latency in milliseconds
      * @return p90 latency in milliseconds
      */
-    public long getP90LatencyMs() { return p90LatencyMs; }
+    public long getP90LatencyMs() {
+        return p90LatencyMs;
+    }
+
     /**
      * Get p99 latency in milliseconds
      * @return p99 latency in milliseconds
      */
-    public long getP99LatencyMs() { return p99LatencyMs; }
+    public long getP99LatencyMs() {
+        return p99LatencyMs;
+    }
+
     /**
      * Get parallel requests
      * @return parallel requests
      */
-    public int getParallelRequests() { return parallelRequests; }
+    public int getParallelRequests() {
+        return parallelRequests;
+    }
+
     /**
      * Check if stream transport was used
      * @return whether stream transport was used
      */
-    public boolean isUsedStreamTransport() { return usedStreamTransport; }
+    public boolean isUsedStreamTransport() {
+        return usedStreamTransport;
+    }
+
     /**
      * Get flight timing metrics
      * @return flight timing metrics
      */
-    public java.util.Map<String, Object> getFlightTiming() { return flightTiming; }
+    public java.util.Map<String, Object> getFlightTiming() {
+        return flightTiming;
+    }
 
     /**
      * Thread pool statistics
@@ -371,8 +446,16 @@ public class BenchmarkStreamResponse extends ActionResponse implements ToXConten
          * @param currentQueue current queue size
          * @param eventLoopPending event loop pending tasks (for flight transport)
          */
-        public PoolStat(String name, long queueSizeDiff, long completedDiff, int maxActive, long waitTimeMs, 
-                       int currentActive, int currentQueue, int[] eventLoopPending) {
+        public PoolStat(
+            String name,
+            long queueSizeDiff,
+            long completedDiff,
+            int maxActive,
+            long waitTimeMs,
+            int currentActive,
+            int currentQueue,
+            int[] eventLoopPending
+        ) {
             this.name = name;
             this.queueSizeDiff = queueSizeDiff;
             this.completedDiff = completedDiff;

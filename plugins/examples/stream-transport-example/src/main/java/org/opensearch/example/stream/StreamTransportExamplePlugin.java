@@ -16,18 +16,17 @@ import org.opensearch.common.settings.IndexScopedSettings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
 import org.opensearch.core.action.ActionResponse;
+import org.opensearch.example.stream.benchmark.BenchmarkStreamAction;
+import org.opensearch.example.stream.benchmark.RestBenchmarkStreamAction;
+import org.opensearch.example.stream.benchmark.TransportBenchmarkStreamAction;
 import org.opensearch.plugins.ActionPlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
-import org.opensearch.common.unit.TimeValue;
 import org.opensearch.threadpool.ExecutorBuilder;
-import org.opensearch.threadpool.ScalingExecutorBuilder;
-import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.threadpool.FixedExecutorBuilder;
 
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -48,24 +47,25 @@ public class StreamTransportExamplePlugin extends Plugin implements ActionPlugin
 
     @Override
     public List<ExecutorBuilder<?>> getExecutorBuilders(Settings settings) {
-        int benchmarkMin = settings.getAsInt("thread_pool." + BENCHMARK_THREAD_POOL_NAME + ".min", 10);
-        int benchmarkMax = settings.getAsInt("thread_pool." + BENCHMARK_THREAD_POOL_NAME + ".max", 200);
-        int responseMin = settings.getAsInt("thread_pool." + BENCHMARK_RESPONSE_POOL_NAME + ".min", 10);
-        int responseMax = settings.getAsInt("thread_pool." + BENCHMARK_RESPONSE_POOL_NAME + ".max", 200);
-        
+        int processors = Runtime.getRuntime().availableProcessors();
+        int benchmarkSize = settings.getAsInt("thread_pool." + BENCHMARK_THREAD_POOL_NAME + ".size", processors * 8);
+        int benchmarkQueue = settings.getAsInt("thread_pool." + BENCHMARK_THREAD_POOL_NAME + ".queue_size", 1000);
+        int responseSize = settings.getAsInt("thread_pool." + BENCHMARK_RESPONSE_POOL_NAME + ".size", processors * 8);
+        int responseQueue = settings.getAsInt("thread_pool." + BENCHMARK_RESPONSE_POOL_NAME + ".queue_size", 1000);
+
         return Arrays.asList(
-            new ScalingExecutorBuilder(
+            new FixedExecutorBuilder(
+                settings,
                 BENCHMARK_THREAD_POOL_NAME,
-                benchmarkMin,
-                benchmarkMax,
-                TimeValue.timeValueSeconds(30),
+                benchmarkSize,
+                benchmarkQueue,
                 "thread_pool." + BENCHMARK_THREAD_POOL_NAME
             ),
-            new ScalingExecutorBuilder(
+            new FixedExecutorBuilder(
+                settings,
                 BENCHMARK_RESPONSE_POOL_NAME,
-                responseMin,
-                responseMax,
-                TimeValue.timeValueSeconds(30),
+                responseSize,
+                responseQueue,
                 "thread_pool." + BENCHMARK_RESPONSE_POOL_NAME
             )
         );
