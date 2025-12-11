@@ -115,56 +115,67 @@ public class TransportBenchmarkStreamAction extends TransportAction<BenchmarkStr
 
         int totalRequests = request.getTotalRequests() > 0 ? request.getTotalRequests() : request.getParallelRequests();
         int parallelRequests = request.getParallelRequests();
+        int maxInFlight = parallelRequests * 2;
 
         CountDownLatch latch = new CountDownLatch(totalRequests);
         List<Long> latencies = Collections.synchronizedList(new ArrayList<>());
         AtomicLong totalRows = new AtomicLong();
         AtomicLong totalBytes = new AtomicLong();
         AtomicLong activeRequests = new AtomicLong(0);
-        // Skip expensive timing and thread pool metrics
+        AtomicLong sentRequests = new AtomicLong(0);
         AtomicReference<Map<String, Object>> capturedTiming = new AtomicReference<>(null);
         AtomicLong slowestRequestLatency = new AtomicLong(0);
 
-        ThreadPoolSnapshot beforeStats = null;
-
         long startTime = System.currentTimeMillis();
 
-        for (int i = 0; i < totalRequests; i++) {
-            DiscoveryNode targetNode = dataNodes[i % dataNodes.length];
-
-            // Wait if we've hit the parallel limit
-            while (activeRequests.get() >= parallelRequests) {
-                Thread.sleep(1);
-            }
-
-            activeRequests.incrementAndGet();
-            threadPool.executor(StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME).execute(() -> {
-                long requestStart = System.nanoTime();
-                try {
-                    boolean useStream = request.isUseStreamTransport() && streamTransportService != null;
-                    if (useStream) {
-                        sendStreamRequest(targetNode, request, requestStart, totalRows, totalBytes, latencies, latch, capturedTiming, slowestRequestLatency);
-                    } else {
-                        sendRegularRequest(targetNode, request, requestStart, totalRows, totalBytes, latencies, latch);
-                    }
-                } catch (Exception e) {
-                    logger.error("Error sending benchmark request", e);
-                    latch.countDown();
-                } finally {
-                    activeRequests.decrementAndGet();
-                }
-            });
+        // Send initial batch
+        int initialBatch = Math.min(maxInFlight, totalRequests);
+        for (int i = 0; i < initialBatch; i++) {
+            sendRequest(dataNodes, request, i, totalRequests, sentRequests, activeRequests, 
+                       totalRows, totalBytes, latencies, latch, capturedTiming, slowestRequestLatency, maxInFlight);
         }
 
         latch.await();
         long endTime = System.currentTimeMillis();
         long durationMs = endTime - startTime;
 
-        // Skip thread pool stats calculation
         BenchmarkStreamResponse.ThreadPoolStats threadPoolStats = null;
 
         return calculateStats(totalRows.get(), totalBytes.get(), durationMs, latencies,
                             request.getParallelRequests(), request.isUseStreamTransport(), threadPoolStats, null);
+    }
+
+    private void sendRequest(DiscoveryNode[] dataNodes, BenchmarkStreamRequest request, int index, 
+                            int totalRequests, AtomicLong sentRequests, AtomicLong activeRequests,
+                            AtomicLong totalRows, AtomicLong totalBytes, List<Long> latencies, 
+                            CountDownLatch latch, AtomicReference<Map<String, Object>> capturedTiming,
+                            AtomicLong slowestRequestLatency, int maxInFlight) {
+        DiscoveryNode targetNode = dataNodes[index % dataNodes.length];
+        activeRequests.incrementAndGet();
+        sentRequests.incrementAndGet();
+
+        threadPool.executor(StreamTransportExamplePlugin.BENCHMARK_THREAD_POOL_NAME).execute(() -> {
+            long requestStart = System.nanoTime();
+            try {
+                boolean useStream = request.isUseStreamTransport() && streamTransportService != null;
+                if (useStream) {
+                    sendStreamRequest(targetNode, request, requestStart, totalRows, totalBytes, latencies, latch, capturedTiming, slowestRequestLatency);
+                } else {
+                    sendRegularRequest(targetNode, request, requestStart, totalRows, totalBytes, latencies, latch);
+                }
+            } catch (Exception e) {
+                logger.error("Error sending benchmark request", e);
+                latch.countDown();
+            } finally {
+                activeRequests.decrementAndGet();
+                // Send next request if available and under limit
+                long sent = sentRequests.get();
+                if (sent < totalRequests && activeRequests.get() < maxInFlight) {
+                    sendRequest(dataNodes, request, (int)sent, totalRequests, sentRequests, activeRequests,
+                               totalRows, totalBytes, latencies, latch, capturedTiming, slowestRequestLatency, maxInFlight);
+                }
+            }
+        });
     }
 
     private DiscoveryNode[] getAvailableNodes() {
