@@ -65,6 +65,7 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
     // Lifecycle flags
     private volatile boolean streamExhausted = false;
     private volatile boolean headerFetched = false;
+    private volatile boolean firstBatchConsumed = false;
     private volatile boolean closed = false;
     private final Object streamLock = new Object();
 
@@ -103,6 +104,30 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
             logger.warn("FlightClient.getStream() took {}ms", took);
         }
     }
+    
+    /**
+     * Prefetches the first batch to ensure data is ready before handler invocation.
+     * Returns true if first batch is available, false if stream is empty.
+     */
+    boolean prefetchFirstBatch() {
+        try {
+            boolean hasNext = flightStream.next();
+            
+            // Fetch header on first batch
+            if (hasNext && !headerFetched) {
+                headerFetched = true;
+                Header header = headerContext.getHeader(correlationId);
+                if (header != null) {
+                    threadPool.getThreadContext().setHeaders(header.getHeaders());
+                }
+            }
+            
+            return hasNext;
+        } catch (FlightRuntimeException e) {
+            streamExhausted = true;
+            throw FlightErrorMapper.fromFlightException(e);
+        }
+    }
 
     /**
      * Returns future that completes when first batch is ready.
@@ -137,18 +162,28 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
 
     /**
      * Fetches next batch from Flight stream. Returns null when exhausted.
+     * If first batch was prefetched, returns it on first call without fetching again.
      */
     private T fetchNextBatch() {
         long startTime = System.currentTimeMillis();
         try {
-            boolean hasNext = flightStream.next();
-
-            // Fetch header on first batch
-            if (!headerFetched) {
-                headerFetched = true;
-                Header header = headerContext.getHeader(correlationId);
-                if (header != null) {
-                    threadPool.getThreadContext().setHeaders(header.getHeaders());
+            boolean hasNext;
+            
+            // First call after prefetch - just deserialize the prefetched batch
+            if (headerFetched && !firstBatchConsumed) {
+                firstBatchConsumed = true;
+                hasNext = true; // We already know first batch exists from prefetch
+            } else {
+                // Fetch next batch
+                hasNext = flightStream.next();
+                
+                // Handle header if this is first batch and wasn't prefetched
+                if (hasNext && !headerFetched) {
+                    headerFetched = true;
+                    Header header = headerContext.getHeader(correlationId);
+                    if (header != null) {
+                        threadPool.getThreadContext().setHeaders(header.getHeaders());
+                    }
                 }
             }
 
