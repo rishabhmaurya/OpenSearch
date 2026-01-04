@@ -554,7 +554,10 @@ public class FlightClientChannelTests extends FlightTransportTestBase {
             }
 
             @Override
-            public void handleException(TransportException exp) {}
+            public void handleException(TransportException exp) {
+                handlerException.set(exp);
+                handlerLatch.countDown();
+            }
 
             @Override
             public String executor() {
