@@ -11,7 +11,9 @@ package org.opensearch.search.aggregations.bucket.terms;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.PointValues;
 import org.apache.lucene.index.SortedNumericDocValues;
+import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.NumericUtils;
+import org.apache.lucene.util.PriorityQueue;
 import org.opensearch.common.Numbers;
 import org.opensearch.common.lease.Releasable;
 import org.opensearch.common.lease.Releasables;
@@ -37,6 +39,7 @@ import org.opensearch.search.streaming.StreamingCostMetrics;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -125,6 +128,14 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
     }
 
     /**
+     * Get segment size for TopN filtering at segment level.
+     * Defaults to shard_size if not explicitly set.
+     */
+    protected int getSegmentSize() {
+        return bucketCountThresholds.getShardSize();
+    }
+
+    /**
      * Strategy for building results.
      */
     public abstract class ResultStrategy<R extends InternalAggregation, B extends InternalMultiBucketAggregation.InternalBucket>
@@ -141,23 +152,31 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
             LocalBucketCountThresholds localBucketCountThresholds = context.asLocalBucketCountThresholds(bucketCountThresholds);
             B[][] topBucketsPerOrd = buildTopBucketsPerOrd(owningBucketOrds.length);
             long[] otherDocCounts = new long[owningBucketOrds.length];
+            int segmentSize = getSegmentSize();
+            
             for (int ordIdx = 0; ordIdx < owningBucketOrds.length; ordIdx++) {
                 checkCancelled();
                 collectZeroDocEntriesIfNeeded(owningBucketOrds[ordIdx]);
                 LongKeyedBucketOrds.BucketOrdsEnum ordsEnum = bucketOrds.ordsEnum(owningBucketOrds[ordIdx]);
-                List<B> bucketsPerOwningOrd = new ArrayList<>();
-                while (ordsEnum.next()) {
-                    long docCount = bucketDocCount(ordsEnum.ord());
-                    otherDocCounts[ordIdx] += docCount;
-                    if (docCount < localBucketCountThresholds.getMinDocCount()) {
-                        continue;
-                    }
-                    B finalBucket = buildFinalBucket(ordsEnum, docCount, owningBucketOrds[ordIdx]);
-                    bucketsPerOwningOrd.add(finalBucket);
+                long bucketsInOrd = bucketOrds.bucketsInOrd(owningBucketOrds[ordIdx]);
+                
+                // Apply segment-level TopN filtering
+                List<B> topBuckets = selectTopBuckets(
+                    ordsEnum,
+                    bucketsInOrd,
+                    segmentSize,
+                    localBucketCountThresholds,
+                    owningBucketOrds[ordIdx]
+                );
+                
+                // Calculate otherDocCount from filtered buckets
+                for (B bucket : topBuckets) {
+                    otherDocCounts[ordIdx] += bucket.getDocCount();
                 }
-                topBucketsPerOrd[ordIdx] = buildBuckets(bucketsPerOwningOrd.size());
+                
+                topBucketsPerOrd[ordIdx] = buildBuckets(topBuckets.size());
                 for (int i = 0; i < topBucketsPerOrd[ordIdx].length; i++) {
-                    topBucketsPerOrd[ordIdx][i] = bucketsPerOwningOrd.get(i);
+                    topBucketsPerOrd[ordIdx][i] = topBuckets.get(i);
                 }
             }
 
@@ -167,6 +186,97 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
                 result[ordIdx] = buildResult(owningBucketOrds[ordIdx], otherDocCounts[ordIdx], topBucketsPerOrd[ordIdx]);
             }
             return result;
+        }
+        
+        /**
+         * Select top N buckets using priority queue or quick select based on bucket count.
+         * Uses BucketSelectionStrategy logic to choose optimal algorithm.
+         */
+        private List<B> selectTopBuckets(
+            LongKeyedBucketOrds.BucketOrdsEnum ordsEnum,
+            long totalBuckets,
+            int segmentSize,
+            LocalBucketCountThresholds thresholds,
+            long owningBucketOrd
+        ) throws IOException {
+            // Determine strategy: priority queue vs quick select
+            int factor = context.bucketSelectionStrategyFactor();
+            boolean usePriorityQueue = ((long) segmentSize * factor < totalBuckets) || isKeyOrder(order);
+            
+            if (usePriorityQueue) {
+                return selectWithPriorityQueue(ordsEnum, segmentSize, thresholds, owningBucketOrd);
+            } else {
+                return selectWithQuickSelect(ordsEnum, totalBuckets, segmentSize, thresholds, owningBucketOrd);
+            }
+        }
+        
+        private List<B> selectWithPriorityQueue(
+            LongKeyedBucketOrds.BucketOrdsEnum ordsEnum,
+            int segmentSize,
+            LocalBucketCountThresholds thresholds,
+            long owningBucketOrd
+        ) throws IOException {
+            PriorityQueue<B> pq = new PriorityQueue<B>(segmentSize) {
+                @Override
+                protected boolean lessThan(B a, B b) {
+                    return order.comparator().compare(a, b) > 0;
+                }
+            };
+            
+            while (ordsEnum.next()) {
+                long docCount = bucketDocCount(ordsEnum.ord());
+                if (docCount < thresholds.getMinDocCount()) {
+                    continue;
+                }
+                B bucket = buildFinalBucket(ordsEnum, docCount, owningBucketOrd);
+                if (pq.size() < segmentSize) {
+                    pq.add(bucket);
+                } else if (order.comparator().compare(bucket, pq.top()) < 0) {
+                    pq.top();
+                    pq.updateTop(bucket);
+                }
+            }
+            
+            List<B> result = new ArrayList<>(pq.size());
+            while (pq.size() > 0) {
+                result.add(pq.pop());
+            }
+            Collections.reverse(result);
+            return result;
+        }
+        
+        private List<B> selectWithQuickSelect(
+            LongKeyedBucketOrds.BucketOrdsEnum ordsEnum,
+            long totalBuckets,
+            int segmentSize,
+            LocalBucketCountThresholds thresholds,
+            long owningBucketOrd
+        ) throws IOException {
+            // Collect all qualifying buckets
+            List<B> allBuckets = new ArrayList<>();
+            while (ordsEnum.next()) {
+                long docCount = bucketDocCount(ordsEnum.ord());
+                if (docCount >= thresholds.getMinDocCount()) {
+                    allBuckets.add(buildFinalBucket(ordsEnum, docCount, owningBucketOrd));
+                }
+            }
+            
+            // If we have fewer buckets than segment_size, return all
+            if (allBuckets.size() <= segmentSize) {
+                return allBuckets;
+            }
+            
+            // Use quick select to partition top N
+            B[] bucketArray = (B[]) allBuckets.toArray(new InternalMultiBucketAggregation.InternalBucket[0]);
+            ArrayUtil.select(
+                bucketArray,
+                0,
+                bucketArray.length,
+                segmentSize,
+                order.comparator()
+            );
+            
+            return Arrays.asList(Arrays.copyOf(bucketArray, segmentSize));
         }
 
         /**
