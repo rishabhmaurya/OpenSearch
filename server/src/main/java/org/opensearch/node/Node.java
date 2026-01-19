@@ -54,6 +54,7 @@ import org.opensearch.action.search.SearchRequestSlowLog;
 import org.opensearch.action.search.SearchRequestStats;
 import org.opensearch.action.search.SearchTaskRequestOperationsListener;
 import org.opensearch.action.search.SearchTransportService;
+import org.opensearch.action.search.StreamSearchExecutionStatsCollector;
 import org.opensearch.action.search.StreamSearchTransportService;
 import org.opensearch.action.support.TransportAction;
 import org.opensearch.action.update.UpdateHelper;
@@ -1321,7 +1322,7 @@ public class Node implements Closeable {
                 SearchExecutionStatsCollector.makeWrapper(responseCollectorService)
             );
             final Optional<StreamSearchTransportService> streamSearchTransportService = streamTransportService.map(
-                stc -> new StreamSearchTransportService(stc, SearchExecutionStatsCollector.makeWrapper(responseCollectorService))
+                stc -> new StreamSearchTransportService(stc, StreamSearchExecutionStatsCollector.makeWrapper(responseCollectorService))
             );
             final HttpServerTransport httpServerTransport = newHttpTransport(networkModule);
 
