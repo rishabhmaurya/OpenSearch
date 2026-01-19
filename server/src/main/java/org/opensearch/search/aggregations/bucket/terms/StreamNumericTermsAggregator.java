@@ -13,7 +13,6 @@ import org.apache.lucene.index.PointValues;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.NumericUtils;
-import org.apache.lucene.util.PriorityQueue;
 import org.opensearch.common.Numbers;
 import org.opensearch.common.lease.Releasable;
 import org.opensearch.common.lease.Releasables;
@@ -39,7 +38,6 @@ import org.opensearch.search.streaming.StreamingCostMetrics;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -189,8 +187,7 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
         }
         
         /**
-         * Select top N buckets using priority queue or quick select based on bucket count.
-         * Uses BucketSelectionStrategy logic to choose optimal algorithm.
+         * Select top N buckets using quick select.
          */
         private List<B> selectTopBuckets(
             LongKeyedBucketOrds.BucketOrdsEnum ordsEnum,
@@ -199,60 +196,6 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
             LocalBucketCountThresholds thresholds,
             long owningBucketOrd
         ) throws IOException {
-            // Determine strategy: priority queue vs quick select
-            int factor = context.bucketSelectionStrategyFactor();
-            boolean usePriorityQueue = ((long) segmentSize * factor < totalBuckets) || isKeyOrder(order);
-            
-            if (usePriorityQueue) {
-                return selectWithPriorityQueue(ordsEnum, segmentSize, thresholds, owningBucketOrd);
-            } else {
-                return selectWithQuickSelect(ordsEnum, totalBuckets, segmentSize, thresholds, owningBucketOrd);
-            }
-        }
-        
-        private List<B> selectWithPriorityQueue(
-            LongKeyedBucketOrds.BucketOrdsEnum ordsEnum,
-            int segmentSize,
-            LocalBucketCountThresholds thresholds,
-            long owningBucketOrd
-        ) throws IOException {
-            PriorityQueue<B> pq = new PriorityQueue<B>(segmentSize) {
-                @Override
-                protected boolean lessThan(B a, B b) {
-                    return order.comparator().compare(a, b) > 0;
-                }
-            };
-            
-            while (ordsEnum.next()) {
-                long docCount = bucketDocCount(ordsEnum.ord());
-                if (docCount < thresholds.getMinDocCount()) {
-                    continue;
-                }
-                B bucket = buildFinalBucket(ordsEnum, docCount, owningBucketOrd);
-                if (pq.size() < segmentSize) {
-                    pq.add(bucket);
-                } else if (order.comparator().compare(bucket, pq.top()) < 0) {
-                    pq.top();
-                    pq.updateTop(bucket);
-                }
-            }
-            
-            List<B> result = new ArrayList<>(pq.size());
-            while (pq.size() > 0) {
-                result.add(pq.pop());
-            }
-            Collections.reverse(result);
-            return result;
-        }
-        
-        private List<B> selectWithQuickSelect(
-            LongKeyedBucketOrds.BucketOrdsEnum ordsEnum,
-            long totalBuckets,
-            int segmentSize,
-            LocalBucketCountThresholds thresholds,
-            long owningBucketOrd
-        ) throws IOException {
-            // Collect all qualifying buckets
             List<B> allBuckets = new ArrayList<>();
             while (ordsEnum.next()) {
                 long docCount = bucketDocCount(ordsEnum.ord());
@@ -261,12 +204,10 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
                 }
             }
             
-            // If we have fewer buckets than segment_size, return all
             if (allBuckets.size() <= segmentSize) {
                 return allBuckets;
             }
             
-            // Use quick select to partition top N
             B[] bucketArray = (B[]) allBuckets.toArray(new InternalMultiBucketAggregation.InternalBucket[0]);
             ArrayUtil.select(
                 bucketArray,

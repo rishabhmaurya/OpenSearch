@@ -32,14 +32,12 @@ import org.opensearch.search.streaming.StreamingCostMetrics;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import org.apache.lucene.util.ArrayUtil;
-import org.apache.lucene.util.PriorityQueue;
 
 import static org.opensearch.search.aggregations.InternalOrder.isKeyOrder;
 
@@ -223,50 +221,9 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
         }
         
         /**
-         * Select top N buckets using priority queue or quick select based on bucket count.
+         * Select top N buckets using quick select.
          */
         private List<B> selectTopBuckets(int segmentSize, LocalBucketCountThresholds thresholds) throws IOException {
-            int factor = context.bucketSelectionStrategyFactor();
-            boolean usePriorityQueue = ((long) segmentSize * factor < valueCount) || isKeyOrder(order);
-            
-            if (usePriorityQueue) {
-                return selectWithPriorityQueue(segmentSize, thresholds);
-            } else {
-                return selectWithQuickSelect(segmentSize, thresholds);
-            }
-        }
-        
-        private List<B> selectWithPriorityQueue(int segmentSize, LocalBucketCountThresholds thresholds) throws IOException {
-            PriorityQueue<B> pq = new PriorityQueue<B>(segmentSize) {
-                @Override
-                protected boolean lessThan(B a, B b) {
-                    return order.comparator().compare(a, b) > 0;
-                }
-            };
-            
-            for (long ordinal = 0; ordinal < valueCount; ordinal++) {
-                long docCount = bucketDocCount(ordinal);
-                if (docCount < thresholds.getMinDocCount()) {
-                    continue;
-                }
-                B bucket = buildFinalBucket(ordinal, docCount);
-                if (pq.size() < segmentSize) {
-                    pq.add(bucket);
-                } else if (order.comparator().compare(bucket, pq.top()) < 0) {
-                    pq.top();
-                    pq.updateTop(bucket);
-                }
-            }
-            
-            List<B> result = new ArrayList<>(pq.size());
-            while (pq.size() > 0) {
-                result.add(pq.pop());
-            }
-            Collections.reverse(result);
-            return result;
-        }
-        
-        private List<B> selectWithQuickSelect(int segmentSize, LocalBucketCountThresholds thresholds) throws IOException {
             List<B> allBuckets = new ArrayList<>();
             for (long ordinal = 0; ordinal < valueCount; ordinal++) {
                 long docCount = bucketDocCount(ordinal);
