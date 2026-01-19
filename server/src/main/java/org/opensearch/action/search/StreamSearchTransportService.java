@@ -143,7 +143,7 @@ public class StreamSearchTransportService extends SearchTransportService {
         final boolean fetchDocuments = request.numberOfShards() == 1;
         Writeable.Reader<SearchPhaseResult> reader = fetchDocuments ? QueryFetchSearchResult::new : QuerySearchResult::new;
 
-        final StreamSearchActionListener streamListener = (StreamSearchActionListener) listener;
+        final StreamSearchActionListener streamListener = (StreamSearchActionListener) responseWrapper.apply(connection, listener);
         StreamTransportResponseHandler<SearchPhaseResult> transportHandler = new StreamTransportResponseHandler<SearchPhaseResult>() {
             @Override
             public void handleStreamResponse(StreamTransportResponse<SearchPhaseResult> response) {
@@ -178,7 +178,7 @@ public class StreamSearchTransportService extends SearchTransportService {
 
             @Override
             public void handleException(TransportException e) {
-                listener.onFailure(e);
+                streamListener.onFailure(e);
             }
 
             @Override

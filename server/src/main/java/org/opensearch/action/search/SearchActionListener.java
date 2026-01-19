@@ -44,7 +44,7 @@ import org.opensearch.search.SearchShardTarget;
 abstract class SearchActionListener<T extends SearchPhaseResult> implements ActionListener<T> {
 
     final int requestIndex;
-    private final SearchShardTarget searchShardTarget;
+    final SearchShardTarget searchShardTarget;
 
     protected SearchActionListener(SearchShardTarget searchShardTarget, int shardIndex) {
         assert shardIndex >= 0 : "shard index must be positive";
