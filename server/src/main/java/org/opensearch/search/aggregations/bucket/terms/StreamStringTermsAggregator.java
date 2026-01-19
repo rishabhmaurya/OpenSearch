@@ -32,10 +32,14 @@ import org.opensearch.search.streaming.StreamingCostMetrics;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+
+import org.apache.lucene.util.ArrayUtil;
+import org.apache.lucene.util.PriorityQueue;
 
 import static org.opensearch.search.aggregations.InternalOrder.isKeyOrder;
 
@@ -81,6 +85,14 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
     @Override
     public InternalAggregation[] buildAggregations(long[] owningBucketOrds) throws IOException {
         return resultStrategy.buildAggregationsBatch(owningBucketOrds);
+    }
+
+    /**
+     * Get segment size for TopN filtering at segment level.
+     * Defaults to shard_size if not explicitly set.
+     */
+    protected int getSegmentSize() {
+        return bucketCountThresholds.getShardSize();
     }
 
     @Override
@@ -185,30 +197,19 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
                 return results;
             }
 
-            // for each owning bucket, there will be list of bucket ord of this aggregation
             B[][] topBucketsPerOwningOrd = buildTopBucketsPerOrd(owningBucketOrds.length);
             long[] otherDocCount = new long[owningBucketOrds.length];
+            int segmentSize = getSegmentSize();
+            
             for (int ordIdx = 0; ordIdx < owningBucketOrds.length; ordIdx++) {
-
-                // processing each owning bucket
                 checkCancelled();
-                List<B> bucketsPerOwningOrd = new ArrayList<>();
-                for (long ordinal = 0; ordinal < valueCount; ordinal++) {
-                    long docCount = bucketDocCount(ordinal);
-                    if (bucketCountThresholds.getMinDocCount() == 0 || docCount > 0) {
-                        if (docCount >= localBucketCountThresholds.getMinDocCount()) {
-                            B finalBucket = buildFinalBucket(ordinal, docCount);
-                            bucketsPerOwningOrd.add(finalBucket);
-                        }
-                    }
-                }
-
-                // Get the top buckets
-                // ordered contains the top buckets for the owning bucket
-                topBucketsPerOwningOrd[ordIdx] = buildBuckets(bucketsPerOwningOrd.size());
-
+                
+                // Apply segment-level TopN filtering
+                List<B> topBuckets = selectTopBuckets(segmentSize, localBucketCountThresholds);
+                
+                topBucketsPerOwningOrd[ordIdx] = buildBuckets(topBuckets.size());
                 for (int i = 0; i < topBucketsPerOwningOrd[ordIdx].length; i++) {
-                    topBucketsPerOwningOrd[ordIdx][i] = bucketsPerOwningOrd.get(i);
+                    topBucketsPerOwningOrd[ordIdx][i] = topBuckets.get(i);
                 }
             }
 
@@ -219,6 +220,75 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
                 results[ordIdx] = buildResult(owningBucketOrds[ordIdx], otherDocCount[ordIdx], topBucketsPerOwningOrd[ordIdx]);
             }
             return results;
+        }
+        
+        /**
+         * Select top N buckets using priority queue or quick select based on bucket count.
+         */
+        private List<B> selectTopBuckets(int segmentSize, LocalBucketCountThresholds thresholds) throws IOException {
+            int factor = context.bucketSelectionStrategyFactor();
+            boolean usePriorityQueue = ((long) segmentSize * factor < valueCount) || isKeyOrder(order);
+            
+            if (usePriorityQueue) {
+                return selectWithPriorityQueue(segmentSize, thresholds);
+            } else {
+                return selectWithQuickSelect(segmentSize, thresholds);
+            }
+        }
+        
+        private List<B> selectWithPriorityQueue(int segmentSize, LocalBucketCountThresholds thresholds) throws IOException {
+            PriorityQueue<B> pq = new PriorityQueue<B>(segmentSize) {
+                @Override
+                protected boolean lessThan(B a, B b) {
+                    return order.comparator().compare(a, b) > 0;
+                }
+            };
+            
+            for (long ordinal = 0; ordinal < valueCount; ordinal++) {
+                long docCount = bucketDocCount(ordinal);
+                if (docCount < thresholds.getMinDocCount()) {
+                    continue;
+                }
+                B bucket = buildFinalBucket(ordinal, docCount);
+                if (pq.size() < segmentSize) {
+                    pq.add(bucket);
+                } else if (order.comparator().compare(bucket, pq.top()) < 0) {
+                    pq.top();
+                    pq.updateTop(bucket);
+                }
+            }
+            
+            List<B> result = new ArrayList<>(pq.size());
+            while (pq.size() > 0) {
+                result.add(pq.pop());
+            }
+            Collections.reverse(result);
+            return result;
+        }
+        
+        private List<B> selectWithQuickSelect(int segmentSize, LocalBucketCountThresholds thresholds) throws IOException {
+            List<B> allBuckets = new ArrayList<>();
+            for (long ordinal = 0; ordinal < valueCount; ordinal++) {
+                long docCount = bucketDocCount(ordinal);
+                if (docCount >= thresholds.getMinDocCount()) {
+                    allBuckets.add(buildFinalBucket(ordinal, docCount));
+                }
+            }
+            
+            if (allBuckets.size() <= segmentSize) {
+                return allBuckets;
+            }
+            
+            B[] bucketArray = (B[]) allBuckets.toArray(new InternalMultiBucketAggregation.InternalBucket[0]);
+            ArrayUtil.select(
+                bucketArray,
+                0,
+                bucketArray.length,
+                segmentSize,
+                order.comparator()
+            );
+            
+            return Arrays.asList(Arrays.copyOf(bucketArray, segmentSize));
         }
 
         /**
