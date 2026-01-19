@@ -88,7 +88,14 @@ class FlightTransportChannel extends TcpTransportChannel {
             throw new StreamException(StreamErrorCode.UNAVAILABLE, "Stream is closed for requestId [" + requestId + "]");
         }
         if (response instanceof QuerySearchResult && ((QuerySearchResult) response).getShardSearchRequest() != null) {
-            ((QuerySearchResult) response).getShardSearchRequest().setOutboundNetworkTime(System.currentTimeMillis());
+            long timestamp = System.currentTimeMillis();
+            ((QuerySearchResult) response).getShardSearchRequest().setOutboundNetworkTime(timestamp);
+            logger.debug("FlightTransportChannel: Set outboundNetworkTime={} for response type={}", timestamp, response.getClass().getSimpleName());
+        } else {
+            logger.debug("FlightTransportChannel: NOT setting outboundNetworkTime for response type={}, isQuerySearchResult={}, hasShardSearchRequest={}", 
+                response.getClass().getSimpleName(), 
+                response instanceof QuerySearchResult,
+                response instanceof QuerySearchResult ? ((QuerySearchResult) response).getShardSearchRequest() != null : "N/A");
         }
         try {
             ((FlightOutboundHandler) outboundHandler).sendResponseBatch(
