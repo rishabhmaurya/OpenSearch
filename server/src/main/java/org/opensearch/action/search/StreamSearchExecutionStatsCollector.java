@@ -4,9 +4,12 @@
 
 package org.opensearch.action.search;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.node.ResponseCollectorService;
 import org.opensearch.search.SearchPhaseResult;
+import org.opensearch.search.fetch.QueryFetchSearchResult;
 import org.opensearch.search.query.QuerySearchResult;
 import org.opensearch.transport.Transport;
 
@@ -18,6 +21,8 @@ import java.util.function.BiFunction;
  * and proper delta computation for network outbound time.
  */
 public final class StreamSearchExecutionStatsCollector {
+
+    private static final Logger logger = LogManager.getLogger(StreamSearchExecutionStatsCollector.class);
 
     private final String nodeId;
     private final ResponseCollectorService collector;
@@ -61,10 +66,16 @@ public final class StreamSearchExecutionStatsCollector {
     }
 
     void processResponse(SearchPhaseResult response, boolean isLast) {
+        if (response instanceof QueryFetchSearchResult) {
+            response.queryResult().getShardSearchRequest().setOutboundNetworkTime(0);
+            response.queryResult().getShardSearchRequest().setInboundNetworkTime(0);
+        }
         QuerySearchResult queryResult = response.queryResult();
         if (response.getShardSearchRequest() != null) {
-            // Calculate delta for this batch and accumulate (for both local and remote)
-            long batchDelta = Math.max(0, System.currentTimeMillis() - response.getShardSearchRequest().getOutboundNetworkTime());
+            // Calculate delta for this batch (outboundNetworkTime is set fresh per batch)
+            long outboundTime = response.getShardSearchRequest().getOutboundNetworkTime();
+            logger.debug("Processing response: outboundTime={}, currentTime={}, isLast={}", outboundTime, System.currentTimeMillis(), isLast);
+            long batchDelta = Math.max(0, System.currentTimeMillis() - outboundTime);
             accumulatedNetworkTime += batchDelta;
             // Set accumulated network time only for final response
             if (isLast) {
