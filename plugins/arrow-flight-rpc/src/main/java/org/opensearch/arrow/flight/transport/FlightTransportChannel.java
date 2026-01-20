@@ -93,14 +93,21 @@ class FlightTransportChannel extends TcpTransportChannel {
         } else if (response instanceof org.opensearch.search.fetch.QueryFetchSearchResult) {
             queryResult = ((org.opensearch.search.fetch.QueryFetchSearchResult) response).queryResult();
         }
-        
+
         if (queryResult != null && queryResult.getShardSearchRequest() != null) {
             long timestamp = System.currentTimeMillis();
             queryResult.getShardSearchRequest().setOutboundNetworkTime(timestamp);
-            logger.debug("FlightTransportChannel: Set outboundNetworkTime={} for response type={}", timestamp, response.getClass().getSimpleName());
+            logger.debug(
+                "FlightTransportChannel: Set outboundNetworkTime={} for response type={}",
+                timestamp,
+                response.getClass().getSimpleName()
+            );
         } else {
-            logger.debug("FlightTransportChannel: NOT setting outboundNetworkTime for response type={}, queryResult={}", 
-                response.getClass().getSimpleName(), queryResult != null ? "found" : "null");
+            logger.debug(
+                "FlightTransportChannel: NOT setting outboundNetworkTime for response type={}, queryResult={}",
+                response.getClass().getSimpleName(),
+                queryResult != null ? "found" : "null"
+            );
         }
         try {
             ((FlightOutboundHandler) outboundHandler).sendResponseBatch(
