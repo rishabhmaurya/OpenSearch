@@ -221,54 +221,66 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
         }
         
         /**
-         * Select top N buckets using quick select.
+         * Select top N buckets using quick select on doc counts only.
+         * Only supports doc count based ordering for optimal performance.
          */
         private List<B> selectTopBuckets(int segmentSize, LocalBucketCountThresholds thresholds) throws IOException {
-            // First collect lightweight bucket representations
-            List<BucketCandidate> candidates = new ArrayList<>();
+            // Count qualifying buckets
+            int candidateCount = 0;
             for (long ordinal = 0; ordinal < valueCount; ordinal++) {
                 long docCount = bucketDocCount(ordinal);
                 if (docCount >= thresholds.getMinDocCount()) {
-                    candidates.add(new BucketCandidate(ordinal, docCount));
+                    candidateCount++;
                 }
             }
             
-            if (candidates.size() <= segmentSize) {
+            if (candidateCount <= segmentSize) {
                 // Materialize all candidates
-                List<B> result = new ArrayList<>(candidates.size());
-                for (BucketCandidate candidate : candidates) {
-                    result.add(buildFinalBucket(candidate.ordinal, candidate.docCount));
+                List<B> result = new ArrayList<>(candidateCount);
+                for (long ordinal = 0; ordinal < valueCount; ordinal++) {
+                    long docCount = bucketDocCount(ordinal);
+                    if (docCount >= thresholds.getMinDocCount()) {
+                        result.add(buildFinalBucket(ordinal, docCount));
+                    }
                 }
                 return result;
             }
             
-            // Use quick select to partition top N
-            BucketCandidate[] candidateArray = candidates.toArray(new BucketCandidate[0]);
+            // Create arrays for quick select
+            long[] ordinals = new long[candidateCount];
+            long[] docCounts = new long[candidateCount];
+            int idx = 0;
+            for (long ordinal = 0; ordinal < valueCount; ordinal++) {
+                long docCount = bucketDocCount(ordinal);
+                if (docCount >= thresholds.getMinDocCount()) {
+                    ordinals[idx] = ordinal;
+                    docCounts[idx] = docCount;
+                    idx++;
+                }
+            }
+            
+            // Use indices for quick select to avoid lookup issues
+            Integer[] indices = new Integer[candidateCount];
+            for (int i = 0; i < candidateCount; i++) {
+                indices[i] = i;
+            }
+            
+            // Quick select top N by doc count (descending)
             ArrayUtil.select(
-                candidateArray,
+                indices,
                 0,
-                candidateArray.length,
+                candidateCount,
                 segmentSize,
-                (a, b) -> Long.compare(b.docCount, a.docCount) // Sort by doc count desc
+                (a, b) -> Long.compare(docCounts[b], docCounts[a])
             );
             
             // Materialize only the top N buckets
             List<B> result = new ArrayList<>(segmentSize);
             for (int i = 0; i < segmentSize; i++) {
-                BucketCandidate candidate = candidateArray[i];
-                result.add(buildFinalBucket(candidate.ordinal, candidate.docCount));
+                int selectedIdx = indices[i];
+                result.add(buildFinalBucket(ordinals[selectedIdx], docCounts[selectedIdx]));
             }
             return result;
-        }
-        
-        private static class BucketCandidate {
-            final long ordinal;
-            final long docCount;
-            
-            BucketCandidate(long ordinal, long docCount) {
-                this.ordinal = ordinal;
-                this.docCount = docCount;
-            }
         }
 
         /**
