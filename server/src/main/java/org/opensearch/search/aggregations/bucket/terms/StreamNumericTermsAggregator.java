@@ -187,7 +187,8 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
         }
         
         /**
-         * Select top N buckets using quick select.
+         * Select top N buckets using quick select on doc counts only.
+         * Only supports doc count based ordering for optimal performance.
          */
         private List<B> selectTopBuckets(
             LongKeyedBucketOrds.BucketOrdsEnum ordsEnum,
@@ -196,71 +197,68 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
             LocalBucketCountThresholds thresholds,
             long owningBucketOrd
         ) throws IOException {
-            // First collect lightweight bucket representations
-            List<BucketCandidate> candidates = new ArrayList<>();
+            // Count qualifying buckets
+            int candidateCount = 0;
             while (ordsEnum.next()) {
                 long docCount = bucketDocCount(ordsEnum.ord());
                 if (docCount >= thresholds.getMinDocCount()) {
-                    candidates.add(new BucketCandidate(ordsEnum.ord(), ordsEnum.value(), docCount));
+                    candidateCount++;
                 }
             }
             
-            if (candidates.size() <= segmentSize) {
+            // Reset enum for second pass
+            ordsEnum = bucketOrds.ordsEnum(owningBucketOrd);
+            
+            if (candidateCount <= segmentSize) {
                 // Materialize all candidates
-                List<B> result = new ArrayList<>(candidates.size());
-                for (BucketCandidate candidate : candidates) {
-                    result.add(buildFinalBucket(candidate, owningBucketOrd));
+                List<B> result = new ArrayList<>(candidateCount);
+                while (ordsEnum.next()) {
+                    long docCount = bucketDocCount(ordsEnum.ord());
+                    if (docCount >= thresholds.getMinDocCount()) {
+                        result.add(buildFinalBucket(ordsEnum.ord(), ordsEnum.value(), docCount, owningBucketOrd));
+                    }
                 }
                 return result;
             }
             
-            // For doc count based ordering, use lightweight quick select
-            if (InternalOrder.isCountDesc(order)) {
-                BucketCandidate[] candidateArray = candidates.toArray(new BucketCandidate[0]);
-                ArrayUtil.select(
-                    candidateArray,
-                    0,
-                    candidateArray.length,
-                    segmentSize,
-                    (a, b) -> Long.compare(b.docCount, a.docCount)
-                );
-                
-                // Materialize only the top N buckets
-                List<B> result = new ArrayList<>(segmentSize);
-                for (int i = 0; i < segmentSize; i++) {
-                    result.add(buildFinalBucket(candidateArray[i], owningBucketOrd));
+            // Create arrays for quick select
+            long[] ords = new long[candidateCount];
+            long[] values = new long[candidateCount];
+            long[] docCounts = new long[candidateCount];
+            int idx = 0;
+            
+            while (ordsEnum.next()) {
+                long docCount = bucketDocCount(ordsEnum.ord());
+                if (docCount >= thresholds.getMinDocCount()) {
+                    ords[idx] = ordsEnum.ord();
+                    values[idx] = ordsEnum.value();
+                    docCounts[idx] = docCount;
+                    idx++;
                 }
-                return result;
             }
             
-            // For other orderings, materialize all buckets first
-            List<B> allBuckets = new ArrayList<>(candidates.size());
-            for (BucketCandidate candidate : candidates) {
-                allBuckets.add(buildFinalBucket(candidate, owningBucketOrd));
+            // Use indices for quick select
+            Integer[] indices = new Integer[candidateCount];
+            for (int i = 0; i < candidateCount; i++) {
+                indices[i] = i;
             }
             
-            B[] bucketArray = (B[]) allBuckets.toArray(new InternalMultiBucketAggregation.InternalBucket[0]);
+            // Quick select top N by doc count (descending)
             ArrayUtil.select(
-                bucketArray,
+                indices,
                 0,
-                bucketArray.length,
+                candidateCount,
                 segmentSize,
-                order.comparator()
+                (a, b) -> Long.compare(docCounts[b], docCounts[a])
             );
             
-            return Arrays.asList(Arrays.copyOf(bucketArray, segmentSize));
-        }
-        
-        static class BucketCandidate {
-            final long ord;
-            final long value;
-            final long docCount;
-            
-            BucketCandidate(long ord, long value, long docCount) {
-                this.ord = ord;
-                this.value = value;
-                this.docCount = docCount;
+            // Materialize only the top N buckets
+            List<B> result = new ArrayList<>(segmentSize);
+            for (int i = 0; i < segmentSize; i++) {
+                int selectedIdx = indices[i];
+                result.add(buildFinalBucket(ords[selectedIdx], values[selectedIdx], docCounts[selectedIdx], owningBucketOrd));
             }
+            return result;
         }
 
         /**
@@ -317,7 +315,7 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
         /**
          * Build a final bucket directly with the provided data, skipping temporary bucket creation.
          */
-        abstract B buildFinalBucket(BucketCandidate candidate, long owningBucketOrd) throws IOException;
+        abstract B buildFinalBucket(long ord, long value, long docCount, long owningBucketOrd) throws IOException;
     }
 
     abstract class StandardTermsResultStrategy<R extends InternalMappedTerms<R, B>, B extends InternalTerms.Bucket<B>> extends
@@ -439,9 +437,9 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
         }
 
         @Override
-        LongTerms.Bucket buildFinalBucket(BucketCandidate candidate, long owningBucketOrd) {
-            LongTerms.Bucket result = new LongTerms.Bucket(candidate.value, candidate.docCount, null, showTermDocCountError, 0, format);
-            result.bucketOrd = candidate.ord;
+        LongTerms.Bucket buildFinalBucket(long ord, long value, long docCount, long owningBucketOrd) {
+            LongTerms.Bucket result = new LongTerms.Bucket(value, docCount, null, showTermDocCountError, 0, format);
+            result.bucketOrd = ord;
             result.setDocCountError(0);
             return result;
         }
@@ -520,16 +518,16 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
         }
 
         @Override
-        DoubleTerms.Bucket buildFinalBucket(BucketCandidate candidate, long owningBucketOrd) {
+        DoubleTerms.Bucket buildFinalBucket(long ord, long value, long docCount, long owningBucketOrd) {
             DoubleTerms.Bucket result = new DoubleTerms.Bucket(
-                NumericUtils.sortableLongToDouble(candidate.value),
-                candidate.docCount,
+                NumericUtils.sortableLongToDouble(value),
+                docCount,
                 null,
                 showTermDocCountError,
                 0,
                 format
             );
-            result.bucketOrd = candidate.ord;
+            result.bucketOrd = ord;
             result.setDocCountError(0);
             return result;
         }
@@ -607,16 +605,16 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
         }
 
         @Override
-        UnsignedLongTerms.Bucket buildFinalBucket(BucketCandidate candidate, long owningBucketOrd) {
+        UnsignedLongTerms.Bucket buildFinalBucket(long ord, long value, long docCount, long owningBucketOrd) {
             UnsignedLongTerms.Bucket result = new UnsignedLongTerms.Bucket(
-                Numbers.toUnsignedBigInteger(candidate.value),
-                candidate.docCount,
+                Numbers.toUnsignedBigInteger(value),
+                docCount,
                 null,
                 showTermDocCountError,
                 0,
                 format
             );
-            result.bucketOrd = candidate.ord;
+            result.bucketOrd = ord;
             result.setDocCountError(0);
             return result;
         }
