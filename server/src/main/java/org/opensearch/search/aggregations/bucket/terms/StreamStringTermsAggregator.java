@@ -224,28 +224,51 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
          * Select top N buckets using quick select.
          */
         private List<B> selectTopBuckets(int segmentSize, LocalBucketCountThresholds thresholds) throws IOException {
-            List<B> allBuckets = new ArrayList<>();
+            // First collect lightweight bucket representations
+            List<BucketCandidate> candidates = new ArrayList<>();
             for (long ordinal = 0; ordinal < valueCount; ordinal++) {
                 long docCount = bucketDocCount(ordinal);
                 if (docCount >= thresholds.getMinDocCount()) {
-                    allBuckets.add(buildFinalBucket(ordinal, docCount));
+                    candidates.add(new BucketCandidate(ordinal, docCount));
                 }
             }
             
-            if (allBuckets.size() <= segmentSize) {
-                return allBuckets;
+            if (candidates.size() <= segmentSize) {
+                // Materialize all candidates
+                List<B> result = new ArrayList<>(candidates.size());
+                for (BucketCandidate candidate : candidates) {
+                    result.add(buildFinalBucket(candidate.ordinal, candidate.docCount));
+                }
+                return result;
             }
             
-            B[] bucketArray = (B[]) allBuckets.toArray(new InternalMultiBucketAggregation.InternalBucket[0]);
+            // Use quick select to partition top N
+            BucketCandidate[] candidateArray = candidates.toArray(new BucketCandidate[0]);
             ArrayUtil.select(
-                bucketArray,
+                candidateArray,
                 0,
-                bucketArray.length,
+                candidateArray.length,
                 segmentSize,
-                order.comparator()
+                (a, b) -> Long.compare(b.docCount, a.docCount) // Sort by doc count desc
             );
             
-            return Arrays.asList(Arrays.copyOf(bucketArray, segmentSize));
+            // Materialize only the top N buckets
+            List<B> result = new ArrayList<>(segmentSize);
+            for (int i = 0; i < segmentSize; i++) {
+                BucketCandidate candidate = candidateArray[i];
+                result.add(buildFinalBucket(candidate.ordinal, candidate.docCount));
+            }
+            return result;
+        }
+        
+        private static class BucketCandidate {
+            final long ordinal;
+            final long docCount;
+            
+            BucketCandidate(long ordinal, long docCount) {
+                this.ordinal = ordinal;
+                this.docCount = docCount;
+            }
         }
 
         /**
