@@ -108,21 +108,34 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
             return null;
         }
 
-        long startTime = System.currentTimeMillis();
+        long batchRequestStart = System.nanoTime();
+        logger.debug("Requesting next batch for correlation ID: {}", correlationId);
+
         try {
             if (!firstResponseConsumed) {
                 // First call - use the batch we already fetched during initialization
                 firstResponseConsumed = true;
+                long batchReceived = System.nanoTime();
+                long deltaMs = (batchReceived - batchRequestStart) / 1_000_000;
+                logger.debug("First batch received for correlation ID: {} in {}ms, size: {} bytes",
+                    correlationId, deltaMs, currentBatchSize);
                 return deserializeResponse();
             }
 
             if (flightStream.next()) {
+                long batchReceived = System.nanoTime();
                 currentRoot = flightStream.getRoot();
                 currentHeader = headerContext.getHeader(correlationId);
                 // Capture the batch size before deserialization
                 currentBatchSize = FlightUtils.calculateVectorSchemaRootSize(currentRoot);
+                long deltaMs = (batchReceived - batchRequestStart) / 1_000_000;
+                logger.debug("Batch received for correlation ID: {} in {}ms, size: {} bytes",
+                    correlationId, deltaMs, currentBatchSize);
                 return deserializeResponse();
             } else {
+                long batchReceived = System.nanoTime();
+                long deltaMs = (batchReceived - batchRequestStart) / 1_000_000;
+                logger.debug("Stream exhausted for correlation ID: {} after {}ms", correlationId, deltaMs);
                 streamExhausted = true;
                 return null;
             }
@@ -133,7 +146,7 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
             streamExhausted = true;
             throw new StreamException(StreamErrorCode.INTERNAL, "Failed to fetch next batch", e);
         } finally {
-            logSlowOperation(startTime);
+            logSlowOperation(batchRequestStart / 1_000_000);
         }
     }
 
@@ -198,15 +211,24 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
         if (streamInitialized || streamExhausted) {
             return;
         }
-        long startTime = System.currentTimeMillis();
+        long initStart = System.nanoTime();
+        logger.debug("Initializing stream for correlation ID: {}", correlationId);
+
         try {
             if (flightStream.next()) {
+                long initReceived = System.nanoTime();
                 currentRoot = flightStream.getRoot();
                 currentHeader = headerContext.getHeader(correlationId);
                 // Capture the batch size before deserialization
                 currentBatchSize = FlightUtils.calculateVectorSchemaRootSize(currentRoot);
                 streamInitialized = true;
+                long deltaMs = (initReceived - initStart) / 1_000_000;
+                logger.debug("Stream initialized for correlation ID: {} in {}ms, first batch size: {} bytes",
+                    correlationId, deltaMs, currentBatchSize);
             } else {
+                long initReceived = System.nanoTime();
+                long deltaMs = (initReceived - initStart) / 1_000_000;
+                logger.debug("Stream empty for correlation ID: {} after {}ms", correlationId, deltaMs);
                 streamExhausted = true;
             }
         } catch (FlightRuntimeException e) {
@@ -223,7 +245,7 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
             initializationException = new StreamException(StreamErrorCode.INTERNAL, "Stream initialization failed", e);
             logger.warn("Stream initialization failed", e);
         } finally {
-            logSlowOperation(startTime);
+            logSlowOperation(initStart / 1_000_000);
         }
     }
 
