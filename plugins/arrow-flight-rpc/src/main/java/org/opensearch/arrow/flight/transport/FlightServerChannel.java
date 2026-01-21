@@ -52,6 +52,8 @@ class FlightServerChannel implements TcpChannel {
     private final FlightCallTracker callTracker;
     private volatile boolean cancelled = false;
     private final ExecutorService executor;
+    private int batchNumber = 0;
+    private final long correlationId;
 
     public FlightServerChannel(
         ServerStreamListener serverStreamListener,
@@ -62,8 +64,11 @@ class FlightServerChannel implements TcpChannel {
     ) {
         this.serverStreamListener = serverStreamListener;
         this.serverStreamListener.setUseZeroCopy(true);
+        this.correlationId = Long.parseLong(middleware.getCorrelationId());
+        logger.debug("Creating FlightServerChannel for correlation ID: {}", correlationId);
         this.serverStreamListener.setOnCancelHandler(() -> {
             cancelled = true;
+            logger.debug("Stream cancelled for correlation ID: {} after {} batches", correlationId, batchNumber);
             callTracker.recordCallEnd(StreamErrorCode.CANCELLED.name());
             close();
         });
@@ -102,12 +107,17 @@ class FlightServerChannel implements TcpChannel {
         if (!open.get()) {
             throw new IllegalStateException("FlightServerChannel already closed.");
         }
+        
         long batchStartTime = System.nanoTime();
+        batchNumber++;
+        logger.debug("Sending batch #{} for correlation ID: {}", batchNumber, correlationId);
+        
         // Only set for the first batch
         if (root == null) {
             middleware.setHeader(header);
             root = output.getRoot();
             serverStreamListener.start(root);
+            logger.debug("Started stream for correlation ID: {} with first batch", correlationId);
         } else {
             root = output.getRoot();
             // placeholder to clear and fill the root with data for the next batch
@@ -115,10 +125,16 @@ class FlightServerChannel implements TcpChannel {
 
         // we do not want to close the root right after putNext() call as we do not know the status of it whether
         // its transmitted at transport; we close them all at complete stream. TODO: optimize this behaviour
+        long putNextStart = System.nanoTime();
         serverStreamListener.putNext();
+        long putNextTime = (System.nanoTime() - putNextStart) / 1_000_000;
+        
         if (callTracker != null) {
             long rootSize = FlightUtils.calculateVectorSchemaRootSize(root);
-            callTracker.recordBatchSent(rootSize, System.nanoTime() - batchStartTime);
+            long totalTime = System.nanoTime() - batchStartTime;
+            callTracker.recordBatchSent(rootSize, totalTime);
+            logger.debug("Batch #{} sent for correlation ID: {} in {}ms, size: {} bytes, putNext: {}ms", 
+                batchNumber, correlationId, totalTime / 1_000_000, rootSize, putNextTime);
         }
     }
 
@@ -134,6 +150,9 @@ class FlightServerChannel implements TcpChannel {
             if (root == null) {
                 // Set header if no batches were sent
                 middleware.setHeader(header);
+                logger.debug("Completing empty stream for correlation ID: {}", correlationId);
+            } else {
+                logger.debug("Completing stream for correlation ID: {} after {} batches", correlationId, batchNumber);
             }
             serverStreamListener.completed();
         } finally {
@@ -160,6 +179,8 @@ class FlightServerChannel implements TcpChannel {
                     .toRuntimeException();
             }
             middleware.setHeader(header);
+            logger.debug("Sending error for correlation ID: {} after {} batches: {}", 
+                correlationId, batchNumber, error.getMessage());
             serverStreamListener.error(flightExc);
             logger.debug(error);
         } finally {

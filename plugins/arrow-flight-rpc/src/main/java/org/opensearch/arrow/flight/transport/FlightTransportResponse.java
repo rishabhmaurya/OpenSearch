@@ -53,6 +53,7 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
     private volatile boolean closed;
     private volatile boolean prefetchStarted;
     private volatile Header initialHeader;
+    private int batchNumber = 0;
 
     FlightTransportResponse(
         TransportResponseHandler<T> handler,
@@ -89,16 +90,20 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
             Thread.ofVirtual().start(() -> {
                 try {
                     long start = System.nanoTime();
+                    logger.debug("Opening stream for correlation ID: {}", correlationId);
                     flightStream = flightClient.getStream(ticket, new HeaderCallOption(callHeaders));
-                    if ((System.nanoTime() - start) / 1_000_000 > 10) {
-                        logger.debug(
-                            "FlightClient.getStream() for correlationId: {} took {}ms",
-                            correlationId,
-                            (System.nanoTime() - start) / 1_000_000
-                        );
+                    long openTime = (System.nanoTime() - start) / 1_000_000;
+                    if (openTime > 10) {
+                        logger.debug("FlightClient.getStream() for correlation ID: {} took {}ms", correlationId, openTime);
                     }
 
+                    logger.debug("Prefetching first batch for correlation ID: {}", correlationId);
+                    long prefetchStart = System.nanoTime();
                     flightStream.next();
+                    batchNumber = 1;
+                    long prefetchTime = (System.nanoTime() - prefetchStart) / 1_000_000;
+                    logger.debug("First batch prefetched for correlation ID: {} in {}ms", correlationId, prefetchTime);
+                    
                     initialHeader = headerContext.getHeader(correlationId);
                     future.complete(initialHeader);
                 } catch (FlightRuntimeException e) {
@@ -119,9 +124,36 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
         if (closed) throw new StreamException(StreamErrorCode.UNAVAILABLE, "Stream is closed");
         if (flightStream == null) throw new IllegalStateException("openAndPrefetch() must be called first");
 
-        long startTime = System.currentTimeMillis();
+        long batchRequestStart = System.currentTimeMillis();
+        logger.debug("Requesting batch #{} for correlation ID: {}", batchNumber + 1, correlationId);
+        
         try {
-            boolean hasNext = firstBatchConsumed ? flightStream.next() : (firstBatchConsumed = true);
+            boolean hasNext;
+            if (!firstBatchConsumed) {
+                // First batch already prefetched
+                firstBatchConsumed = true;
+                hasNext = true;
+                batchNumber++;
+                logger.debug("Using prefetched batch #{} for correlation ID: {}, size: {} bytes", 
+                    batchNumber, correlationId, getCurrentBatchSize());
+            } else {
+                // Fetch next batch
+                long fetchStart = System.currentTimeMillis();
+                hasNext = flightStream.next();
+                if (hasNext) {
+                    batchNumber++;
+                    long fetchTime = System.currentTimeMillis() - fetchStart;
+                    VectorSchemaRoot root = flightStream.getRoot();
+                    currentBatchSize = FlightUtils.calculateVectorSchemaRootSize(root);
+                    logger.debug("Batch #{} received for correlation ID: {} in {}ms, size: {} bytes",
+                        batchNumber, correlationId, fetchTime, currentBatchSize);
+                } else {
+                    long fetchTime = System.currentTimeMillis() - fetchStart;
+                    logger.debug("Stream exhausted for correlation ID: {} after {}ms, total batches: {}", 
+                        correlationId, fetchTime, batchNumber);
+                }
+            }
+            
             if (!hasNext) return null;
 
             VectorSchemaRoot root = flightStream.getRoot();
@@ -135,9 +167,10 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
         } catch (IOException e) {
             throw new StreamException(StreamErrorCode.INTERNAL, "Failed to deserialize batch", e);
         } finally {
-            long took = System.currentTimeMillis() - startTime;
+            long took = System.currentTimeMillis() - batchRequestStart;
             if (took > config.getSlowLogThreshold().millis()) {
-                logger.warn("Flight stream next() took [{}ms], exceeding threshold [{}ms]", took, config.getSlowLogThreshold().millis());
+                logger.warn("Flight stream batch #{} for correlation ID: {} took [{}ms], exceeding threshold [{}ms]", 
+                    batchNumber, correlationId, took, config.getSlowLogThreshold().millis());
             }
         }
     }
