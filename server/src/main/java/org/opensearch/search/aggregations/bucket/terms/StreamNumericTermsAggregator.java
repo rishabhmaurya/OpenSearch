@@ -141,6 +141,7 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
         implements
             Releasable {
         protected IntArray reusableIndices;
+
         private InternalAggregation[] buildAggregationsBatch(long[] owningBucketOrds) throws IOException {
             if (bucketOrds == null) { // no data collected
                 InternalAggregation[] results = new InternalAggregation[owningBucketOrds.length];
@@ -153,13 +154,13 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
             B[][] topBucketsPerOrd = buildTopBucketsPerOrd(owningBucketOrds.length);
             long[] otherDocCounts = new long[owningBucketOrds.length];
             int segmentSize = getSegmentSize();
-            
+
             for (int ordIdx = 0; ordIdx < owningBucketOrds.length; ordIdx++) {
                 checkCancelled();
                 collectZeroDocEntriesIfNeeded(owningBucketOrds[ordIdx]);
                 LongKeyedBucketOrds.BucketOrdsEnum ordsEnum = bucketOrds.ordsEnum(owningBucketOrds[ordIdx]);
                 long bucketsInOrd = bucketOrds.bucketsInOrd(owningBucketOrds[ordIdx]);
-                
+
                 // Apply segment-level TopN filtering
                 List<B> topBuckets = selectTopBuckets(
                     ordsEnum,
@@ -168,12 +169,12 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
                     localBucketCountThresholds,
                     owningBucketOrds[ordIdx]
                 );
-                
+
                 // Calculate otherDocCount from filtered buckets
                 for (B bucket : topBuckets) {
                     otherDocCounts[ordIdx] += bucket.getDocCount();
                 }
-                
+
                 topBucketsPerOrd[ordIdx] = buildBuckets(topBuckets.size());
                 for (int i = 0; i < topBucketsPerOrd[ordIdx].length; i++) {
                     topBucketsPerOrd[ordIdx][i] = topBuckets.get(i);
@@ -187,7 +188,7 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
             }
             return result;
         }
-        
+
         private void prepareIndicesArray(long valueCount) {
             if (reusableIndices == null) {
                 reusableIndices = context.bigArrays().newIntArray(valueCount, false);
@@ -204,7 +205,7 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
             long owningBucketOrd
         ) throws IOException {
             prepareIndicesArray(totalBuckets);
-            
+
             int candidateCount = 0;
             while (ordsEnum.next()) {
                 long docCount = bucketDocCount(ordsEnum.ord());
@@ -212,7 +213,7 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
                     reusableIndices.set(candidateCount++, (int) ordsEnum.ord());
                 }
             }
-            
+
             if (candidateCount <= segmentSize) {
                 ordsEnum = bucketOrds.ordsEnum(owningBucketOrd);
                 List<B> result = new ArrayList<>(candidateCount);
@@ -224,41 +225,39 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
                 }
                 return result;
             }
-            
+
             new IntroSelector() {
-                int pivotIndex;
-                
+                int pivotOrdinal;
+
                 @Override
                 protected void swap(int i, int j) {
                     int temp = reusableIndices.get(i);
                     reusableIndices.set(i, reusableIndices.get(j));
                     reusableIndices.set(j, temp);
                 }
-                
+
                 @Override
                 protected void setPivot(int i) {
-                    pivotIndex = i;
+                    pivotOrdinal = reusableIndices.get(i);
                 }
-                
+
                 @Override
                 protected int comparePivot(int j) {
-                    return Long.compare(
-                        bucketDocCount(reusableIndices.get(j)),
-                        bucketDocCount(reusableIndices.get(pivotIndex))
-                    );
+                    // For top-K largest: invert so larger values are "smaller"
+                    return Long.compare(bucketDocCount(reusableIndices.get(j)), bucketDocCount(pivotOrdinal));
                 }
             }.select(0, candidateCount, segmentSize);
-            
+
             int[] selectedOrdinals = new int[segmentSize];
             for (int i = 0; i < segmentSize; i++) {
                 selectedOrdinals[i] = reusableIndices.get(i);
             }
-            
+
             reusableIndices.fill(0, totalBuckets, 0);
             for (int ord : selectedOrdinals) {
                 reusableIndices.set(ord, 1);
             }
-            
+
             ordsEnum = bucketOrds.ordsEnum(owningBucketOrd);
             List<B> result = new ArrayList<>(segmentSize);
             while (ordsEnum.next()) {

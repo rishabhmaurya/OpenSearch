@@ -246,7 +246,6 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
          * Select top N buckets using BigArrays for indices.
          */
         private List<B> selectTopBuckets(int segmentSize, LocalBucketCountThresholds thresholds) throws IOException {
-            // Prepare indices array for this selection
             prepareIndicesArray(valueCount);
 
             int cnt = 0;
@@ -256,10 +255,8 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
                 }
             }
 
-            // Cap segmentSize to actual candidate count
             segmentSize = Math.min(segmentSize, cnt);
 
-            // If few candidates, materialize all
             if (cnt <= segmentSize) {
                 List<B> result = new ArrayList<>();
                 for (int i = 0; i < cnt; i++) {
@@ -269,7 +266,7 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
             }
 
             IntroSelector selector = new IntroSelector() {
-                int pivotIndex;
+                int pivotOrdinal;
 
                 @Override
                 protected void swap(int i, int j) {
@@ -280,20 +277,19 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
 
                 @Override
                 protected void setPivot(int i) {
-                    pivotIndex = i;
+                    pivotOrdinal = reusableIndices.get(i);
                 }
 
                 @Override
                 protected int comparePivot(int j) {
-                    // Standard comparator contract: compare(pivot, j)
-                    // For descending order, swap the arguments
-                    return Long.compare(bucketDocCount(reusableIndices.get(j)), bucketDocCount(reusableIndices.get(pivotIndex)));
+                    // For top-K largest: invert so larger values are "smaller"
+                    return Long.compare(bucketDocCount(reusableIndices.get(j)), bucketDocCount(pivotOrdinal));
                 }
             };
 
             selector.select(0, cnt, segmentSize);
 
-            // Save selected ordinals to temp array, then mark in reusableIndices
+            // Collect selected ordinals and mark for ordinal-order iteration
             int[] selected = new int[segmentSize];
             for (int i = 0; i < segmentSize; i++) {
                 selected[i] = reusableIndices.get(i);
@@ -317,6 +313,7 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
 
         @Override
         public void close() {
+            Releasables.close(reusableIndices);
         }
 
         /**
@@ -461,5 +458,10 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
         add.accept("streaming_estimated_buckets", metrics.estimatedBucketCount());
         add.accept("streaming_estimated_docs", metrics.estimatedDocCount());
         add.accept("streaming_segment_count", metrics.segmentCount());
+    }
+
+    @Override
+    public void doClose() {
+        Releasables.close(resultStrategy);
     }
 }

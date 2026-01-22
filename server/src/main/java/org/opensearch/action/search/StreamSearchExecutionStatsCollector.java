@@ -39,8 +39,12 @@ public final class StreamSearchExecutionStatsCollector {
     public static BiFunction<Transport.Connection, SearchActionListener, ActionListener> makeWrapper(ResponseCollectorService service) {
         return (connection, originalListener) -> {
             if (originalListener instanceof StreamSearchActionListener) {
-                StreamSearchActionListener<SearchPhaseResult> streamListener = (StreamSearchActionListener<SearchPhaseResult>) originalListener;
-                StreamSearchExecutionStatsCollector statsCollector = new StreamSearchExecutionStatsCollector(service, connection.getNode().getId());
+                StreamSearchActionListener<SearchPhaseResult> streamListener = (StreamSearchActionListener<
+                    SearchPhaseResult>) originalListener;
+                StreamSearchExecutionStatsCollector statsCollector = new StreamSearchExecutionStatsCollector(
+                    service,
+                    connection.getNode().getId()
+                );
 
                 return new StreamSearchActionListener<SearchPhaseResult>(streamListener.searchShardTarget, streamListener.requestIndex) {
                     @Override
@@ -74,7 +78,12 @@ public final class StreamSearchExecutionStatsCollector {
         if (response.getShardSearchRequest() != null) {
             // Calculate delta for this batch (outboundNetworkTime is set fresh per batch)
             long outboundTime = response.getShardSearchRequest().getOutboundNetworkTime();
-            logger.debug("Processing response: outboundTime={}, currentTime={}, isLast={}", outboundTime, System.currentTimeMillis(), isLast);
+            logger.debug(
+                "Processing response: outboundTime={}, currentTime={}, isLast={}",
+                outboundTime,
+                System.currentTimeMillis(),
+                isLast
+            );
             long batchDelta = Math.max(0, System.currentTimeMillis() - outboundTime);
             accumulatedNetworkTime += batchDelta;
             // Set accumulated network time only for final response

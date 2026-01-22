@@ -1760,4 +1760,86 @@ public class StreamNumericTermsAggregatorTests extends AggregatorTestCase {
             }
         }
     }
+
+    public void testTopNSelectionWithShardSize() throws Exception {
+        try (Directory directory = newDirectory()) {
+            try (IndexWriter indexWriter = new IndexWriter(directory, new IndexWriterConfig())) {
+                // Create 10 terms with different frequencies
+                // term 0: 10 docs, term 1: 9 docs, ..., term 9: 1 doc
+                for (int i = 0; i < 10; i++) {
+                    int docCount = 10 - i;
+                    for (int j = 0; j < docCount; j++) {
+                        Document document = new Document();
+                        document.add(new NumericDocValuesField("field", i));
+                        document.add(new NumericDocValuesField("value", i * 10));
+                        indexWriter.addDocument(document);
+                    }
+                }
+
+                try (IndexReader indexReader = maybeWrapReaderEs(DirectoryReader.open(indexWriter))) {
+                    IndexSearcher indexSearcher = newIndexSearcher(indexReader);
+                    MappedFieldType fieldType = new NumberFieldMapper.NumberFieldType("field", NumberFieldMapper.NumberType.LONG);
+                    MappedFieldType valueFieldType = new NumberFieldMapper.NumberFieldType("value", NumberFieldMapper.NumberType.LONG);
+
+                    // Request size=3, shard_size=6 to trigger topN selection
+                    TermsAggregationBuilder aggregationBuilder = new TermsAggregationBuilder("test").field("field")
+                        .size(3)
+                        .shardSize(6)
+                        .subAggregation(new MaxAggregationBuilder("max_value").field("value"));
+
+                    StreamNumericTermsAggregator aggregator = createStreamAggregator(
+                        null,
+                        aggregationBuilder,
+                        indexSearcher,
+                        createIndexSettings(),
+                        new MultiBucketConsumerService.MultiBucketConsumer(
+                            DEFAULT_MAX_BUCKETS,
+                            new NoneCircuitBreakerService().getBreaker(CircuitBreaker.REQUEST)
+                        ),
+                        fieldType,
+                        valueFieldType
+                    );
+
+                    aggregator.preCollection();
+                    assertEquals("strictly single segment", 1, indexSearcher.getIndexReader().leaves().size());
+                    indexSearcher.search(new MatchAllDocsQuery(), aggregator);
+                    aggregator.postCollection();
+
+                    LongTerms result = (LongTerms) aggregator.buildAggregations(new long[] { 0 })[0];
+
+                    assertThat(result, notNullValue());
+                    // Should return top 6 buckets (shard_size)
+                    assertThat(result.getBuckets().size(), equalTo(6));
+
+                    List<LongTerms.Bucket> buckets = result.getBuckets();
+
+                    // Verify top 6 terms by doc count are present (order may vary)
+                    Map<Long, Long> bucketMap = new HashMap<>();
+                    for (LongTerms.Bucket bucket : buckets) {
+                        bucketMap.put(bucket.getKeyAsNumber().longValue(), bucket.getDocCount());
+                    }
+
+                    // Verify terms 0 through 5 are present with correct counts
+                    assertThat(bucketMap.get(0L), equalTo(10L));
+                    assertThat(bucketMap.get(1L), equalTo(9L));
+                    assertThat(bucketMap.get(2L), equalTo(8L));
+                    assertThat(bucketMap.get(3L), equalTo(7L));
+                    assertThat(bucketMap.get(4L), equalTo(6L));
+                    assertThat(bucketMap.get(5L), equalTo(5L));
+
+                    // Verify sub-aggregations
+                    for (int i = 0; i <= 5; i++) {
+                        Long termKey = (long) i;
+                        LongTerms.Bucket bucket = buckets.stream()
+                            .filter(b -> b.getKeyAsNumber().longValue() == termKey)
+                            .findFirst()
+                            .orElse(null);
+                        assertThat(bucket, notNullValue());
+                        Max max = bucket.getAggregations().get("max_value");
+                        assertThat(max.getValue(), equalTo((double) (i * 10)));
+                    }
+                }
+            }
+        }
+    }
 }
