@@ -625,4 +625,60 @@ public class SubAggregationIT extends ParameterizedDynamicSettingsOpenSearchInte
         assertNotNull(maxAgg2);
         assertEquals(23.0, maxAgg2.getValue(), 0.0); // max of field2 values 3, 13, 23
     }
+
+    @LockFeatureFlag(STREAM_TRANSPORT)
+    public void testStreamingNumericTermsWithShardSizeGreaterThanSize() throws Exception {
+        // Test shard_size < available buckets for numeric terms to verify top-N selection logic
+        BulkRequest bulkRequest = new BulkRequest();
+        for (int i = 0; i < 20; i++) {
+            bulkRequest.add(
+                new IndexRequest("index").source(XContentType.JSON, "field1", "extra" + i, "field2", i + 100, "field3", "type4")
+            );
+        }
+        BulkResponse bulkResponse = client().bulk(bulkRequest).actionGet();
+        assertFalse(bulkResponse.hasFailures());
+        client().admin().indices().flush(new FlushRequest("index").force(true)).actionGet();
+        client().admin().indices().refresh(new RefreshRequest("index")).actionGet();
+
+        // Now we have 29 unique field2 values (1,2,3,11,12,13,21,22,23,100-119)
+        // Set shard_size=5 which is less than available buckets to trigger top-N selection
+        TermsAggregationBuilder agg = terms("agg1").field("field2")
+            .size(3)
+            .shardSize(5)
+            .subAggregation(AggregationBuilders.max("agg2").field("field2"));
+
+        ActionFuture<SearchResponse> future = client().prepareStreamSearch("index")
+            .addAggregation(agg)
+            .setSize(0)
+            .setRequestCache(false)
+            .execute();
+        SearchResponse resp = future.actionGet();
+
+        assertNotNull(resp);
+        assertEquals(NUM_SHARDS, resp.getTotalShards());
+
+        LongTerms agg1 = (LongTerms) resp.getAggregations().asMap().get("agg1");
+        List<LongTerms.Bucket> buckets = agg1.getBuckets();
+        assertEquals(3, buckets.size()); // Only top 3 buckets returned
+
+        // Top 3 should be 1, 2, 3 with 10 docs each (from original data)
+        buckets.sort(Comparator.comparingLong(b -> b.getKeyAsNumber().longValue()));
+        assertEquals(1L, buckets.get(0).getKeyAsNumber().longValue());
+        assertEquals(10, buckets.get(0).getDocCount());
+        Max maxAgg0 = buckets.get(0).getAggregations().get("agg2");
+        assertNotNull(maxAgg0);
+        assertEquals(1.0, maxAgg0.getValue(), 0.0);
+
+        assertEquals(2L, buckets.get(1).getKeyAsNumber().longValue());
+        assertEquals(10, buckets.get(1).getDocCount());
+        Max maxAgg1 = buckets.get(1).getAggregations().get("agg2");
+        assertNotNull(maxAgg1);
+        assertEquals(2.0, maxAgg1.getValue(), 0.0);
+
+        assertEquals(3L, buckets.get(2).getKeyAsNumber().longValue());
+        assertEquals(10, buckets.get(2).getDocCount());
+        Max maxAgg2 = buckets.get(2).getAggregations().get("agg2");
+        assertNotNull(maxAgg2);
+        assertEquals(3.0, maxAgg2.getValue(), 0.0);
+    }
 }

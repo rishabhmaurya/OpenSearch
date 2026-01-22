@@ -11,11 +11,12 @@ package org.opensearch.search.aggregations.bucket.terms;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.PointValues;
 import org.apache.lucene.index.SortedNumericDocValues;
-import org.apache.lucene.util.ArrayUtil;
+import org.apache.lucene.util.IntroSelector;
 import org.apache.lucene.util.NumericUtils;
 import org.opensearch.common.Numbers;
 import org.opensearch.common.lease.Releasable;
 import org.opensearch.common.lease.Releasables;
+import org.opensearch.common.util.IntArray;
 import org.opensearch.index.fielddata.FieldData;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.index.mapper.NumberFieldMapper.NumberFieldType;
@@ -83,7 +84,7 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
     @Override
     public void doReset() {
         super.doReset();
-        Releasables.close(bucketOrds);
+        Releasables.close(bucketOrds, resultStrategy);
         bucketOrds = null;
     }
 
@@ -139,6 +140,7 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
     public abstract class ResultStrategy<R extends InternalAggregation, B extends InternalMultiBucketAggregation.InternalBucket>
         implements
             Releasable {
+        protected IntArray reusableIndices;
         private InternalAggregation[] buildAggregationsBatch(long[] owningBucketOrds) throws IOException {
             if (bucketOrds == null) { // no data collected
                 InternalAggregation[] results = new InternalAggregation[owningBucketOrds.length];
@@ -186,10 +188,14 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
             return result;
         }
         
-        /**
-         * Select top N buckets using quick select on doc counts only.
-         * Only supports doc count based ordering for optimal performance.
-         */
+        private void prepareIndicesArray(long valueCount) {
+            if (reusableIndices == null) {
+                reusableIndices = context.bigArrays().newIntArray(valueCount, false);
+            } else if (reusableIndices.size() < valueCount) {
+                reusableIndices = context.bigArrays().grow(reusableIndices, valueCount);
+            }
+        }
+
         private List<B> selectTopBuckets(
             LongKeyedBucketOrds.BucketOrdsEnum ordsEnum,
             long totalBuckets,
@@ -197,20 +203,18 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
             LocalBucketCountThresholds thresholds,
             long owningBucketOrd
         ) throws IOException {
-            // Count qualifying buckets
+            prepareIndicesArray(totalBuckets);
+            
             int candidateCount = 0;
             while (ordsEnum.next()) {
                 long docCount = bucketDocCount(ordsEnum.ord());
                 if (docCount >= thresholds.getMinDocCount()) {
-                    candidateCount++;
+                    reusableIndices.set(candidateCount++, (int) ordsEnum.ord());
                 }
             }
             
-            // Reset enum for second pass
-            ordsEnum = bucketOrds.ordsEnum(owningBucketOrd);
-            
             if (candidateCount <= segmentSize) {
-                // Materialize all candidates
+                ordsEnum = bucketOrds.ordsEnum(owningBucketOrd);
                 List<B> result = new ArrayList<>(candidateCount);
                 while (ordsEnum.next()) {
                     long docCount = bucketDocCount(ordsEnum.ord());
@@ -221,42 +225,47 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
                 return result;
             }
             
-            // Create arrays for quick select
-            long[] ords = new long[candidateCount];
-            long[] values = new long[candidateCount];
-            long[] docCounts = new long[candidateCount];
-            int idx = 0;
-            
-            while (ordsEnum.next()) {
-                long docCount = bucketDocCount(ordsEnum.ord());
-                if (docCount >= thresholds.getMinDocCount()) {
-                    ords[idx] = ordsEnum.ord();
-                    values[idx] = ordsEnum.value();
-                    docCounts[idx] = docCount;
-                    idx++;
+            new IntroSelector() {
+                int pivotIndex;
+                
+                @Override
+                protected void swap(int i, int j) {
+                    int temp = reusableIndices.get(i);
+                    reusableIndices.set(i, reusableIndices.get(j));
+                    reusableIndices.set(j, temp);
                 }
-            }
+                
+                @Override
+                protected void setPivot(int i) {
+                    pivotIndex = i;
+                }
+                
+                @Override
+                protected int comparePivot(int j) {
+                    return Long.compare(
+                        bucketDocCount(reusableIndices.get(j)),
+                        bucketDocCount(reusableIndices.get(pivotIndex))
+                    );
+                }
+            }.select(0, candidateCount, segmentSize);
             
-            // Use indices for quick select
-            Integer[] indices = new Integer[candidateCount];
-            for (int i = 0; i < candidateCount; i++) {
-                indices[i] = i;
-            }
-            
-            // Quick select top N by doc count (descending)
-            ArrayUtil.select(
-                indices,
-                0,
-                candidateCount,
-                segmentSize,
-                (a, b) -> Long.compare(docCounts[b], docCounts[a])
-            );
-            
-            // Materialize only the top N buckets
-            List<B> result = new ArrayList<>(segmentSize);
+            int[] selectedOrdinals = new int[segmentSize];
             for (int i = 0; i < segmentSize; i++) {
-                int selectedIdx = indices[i];
-                result.add(buildFinalBucket(ords[selectedIdx], values[selectedIdx], docCounts[selectedIdx], owningBucketOrd));
+                selectedOrdinals[i] = reusableIndices.get(i);
+            }
+            
+            reusableIndices.fill(0, totalBuckets, 0);
+            for (int ord : selectedOrdinals) {
+                reusableIndices.set(ord, 1);
+            }
+            
+            ordsEnum = bucketOrds.ordsEnum(owningBucketOrd);
+            List<B> result = new ArrayList<>(segmentSize);
+            while (ordsEnum.next()) {
+                if (reusableIndices.get(ordsEnum.ord()) == 1) {
+                    long docCount = bucketDocCount(ordsEnum.ord());
+                    result.add(buildFinalBucket(ordsEnum.ord(), ordsEnum.value(), docCount, owningBucketOrd));
+                }
             }
             return result;
         }
@@ -362,7 +371,10 @@ public class StreamNumericTermsAggregator extends TermsAggregator implements Str
         }
 
         @Override
-        public final void close() {}
+        public final void close() {
+            Releasables.close(reusableIndices);
+            reusableIndices = null;
+        }
     }
 
     /**
