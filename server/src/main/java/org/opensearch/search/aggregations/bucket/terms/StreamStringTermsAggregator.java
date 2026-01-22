@@ -13,7 +13,10 @@ import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SortedDocValues;
 import org.apache.lucene.index.SortedSetDocValues;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.IntroSelector;
 import org.opensearch.common.lease.Releasable;
+import org.opensearch.common.lease.Releasables;
+import org.opensearch.common.util.IntArray;
 import org.opensearch.search.DocValueFormat;
 import org.opensearch.search.aggregations.Aggregator;
 import org.opensearch.search.aggregations.AggregatorFactories;
@@ -36,8 +39,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-
-import org.apache.lucene.util.ArrayUtil;
 
 import static org.opensearch.search.aggregations.InternalOrder.isKeyOrder;
 
@@ -77,6 +78,7 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
         super.doReset();
         valueCount = 0;
         sortedDocValuesPerBatch = null;
+        resultStrategy.close();
         this.leafCollectorCreated = false;
     }
 
@@ -116,6 +118,9 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
             // TODO: check performance of grow vs creating a new one
             this.docCounts = context.bigArrays().grow(docCounts, valueCount);
         }
+
+        // Prepare indices array for top-N selection
+        resultStrategy.prepareIndicesArray(valueCount);
 
         SortedDocValues singleValues = DocValues.unwrapSingleton(sortedDocValuesPerBatch);
         if (singleValues != null) {
@@ -184,6 +189,22 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
         implements
             Releasable {
 
+        // Reusable indices array for top-N selection using BigArrays
+        protected IntArray reusableIndices;
+
+        protected ResultStrategy() {}
+
+        /**
+         * Prepare indices array sized to valueCount, similar to docCounts management.
+         */
+        void prepareIndicesArray(long valueCount) {
+            if (reusableIndices == null) {
+                reusableIndices = context.bigArrays().newIntArray(valueCount, false);
+            } else {
+                reusableIndices = context.bigArrays().grow(reusableIndices, valueCount);
+            }
+        }
+
         // build aggregation batch for stream search
         InternalAggregation[] buildAggregationsBatch(long[] owningBucketOrds) throws IOException {
             LocalBucketCountThresholds localBucketCountThresholds = context.asLocalBucketCountThresholds(bucketCountThresholds);
@@ -198,13 +219,13 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
             B[][] topBucketsPerOwningOrd = buildTopBucketsPerOrd(owningBucketOrds.length);
             long[] otherDocCount = new long[owningBucketOrds.length];
             int segmentSize = getSegmentSize();
-            
+
             for (int ordIdx = 0; ordIdx < owningBucketOrds.length; ordIdx++) {
                 checkCancelled();
-                
+
                 // Apply segment-level TopN filtering
                 List<B> topBuckets = selectTopBuckets(segmentSize, localBucketCountThresholds);
-                
+
                 topBucketsPerOwningOrd[ordIdx] = buildBuckets(topBuckets.size());
                 for (int i = 0; i < topBucketsPerOwningOrd[ordIdx].length; i++) {
                     topBucketsPerOwningOrd[ordIdx][i] = topBuckets.get(i);
@@ -219,68 +240,66 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
             }
             return results;
         }
-        
+
         /**
-         * Select top N buckets using quick select on doc counts only.
-         * Only supports doc count based ordering for optimal performance.
+         * Select top N buckets using BigArrays for indices.
          */
         private List<B> selectTopBuckets(int segmentSize, LocalBucketCountThresholds thresholds) throws IOException {
-            // Count qualifying buckets
-            int candidateCount = 0;
-            for (long ordinal = 0; ordinal < valueCount; ordinal++) {
-                long docCount = bucketDocCount(ordinal);
-                if (docCount >= thresholds.getMinDocCount()) {
-                    candidateCount++;
+
+            int cnt = 0;
+            for (int i = 0; i < valueCount; i++) {
+                if (bucketDocCount(i) >= thresholds.getMinDocCount()) {
+                    reusableIndices.set(cnt++, i);
                 }
             }
-            
-            if (candidateCount <= segmentSize) {
-                // Materialize all candidates
-                List<B> result = new ArrayList<>(candidateCount);
-                for (long ordinal = 0; ordinal < valueCount; ordinal++) {
-                    long docCount = bucketDocCount(ordinal);
-                    if (docCount >= thresholds.getMinDocCount()) {
-                        result.add(buildFinalBucket(ordinal, docCount));
-                    }
+
+            // If few candidates, materialize all
+            if (cnt <= segmentSize) {
+                List<B> result = new ArrayList<>();
+                for (int i = 0; i < cnt; i++) {
+                    result.add(buildFinalBucket(reusableIndices.get(i), bucketDocCount(reusableIndices.get(i))));
                 }
                 return result;
             }
-            
-            // Create arrays for quick select
-            long[] ordinals = new long[candidateCount];
-            long[] docCounts = new long[candidateCount];
-            int idx = 0;
-            for (long ordinal = 0; ordinal < valueCount; ordinal++) {
-                long docCount = bucketDocCount(ordinal);
-                if (docCount >= thresholds.getMinDocCount()) {
-                    ordinals[idx] = ordinal;
-                    docCounts[idx] = docCount;
-                    idx++;
+
+            IntroSelector selector = new IntroSelector() {
+                int pivotOrdinal;
+
+                @Override
+                protected void swap(int i, int j) {
+                    int temp = reusableIndices.get(i);
+                    reusableIndices.set(i, reusableIndices.get(j));
+                    reusableIndices.set(j, temp);
                 }
-            }
-            
-            // Use indices for quick select to avoid lookup issues
-            Integer[] indices = new Integer[candidateCount];
-            for (int i = 0; i < candidateCount; i++) {
-                indices[i] = i;
-            }
-            
-            // Quick select top N by doc count (descending)
-            ArrayUtil.select(
-                indices,
+
+                @Override
+                protected void setPivot(int i) {
+                    pivotOrdinal = reusableIndices.get(i);
+                }
+
+                @Override
+                protected int comparePivot(int j) {
+                    return Long.compare(bucketDocCount(reusableIndices.get(j)), bucketDocCount(pivotOrdinal));
+                }
+            };
+
+            selector.select(
                 0,
-                candidateCount,
-                segmentSize,
-                (a, b) -> Long.compare(docCounts[b], docCounts[a])
+                cnt,
+                segmentSize
             );
-            
-            // Materialize only the top N buckets
+
+            // Materialize top N buckets
             List<B> result = new ArrayList<>(segmentSize);
             for (int i = 0; i < segmentSize; i++) {
-                int selectedIdx = indices[i];
-                result.add(buildFinalBucket(ordinals[selectedIdx], docCounts[selectedIdx]));
+                result.add(buildFinalBucket(reusableIndices.get(i), bucketDocCount(reusableIndices.get(i))));
             }
             return result;
+        }
+
+        @Override
+        public void close() {
+            Releasables.close(reusableIndices);
         }
 
         /**
@@ -410,9 +429,6 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator i
             result.setDocCountError(0);
             return result;
         }
-
-        @Override
-        public void close() {}
     }
 
     @Override
