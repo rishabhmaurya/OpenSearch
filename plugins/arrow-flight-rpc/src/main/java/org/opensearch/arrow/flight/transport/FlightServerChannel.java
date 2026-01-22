@@ -187,7 +187,7 @@ class FlightServerChannel implements TcpChannel {
             middleware.setHeader(header);
             logger.debug("Sending error for correlation ID: {} after {} batches: {}", correlationId, batchNumber, error.getMessage());
             serverStreamListener.error(flightExc);
-            logger.debug(error);
+            logger.error(error);
         } finally {
             StreamErrorCode errorCode = flightExc != null ? mapFromCallStatus(flightExc) : StreamErrorCode.UNKNOWN;
             callTracker.recordCallEnd(errorCode.name());

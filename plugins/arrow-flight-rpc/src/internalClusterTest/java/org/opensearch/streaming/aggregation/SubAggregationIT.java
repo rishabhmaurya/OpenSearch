@@ -568,4 +568,61 @@ public class SubAggregationIT extends ParameterizedDynamicSettingsOpenSearchInte
             );
         }
     }
+
+    @LockFeatureFlag(STREAM_TRANSPORT)
+    public void testStreamingTermsWithShardSizeGreaterThanSize() throws Exception {
+        // Test shard_size < available buckets to verify top-N selection logic in StreamStringTermsAggregator
+        // Index additional data with high cardinality to create more buckets than shard_size
+        BulkRequest bulkRequest = new BulkRequest();
+        for (int i = 0; i < 20; i++) {
+            bulkRequest.add(
+                new IndexRequest("index").source(XContentType.JSON, "field1", "extra" + i, "field2", i + 100, "field3", "type4")
+            );
+        }
+        BulkResponse bulkResponse = client().bulk(bulkRequest).actionGet();
+        assertFalse(bulkResponse.hasFailures());
+        client().admin().indices().flush(new FlushRequest("index").force(true)).actionGet();
+        client().admin().indices().refresh(new RefreshRequest("index")).actionGet();
+
+        // Now we have 23 unique field1 values (value1, value2, value3, extra0-extra19)
+        // Set shard_size=5 which is less than available buckets to trigger top-N selection
+        TermsAggregationBuilder agg = terms("agg1").field("field1")
+            .size(3)
+            .shardSize(5)
+            .subAggregation(AggregationBuilders.max("agg2").field("field2"));
+
+        ActionFuture<SearchResponse> future = client().prepareStreamSearch("index")
+            .addAggregation(agg)
+            .setSize(0)
+            .setRequestCache(false)
+            .execute();
+        SearchResponse resp = future.actionGet();
+
+        assertNotNull(resp);
+        assertEquals(NUM_SHARDS, resp.getTotalShards());
+
+        StringTerms agg1 = (StringTerms) resp.getAggregations().asMap().get("agg1");
+        List<StringTerms.Bucket> buckets = agg1.getBuckets();
+        assertEquals(3, buckets.size()); // Only top 3 buckets returned
+
+        // Top 3 should be value1, value2, value3 with 30 docs each
+        buckets.sort(Comparator.comparing(StringTerms.Bucket::getKeyAsString));
+        assertEquals("value1", buckets.get(0).getKeyAsString());
+        assertEquals(30, buckets.get(0).getDocCount());
+        Max maxAgg0 = buckets.get(0).getAggregations().get("agg2");
+        assertNotNull(maxAgg0);
+        assertEquals(21.0, maxAgg0.getValue(), 0.0); // max of field2 values 1, 11, 21
+
+        assertEquals("value2", buckets.get(1).getKeyAsString());
+        assertEquals(30, buckets.get(1).getDocCount());
+        Max maxAgg1 = buckets.get(1).getAggregations().get("agg2");
+        assertNotNull(maxAgg1);
+        assertEquals(22.0, maxAgg1.getValue(), 0.0); // max of field2 values 2, 12, 22
+
+        assertEquals("value3", buckets.get(2).getKeyAsString());
+        assertEquals(30, buckets.get(2).getDocCount());
+        Max maxAgg2 = buckets.get(2).getAggregations().get("agg2");
+        assertNotNull(maxAgg2);
+        assertEquals(23.0, maxAgg2.getValue(), 0.0); // max of field2 values 3, 13, 23
+    }
 }
