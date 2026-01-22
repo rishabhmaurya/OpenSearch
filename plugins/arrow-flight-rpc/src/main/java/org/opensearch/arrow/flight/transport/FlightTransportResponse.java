@@ -101,9 +101,16 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
                     long prefetchStart = System.nanoTime();
                     flightStream.next();
                     batchNumber = 1;
+                    VectorSchemaRoot root = flightStream.getRoot();
+                    currentBatchSize = FlightUtils.calculateVectorSchemaRootSize(root);
                     long prefetchTime = (System.nanoTime() - prefetchStart) / 1_000_000;
-                    logger.debug("First batch prefetched for correlation ID: {} in {}ms", correlationId, prefetchTime);
-                    
+                    logger.debug(
+                        "First batch prefetched for correlation ID: {} in {}ms, size: {} bytes",
+                        correlationId,
+                        prefetchTime,
+                        currentBatchSize
+                    );
+
                     initialHeader = headerContext.getHeader(correlationId);
                     future.complete(initialHeader);
                 } catch (FlightRuntimeException e) {
@@ -126,16 +133,19 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
 
         long batchRequestStart = System.currentTimeMillis();
         logger.debug("Requesting batch #{} for correlation ID: {}", batchNumber + 1, correlationId);
-        
+
         try {
             boolean hasNext;
             if (!firstBatchConsumed) {
                 // First batch already prefetched
                 firstBatchConsumed = true;
                 hasNext = true;
-                batchNumber++;
-                logger.debug("Using prefetched batch #{} for correlation ID: {}, size: {} bytes", 
-                    batchNumber, correlationId, getCurrentBatchSize());
+                logger.debug(
+                    "Using prefetched batch #{} for correlation ID: {}, size: {} bytes",
+                    batchNumber,
+                    correlationId,
+                    currentBatchSize
+                );
             } else {
                 // Fetch next batch
                 long fetchStart = System.currentTimeMillis();
@@ -145,15 +155,24 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
                     long fetchTime = System.currentTimeMillis() - fetchStart;
                     VectorSchemaRoot root = flightStream.getRoot();
                     currentBatchSize = FlightUtils.calculateVectorSchemaRootSize(root);
-                    logger.debug("Batch #{} received for correlation ID: {} in {}ms, size: {} bytes",
-                        batchNumber, correlationId, fetchTime, currentBatchSize);
+                    logger.debug(
+                        "Batch #{} received for correlation ID: {} in {}ms, size: {} bytes",
+                        batchNumber,
+                        correlationId,
+                        fetchTime,
+                        currentBatchSize
+                    );
                 } else {
                     long fetchTime = System.currentTimeMillis() - fetchStart;
-                    logger.debug("Stream exhausted for correlation ID: {} after {}ms, total batches: {}", 
-                        correlationId, fetchTime, batchNumber);
+                    logger.debug(
+                        "Stream exhausted for correlation ID: {} after {}ms, total batches: {}",
+                        correlationId,
+                        fetchTime,
+                        batchNumber
+                    );
                 }
             }
-            
+
             if (!hasNext) return null;
 
             VectorSchemaRoot root = flightStream.getRoot();
@@ -169,8 +188,13 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
         } finally {
             long took = System.currentTimeMillis() - batchRequestStart;
             if (took > config.getSlowLogThreshold().millis()) {
-                logger.warn("Flight stream batch #{} for correlation ID: {} took [{}ms], exceeding threshold [{}ms]", 
-                    batchNumber, correlationId, took, config.getSlowLogThreshold().millis());
+                logger.warn(
+                    "Flight stream batch #{} for correlation ID: {} took [{}ms], exceeding threshold [{}ms]",
+                    batchNumber,
+                    correlationId,
+                    took,
+                    config.getSlowLogThreshold().millis()
+                );
             }
         }
     }

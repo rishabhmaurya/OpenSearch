@@ -107,11 +107,11 @@ class FlightServerChannel implements TcpChannel {
         if (!open.get()) {
             throw new IllegalStateException("FlightServerChannel already closed.");
         }
-        
+
         long batchStartTime = System.nanoTime();
         batchNumber++;
         logger.debug("Sending batch #{} for correlation ID: {}", batchNumber, correlationId);
-        
+
         // Only set for the first batch
         if (root == null) {
             middleware.setHeader(header);
@@ -128,13 +128,19 @@ class FlightServerChannel implements TcpChannel {
         long putNextStart = System.nanoTime();
         serverStreamListener.putNext();
         long putNextTime = (System.nanoTime() - putNextStart) / 1_000_000;
-        
+
         if (callTracker != null) {
             long rootSize = FlightUtils.calculateVectorSchemaRootSize(root);
             long totalTime = System.nanoTime() - batchStartTime;
             callTracker.recordBatchSent(rootSize, totalTime);
-            logger.debug("Batch #{} sent for correlation ID: {} in {}ms, size: {} bytes, putNext: {}ms", 
-                batchNumber, correlationId, totalTime / 1_000_000, rootSize, putNextTime);
+            logger.debug(
+                "Batch #{} sent for correlation ID: {} in {}ms, size: {} bytes, putNext: {}ms",
+                batchNumber,
+                correlationId,
+                totalTime / 1_000_000,
+                rootSize,
+                putNextTime
+            );
         }
     }
 
@@ -179,8 +185,7 @@ class FlightServerChannel implements TcpChannel {
                     .toRuntimeException();
             }
             middleware.setHeader(header);
-            logger.debug("Sending error for correlation ID: {} after {} batches: {}", 
-                correlationId, batchNumber, error.getMessage());
+            logger.debug("Sending error for correlation ID: {} after {} batches: {}", correlationId, batchNumber, error.getMessage());
             serverStreamListener.error(flightExc);
             logger.debug(error);
         } finally {
