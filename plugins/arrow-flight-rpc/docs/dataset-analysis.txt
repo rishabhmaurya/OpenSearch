@@ -1,0 +1,183 @@
+==========================================
+ClickBench Dataset Discovery
+==========================================
+
+1. Total Documents:
+100071496
+
+2. Available Fields:
+AdvEngineID
+Age
+BrowserCountry
+BrowserLanguage
+CLID
+ClientEventTime
+ClientIP
+ClientTimeZone
+CodeVersion
+ConnectTiming
+CookieEnable
+CounterClass
+CounterID
+DNSTiming
+DontCountHits
+EventDate
+EventTime
+FUniqID
+FetchTiming
+FlashMajor
+FlashMinor
+FlashMinor2
+FromTag
+GoodEvent
+HID
+HTTPError
+HasGCLID
+HistoryLength
+HitColor
+IPNetworkID
+Income
+Interests
+IsArtifical
+IsDownload
+IsEvent
+IsLink
+IsMobile
+IsNotBounce
+IsOldCounter
+IsParameter
+IsRefresh
+JavaEnable
+JavascriptEnable
+LocalEventTime
+MobilePhone
+MobilePhoneModel
+NetMajor
+NetMinor
+OS
+OpenerName
+OpenstatAdID
+OpenstatCampaignID
+OpenstatServiceName
+OpenstatSourceID
+OriginalURL
+PageCharset
+ParamCurrency
+ParamCurrencyID
+ParamOrderID
+ParamPrice
+Params
+Referer
+RefererCategoryID
+RefererHash
+RefererRegionID
+RegionID
+RemoteIP
+ResolutionDepth
+ResolutionHeight
+ResolutionWidth
+ResponseEndTiming
+ResponseStartTiming
+Robotness
+SearchEngineID
+SearchPhrase
+SendTiming
+Sex
+SilverlightVersion1
+SilverlightVersion2
+SilverlightVersion3
+SilverlightVersion4
+SocialAction
+SocialNetwork
+SocialSourceNetworkID
+SocialSourcePage
+Title
+TraficSourceID
+URL
+URLCategoryID
+URLHash
+URLRegionID
+UTMCampaign
+UTMContent
+UTMMedium
+UTMSource
+UTMTerm
+UserAgent
+UserAgentMajor
+UserAgentMinor
+UserID
+WatchID
+WindowClientHeight
+WindowClientWidth
+WindowName
+WithHash
+
+3. Numeric Field Cardinalities:
+  RegionID            : 9035
+  CounterID           : 6408
+  UserID              : 17552993
+  WatchID             : 99433209
+  JavaEnable          : 2
+  GoodEvent           : 1
+  CounterClass        : 2
+  AdvEngineID         : 19
+  Age                 : 6
+  FlashMajor          : 12
+  FlashMinor          : 9
+  NetMajor            : 6
+  NetMinor            : 8
+
+4. Text Field Cardinalities:
+  URL                      : 18285093
+  Referer                  : 19570918
+  URLDomain                : 0
+  RefererDomain            : 0
+  Title                    : 9393386
+  SearchPhrase             : 5950181
+
+5. Average Key Lengths (sample of 100 docs):
+  URL                      : 79 bytes
+  Referer                  : 58 bytes
+  URLDomain                : 0 bytes
+  RefererDomain            : 0 bytes
+  Title                    : 65 bytes
+  SearchPhrase             : 1 bytes
+
+6. Date Range:
+  Min: 2013-07-01 20:00:00
+  Max: 2013-07-31 19:59:59
+
+7. Query Selectivity Analysis:
+  RegionID=229: 18407979 docs (18.39% selectivity)
+  1 day (2013-07-15): 10594617 docs (10.58% selectivity)
+  7 days (2013-07-15 to 22): 27874983 docs (27.85% selectivity)
+  JavaEnable=1: 67280181 docs (67.23% selectivity)
+
+8. Cardinality Under Filters:
+  UserID (RegionID=229): 2835118
+  UserID (1 day): 2825912
+
+==========================================
+SUMMARY & RECOMMENDATIONS
+==========================================
+
+Based on the analysis above, suitable fields for benchmarking:
+
+LOW CARDINALITY (<10K):
+  - JavaEnable (2), GoodEvent (1), CounterClass (2)
+  - RegionID (9K), CounterID (6K)
+  - Use for: Baseline tests where traditional should win
+
+MEDIUM CARDINALITY (10K-1M):
+  - Fields with 10K-100K unique values
+  - Use for: Testing shard_size/size ratio effects
+
+HIGH CARDINALITY (>1M):
+  - UserID (17M), WatchID (99M)
+  - Use for: Testing where streaming should win
+
+QUERY FILTERS for selectivity testing:
+  - Medium selectivity (~10%): 1-day date range
+  - Medium selectivity (~18%): RegionID=229
+  - Medium selectivity (~28%): 7-day date range
+  - High selectivity (~67%): JavaEnable=1
