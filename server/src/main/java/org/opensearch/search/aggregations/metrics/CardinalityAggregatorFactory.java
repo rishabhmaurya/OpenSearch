@@ -146,15 +146,8 @@ class CardinalityAggregatorFactory extends ValuesSourceAggregatorFactory impleme
 
     @Override
     public StreamingCostMetrics estimateStreamingCost(SearchContext searchContext) {
-        ValuesSource valuesSource = config.getValuesSource();
-
-        // Only term ordinals values sources support streaming cardinality
-        if (valuesSource instanceof ValuesSource.Bytes.WithOrdinals) {
-            // TODO topNSize can relate to precision
-            return new StreamingCostMetrics(true, 1);
-        }
-
-        return StreamingCostMetrics.nonStreamable();
+        // TODO topNSize can relate to precision
+        return new StreamingCostMetrics(true, 1);
     }
 
     @Override

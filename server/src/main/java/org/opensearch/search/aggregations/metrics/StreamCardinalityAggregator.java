@@ -60,22 +60,32 @@ public class StreamCardinalityAggregator extends CardinalityAggregator {
             return streamCollector;
         }
 
-        // Only support ordinal value sources for streaming
-        if (!(valuesSource instanceof ValuesSource.Bytes.WithOrdinals)) {
-            throw new IllegalStateException("StreamCardinalityAggregator only supports ordinal value sources");
+        if (valuesSource instanceof ValuesSource.Numeric) {
+            ValuesSource.Numeric source = (ValuesSource.Numeric) valuesSource;
+            MurmurHash3Values hashValues = (source.isFloatingPoint() || source.isBigInteger())
+                ? MurmurHash3Values.hash(source.doubleValues(ctx))
+                : MurmurHash3Values.hash(source.longValues(ctx));
+            numericCollectorsUsed++;
+            return new DirectCollector(counts, hashValues);
+        } else if (valuesSource instanceof ValuesSource.Bytes.WithOrdinals) {
+            // Handle ordinal value sources - always use OrdinalsCollector
+            final SortedSetDocValues ordinalValues = ((ValuesSource.Bytes.WithOrdinals) valuesSource).ordinalsValues(ctx);
+            final long maxOrd = ordinalValues.getValueCount();
+            if (maxOrd == 0) {
+                emptyCollectorsUsed++;
+                streamCollector = new EmptyCollector();
+            } else {
+                ordinalsCollectorsUsed++;
+                streamCollector = new OrdinalsCollector(counts, ordinalValues, context.bigArrays());
+            }
+            return streamCollector;
         }
 
-        // Handle ordinal value sources - always use OrdinalsCollector
-        final SortedSetDocValues ordinalValues = ((ValuesSource.Bytes.WithOrdinals) valuesSource).ordinalsValues(ctx);
-        final long maxOrd = ordinalValues.getValueCount();
-        if (maxOrd == 0) {
-            emptyCollectorsUsed++;
-            streamCollector = new EmptyCollector();
-        } else {
-            ordinalsCollectorsUsed++;
-            streamCollector = new OrdinalsCollector(counts, ordinalValues, context.bigArrays());
+        if (collector == null) { // not able to build an OrdinalsCollector, or hint is direct
+            stringHashingCollectorsUsed++;
+            collector = new DirectCollector(counts, MurmurHash3Values.hash(valuesSource.bytesValues(ctx)));
         }
-        return streamCollector;
+        return collector;
     }
 
     @Override
