@@ -60,6 +60,9 @@ public abstract class InternalMappedTerms<A extends InternalTerms<A, B>, B exten
 
     protected long docCountError;
 
+    /** True if bucket keys are FSST-compressed bytes (needs decompression at coordinator). */
+    protected boolean fsstCompressedKeys = false;
+
     protected InternalMappedTerms(
         String name,
         BucketOrder reduceOrder,
@@ -93,6 +96,7 @@ public abstract class InternalMappedTerms<A extends InternalTerms<A, B>, B exten
         showTermDocCountError = in.readBoolean();
         otherDocCount = in.readVLong();
         buckets = in.readList(stream -> bucketReader.read(stream, format, showTermDocCountError));
+        fsstCompressedKeys = in.readBoolean();
     }
 
     @Override
@@ -103,6 +107,7 @@ public abstract class InternalMappedTerms<A extends InternalTerms<A, B>, B exten
         out.writeBoolean(showTermDocCountError);
         out.writeVLong(otherDocCount);
         out.writeList(buckets);
+        out.writeBoolean(fsstCompressedKeys);
     }
 
     @Override

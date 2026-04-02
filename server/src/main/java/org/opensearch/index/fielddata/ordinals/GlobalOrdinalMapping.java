@@ -45,10 +45,12 @@ import java.io.IOException;
  *
  * @opensearch.internal
  */
-final class GlobalOrdinalMapping extends SortedSetDocValues {
+public final class GlobalOrdinalMapping extends SortedSetDocValues {
 
     private final SortedSetDocValues values;
     private final OrdinalMap ordinalMap;
+
+    public OrdinalMap getOrdinalMap() { return ordinalMap; }
     private final LongValues mapping;
     private final TermsEnum[] lookups;
     private int docValueCount = 0;

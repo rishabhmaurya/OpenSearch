@@ -37,6 +37,7 @@ import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.search.DocValueFormat;
 import org.opensearch.search.aggregations.BucketOrder;
+import org.opensearch.search.aggregations.InternalAggregation;
 import org.opensearch.search.aggregations.InternalAggregations;
 
 import java.io.IOException;
@@ -51,6 +52,15 @@ import java.util.Objects;
  */
 public class StringTerms extends InternalMappedTerms<StringTerms, StringTerms.Bucket> {
     public static final String NAME = "sterms";
+
+    /** Transient flag — true if bucket keys are FSST-compressed (set by aggregator). */
+    public void setFsstCompressedKeys(boolean compressed) {
+        this.fsstCompressedKeys = compressed;
+    }
+
+    public boolean isFsstCompressedKeys() {
+        return fsstCompressedKeys;
+    }
 
     /**
      * Bucket for string terms
@@ -206,7 +216,7 @@ public class StringTerms extends InternalMappedTerms<StringTerms, StringTerms.Bu
 
     @Override
     protected StringTerms create(String name, List<Bucket> buckets, BucketOrder reduceOrder, long docCountError, long otherDocCount) {
-        return new StringTerms(
+        StringTerms created = new StringTerms(
             name,
             reduceOrder,
             order,
@@ -219,10 +229,74 @@ public class StringTerms extends InternalMappedTerms<StringTerms, StringTerms.Bu
             docCountError,
             bucketCountThresholds
         );
+        created.fsstCompressedKeys = this.fsstCompressedKeys;
+        return created;
     }
 
     @Override
     protected Bucket[] createBucketsArray(int size) {
         return new Bucket[size];
+    }
+
+    /** System property pointing to base path for per-field FSST symbol tables. */
+    public static final String FSST_SYMBOL_TABLE_PATH_PROP = "opensearch.fsst.basePath";
+
+    /** Cached decompressors per field name — loaded once, reused across reduce calls. */
+    private static final java.util.concurrent.ConcurrentHashMap<String, org.apache.lucene.codecs.lucene90.fsst.FSSTDecompressor>
+        DECOMPRESSOR_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static org.apache.lucene.codecs.lucene90.fsst.FSSTDecompressor getDecompressor(String name) {
+        return DECOMPRESSOR_CACHE.computeIfAbsent(name, n -> {
+            String basePath = System.getProperty(FSST_SYMBOL_TABLE_PATH_PROP);
+            if (basePath == null) return null;
+            // Try exact name first, then scan for any .fsst file
+            java.nio.file.Path tablePath = java.nio.file.Path.of(basePath, n + ".fsst");
+            if (!java.nio.file.Files.exists(tablePath)) {
+                try (var files = java.nio.file.Files.list(java.nio.file.Path.of(basePath))) {
+                    tablePath = files.filter(p -> p.toString().endsWith(".fsst")).findFirst().orElse(null);
+                } catch (java.io.IOException e) {
+                    return null;
+                }
+            }
+            if (tablePath == null || !java.nio.file.Files.exists(tablePath)) return null;
+            try {
+                return new org.apache.lucene.codecs.lucene90.fsst.FSSTDecompressor(
+                    org.apache.lucene.codecs.lucene90.fsst.FSSTSymbolTable.load(tablePath));
+            } catch (java.io.IOException e) {
+                return null;
+            }
+        });
+    }
+
+    private static final org.apache.logging.log4j.Logger logger =
+        org.apache.logging.log4j.LogManager.getLogger(StringTerms.class);
+
+    @Override
+    public InternalAggregation reduce(List<InternalAggregation> aggregations, InternalAggregation.ReduceContext reduceContext) {
+        boolean anyCompressed = aggregations.stream()
+            .filter(a -> a instanceof StringTerms)
+            .anyMatch(a -> ((StringTerms) a).fsstCompressedKeys);
+
+        logger.info("FSST reduce: anyCompressed={}, aggCount={}", anyCompressed, aggregations.size());
+
+        InternalAggregation result = super.reduce(aggregations, reduceContext);
+
+        if (anyCompressed && reduceContext.isFinalReduce() && result instanceof StringTerms st) {
+            org.apache.lucene.codecs.lucene90.fsst.FSSTDecompressor decompressor = getDecompressor(st.getName());
+            logger.info("FSST reduce: decompressor={}, name={}, buckets={}",
+                decompressor != null ? "loaded" : "null", st.getName(), st.getBuckets().size());
+            if (decompressor != null) {
+                for (Bucket b : st.getBuckets()) {
+                    try {
+                        byte[] buf = new byte[b.termBytes.length * 8];
+                        int len = decompressor.decompress(b.termBytes.bytes, b.termBytes.offset, b.termBytes.length, buf);
+                        b.termBytes = new BytesRef(java.util.Arrays.copyOf(buf, len));
+                    } catch (Exception e) {
+                        logger.error("FSST decompress failed for bucket key len={}: {}", b.termBytes.length, e.toString());
+                    }
+                }
+            }
+        }
+        return result;
     }
 }

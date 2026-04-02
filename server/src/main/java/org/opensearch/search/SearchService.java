@@ -442,6 +442,13 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
         Property.NodeScope
     );
 
+    public static final Setting<Boolean> FSST_COMPRESSED_AGGREGATION_ENABLED = Setting.boolSetting(
+        "search.fsst_compressed_aggregation_enabled",
+        false,
+        Property.Dynamic,
+        Property.NodeScope
+    );
+
     public static final Setting<Long> TERMS_AGGREGATION_MAX_PRECOMPUTE_CARDINALITY = Setting.longSetting(
         "search.aggregations.terms.max_precompute_cardinality",
         30_000L,

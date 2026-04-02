@@ -99,6 +99,8 @@ import static org.apache.lucene.index.SortedSetDocValues.NO_MORE_DOCS;
  * @opensearch.internal
  */
 public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggregator implements StarTreePreComputeCollector {
+    private static final org.apache.logging.log4j.Logger logger =
+        org.apache.logging.log4j.LogManager.getLogger(GlobalOrdinalsStringTermsAggregator.class);
     protected final ResultStrategy<?, ?, ?> resultStrategy;
     protected final ValuesSource.Bytes.WithOrdinals valuesSource;
 
@@ -112,6 +114,10 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
     protected int segmentsWithMultiValuedOrds = 0;
     protected CardinalityUpperBound cardinalityUpperBound;
     private String resultSelectionStrategy;
+    private boolean fsstCompressedAccessUsed = false;
+    private org.apache.lucene.codecs.lucene90.fsst.FSSTCompressedAccess[] fsstAccessPerSegment = null;
+    private org.apache.lucene.index.OrdinalMap fsstOrdinalMap = null;
+    private long lookupOrdCount = 0;
 
     public GlobalOrdinalsStringTermsAggregator(
         String name,
@@ -154,6 +160,25 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
             ? ((ValuesSource.Bytes.WithOrdinals.FieldData) valuesSource).getIndexFieldName()
             : null;
         this.resultSelectionStrategy = Strings.EMPTY;
+        // Cache per-segment FSST access and ordinal map for compressed lookups
+        if (context.fsstCompressedAggregationEnabled() && !reader.leaves().isEmpty()) {
+            try {
+                org.apache.lucene.codecs.lucene90.fsst.FSSTCompressedAccess[] perSeg =
+                    new org.apache.lucene.codecs.lucene90.fsst.FSSTCompressedAccess[reader.leaves().size()];
+                boolean allHaveAccess = true;
+                for (int i = 0; i < reader.leaves().size(); i++) {
+                    SortedSetDocValues segDv = valuesSource.ordinalsValues(reader.leaves().get(i));
+                    perSeg[i] = org.apache.lucene.codecs.lucene90.fsst.FSSTCompressedAccess.unwrap(segDv);
+                    if (perSeg[i] == null) { allHaveAccess = false; break; }
+                }
+                if (allHaveAccess && values instanceof org.opensearch.index.fielddata.ordinals.GlobalOrdinalMapping gom) {
+                    this.fsstAccessPerSegment = perSeg;
+                    this.fsstOrdinalMap = gom.getOrdinalMap();
+                }
+            } catch (Exception e) {
+                this.fsstAccessPerSegment = null;
+            }
+        }
     }
 
     String descriptCollectionStrategy() {
@@ -448,6 +473,8 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
         add.accept("segments_with_multi_valued_ords", segmentsWithMultiValuedOrds);
         add.accept("has_filter", acceptedGlobalOrdinals != ALWAYS_TRUE);
         add.accept("result_selection_strategy", resultSelectionStrategy);
+        add.accept("fsst_compressed_access_used", fsstCompressedAccessUsed);
+        add.accept("lookup_ord_count", lookupOrdCount);
     }
 
     public String getResultSelectionStrategy() {
@@ -749,7 +776,9 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
         @Override
         void collectGlobalOrd(long owningBucketOrd, int doc, long globalOrd, LeafBucketCollector sub) throws IOException {
             assert owningBucketOrd == 0;
-            collectExistingBucket(sub, doc, globalOrd);
+            // Skip per-doc multiBucketConsumer — bucket count bounded by globalOrds valueCount
+            docCounts.increment(globalOrd, docCountProvider.getDocCount(doc));
+            sub.collect(doc, globalOrd);
         }
 
         @Override
@@ -1142,10 +1171,24 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
         }
 
         StringTerms.Bucket convertTempBucketToRealBucket(OrdBucket temp) throws IOException {
-            // Recreate DocValues as needed for concurrent segment search
-            SortedSetDocValues values = getDocValues();
-            BytesRef term = BytesRef.deepCopyOf(values.lookupOrd(temp.globalOrd));
-
+            BytesRef term;
+            if (fsstAccessPerSegment != null && fsstOrdinalMap != null) {
+                long segOrd = fsstOrdinalMap.getFirstSegmentOrd(temp.globalOrd);
+                int segIdx = fsstOrdinalMap.getFirstSegmentNumber(temp.globalOrd);
+                term = BytesRef.deepCopyOf(fsstAccessPerSegment[segIdx].lookupCompressedOrd(segOrd));
+                if (!fsstCompressedAccessUsed) {
+                    logger.info("FSST GlobalOrd top bucket: compressed len={} bytes={}", term.length, term);
+                }
+                fsstCompressedAccessUsed = true;
+            } else {
+                SortedSetDocValues values = getDocValues();
+                term = BytesRef.deepCopyOf(values.lookupOrd(temp.globalOrd));
+                if (lookupOrdCount == 0) {
+                    logger.info("FSST GlobalOrd top bucket: plain len={} key={}",
+                        term.length, term.utf8ToString().substring(0, Math.min(60, term.utf8ToString().length())));
+                }
+            }
+            lookupOrdCount++;
             StringTerms.Bucket result = new StringTerms.Bucket(term, temp.docCount, null, showTermDocCountError, 0, format);
             result.bucketOrd = temp.bucketOrd;
             result.docCountError = 0;
@@ -1166,7 +1209,7 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
             } else {
                 reduceOrder = order;
             }
-            return new StringTerms(
+            StringTerms result = new StringTerms(
                 name,
                 reduceOrder,
                 order,
@@ -1179,6 +1222,8 @@ public class GlobalOrdinalsStringTermsAggregator extends AbstractStringTermsAggr
                 0,
                 bucketCountThresholds
             );
+            result.setFsstCompressedKeys(fsstCompressedAccessUsed);
+            return result;
         }
 
         @Override

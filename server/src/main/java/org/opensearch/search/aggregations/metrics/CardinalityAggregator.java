@@ -147,6 +147,7 @@ public class CardinalityAggregator extends NumericMetricsAggregator.SingleValue 
     int hybridCollectorsUsed;
     int ordinalsCollectorsOverheadTooHigh;
     int stringHashingCollectorsUsed;
+    int fsstCompressedOrdinalsUsed;
     int dynamicPrunedSegments;
 
     public CardinalityAggregator(
@@ -188,30 +189,39 @@ public class CardinalityAggregator extends NumericMetricsAggregator.SingleValue 
         }
 
         Collector collector = null;
+        org.apache.lucene.codecs.lucene90.fsst.FSSTCompressedAccess fsstAccess = null;
+        ValuesSource.Bytes.WithOrdinals ordinalsSource = null;
         if (valuesSource instanceof ValuesSource.Bytes.WithOrdinals source) {
+            ordinalsSource = source;
             final SortedSetDocValues ordinalValues = source.ordinalsValues(ctx);
             final long maxOrd = ordinalValues.getValueCount();
+            // Cache FSST access before iteration
+            fsstAccess = context.fsstCompressedAggregationEnabled()
+                    ? org.apache.lucene.codecs.lucene90.fsst.FSSTCompressedAccess.unwrap(ordinalValues)
+                    : null;
             if (maxOrd == 0) {
                 emptyCollectorsUsed++;
                 return new EmptyCollector();
-            } else if (executionMode == CardinalityAggregatorFactory.ExecutionMode.ORDINALS) { // Force OrdinalsCollector
+            } else if (executionMode == CardinalityAggregatorFactory.ExecutionMode.ORDINALS) {
                 ordinalsCollectorsUsed++;
-                collector = new OrdinalsCollector(counts, ordinalValues, context.bigArrays());
+                if (fsstAccess != null) fsstCompressedOrdinalsUsed++;
+                collector = new OrdinalsCollector(counts, ordinalValues, context.bigArrays(), Long.MAX_VALUE, false, fsstAccess);
             } else if (executionMode == null) {
                 // no hint provided, fall back to heuristics
                 CardinalityAggregationContext cardinalityContext = context.cardinalityAggregationContext();
 
                 if (cardinalityContext.isHybridCollectorEnabled()) {
-                    // Use HybridCollector with configurable memory threshold
                     MurmurHash3Values hashValues = MurmurHash3Values.hash(source.bytesValues(ctx));
                     hybridCollectorsUsed++;
-                    collector = new HybridCollector(counts, ordinalValues, hashValues, context.bigArrays(), cardinalityContext);
+                    if (fsstAccess != null) fsstCompressedOrdinalsUsed++;
+                    collector = new HybridCollector(counts, ordinalValues, hashValues, context.bigArrays(), cardinalityContext, fsstAccess);
                 } else {
                     final long ordinalsMemoryUsage = OrdinalsCollector.memoryOverhead(maxOrd);
                     final long countsMemoryUsage = HyperLogLogPlusPlus.memoryUsage(precision);
                     if (ordinalsMemoryUsage < countsMemoryUsage / 4) {
                         ordinalsCollectorsUsed++;
-                        collector = new OrdinalsCollector(counts, ordinalValues, context.bigArrays());
+                        if (fsstAccess != null) fsstCompressedOrdinalsUsed++;
+                        collector = new OrdinalsCollector(counts, ordinalValues, context.bigArrays(), Long.MAX_VALUE, false, fsstAccess);
                     } else {
                         ordinalsCollectorsOverheadTooHigh++;
                     }
@@ -221,7 +231,26 @@ public class CardinalityAggregator extends NumericMetricsAggregator.SingleValue 
 
         if (collector == null) { // not able to build an OrdinalsCollector, or hint is direct
             stringHashingCollectorsUsed++;
-            collector = new DirectCollector(counts, MurmurHash3Values.hash(valuesSource.bytesValues(ctx)));
+            if (fsstAccess != null && ordinalsSource != null) {
+                fsstCompressedOrdinalsUsed++;
+                final var fsst = fsstAccess;
+                final var src = ordinalsSource;
+                collector = new DirectCollector(counts, new MurmurHash3Values() {
+                    private final SortedSetDocValues ords = src.ordinalsValues(ctx);
+                    private final MurmurHash3.Hash128 hash = new MurmurHash3.Hash128();
+
+                    @Override public boolean advanceExact(int docId) throws IOException { return ords.advanceExact(docId); }
+                    @Override public int count() { return ords.docValueCount(); }
+                    @Override public long nextValue() throws IOException {
+                        long ord = ords.nextOrd();
+                        BytesRef compressed = fsst.lookupCompressedOrd(ord);
+                        MurmurHash3.hash128(compressed.bytes, compressed.offset, compressed.length, 0, hash);
+                        return hash.h1;
+                    }
+                });
+            } else {
+                collector = new DirectCollector(counts, MurmurHash3Values.hash(valuesSource.bytesValues(ctx)));
+            }
         }
 
         if (canPrune(parent, subAggregators, valuesSourceConfig)) {
@@ -392,6 +421,7 @@ public class CardinalityAggregator extends NumericMetricsAggregator.SingleValue 
         add.accept("hybrid_collectors_used", hybridCollectorsUsed);
         add.accept("ordinals_collectors_overhead_too_high", ordinalsCollectorsOverheadTooHigh);
         add.accept("string_hashing_collectors_used", stringHashingCollectorsUsed);
+        add.accept("fsst_compressed_ordinals_used", fsstCompressedOrdinalsUsed);
         add.accept("dynamic_pruned_segments", dynamicPrunedSegments);
     }
 
@@ -619,6 +649,7 @@ public class CardinalityAggregator extends NumericMetricsAggregator.SingleValue 
 
         private final long memoryThreshold;
         private final boolean memoryMonitoringEnabled;
+        private final org.apache.lucene.codecs.lucene90.fsst.FSSTCompressedAccess fsstAccess;
 
         OrdinalsCollector(HyperLogLogPlusPlus counts, SortedSetDocValues values, BigArrays bigArrays) {
             this(counts, values, bigArrays, Long.MAX_VALUE, false);
@@ -631,6 +662,17 @@ public class CardinalityAggregator extends NumericMetricsAggregator.SingleValue 
             long memoryThreshold,
             boolean memoryMonitoringEnabled
         ) {
+            this(counts, values, bigArrays, memoryThreshold, memoryMonitoringEnabled, null);
+        }
+
+        OrdinalsCollector(
+            HyperLogLogPlusPlus counts,
+            SortedSetDocValues values,
+            BigArrays bigArrays,
+            long memoryThreshold,
+            boolean memoryMonitoringEnabled,
+            org.apache.lucene.codecs.lucene90.fsst.FSSTCompressedAccess fsstAccess
+        ) {
             if (values.getValueCount() > Integer.MAX_VALUE) {
                 throw new IllegalArgumentException();
             }
@@ -640,6 +682,7 @@ public class CardinalityAggregator extends NumericMetricsAggregator.SingleValue 
             this.values = values;
             this.memoryThreshold = memoryThreshold;
             this.memoryMonitoringEnabled = memoryMonitoringEnabled;
+            this.fsstAccess = fsstAccess;
             visitedOrds = bigArrays.newObjectArray(1);
         }
 
@@ -706,7 +749,9 @@ public class CardinalityAggregator extends NumericMetricsAggregator.SingleValue 
                     for (long ord = allVisitedOrds.nextSetBit(0); ord < Long.MAX_VALUE; ord = ord + 1 < maxOrd
                         ? allVisitedOrds.nextSetBit(ord + 1)
                         : Long.MAX_VALUE) {
-                        final BytesRef value = values.lookupOrd(ord);
+                        final BytesRef value = fsstAccess != null
+                            ? fsstAccess.lookupCompressedOrd(ord)
+                            : values.lookupOrd(ord);
                         MurmurHash3.hash128(value.bytes, value.offset, value.length, 0, hash);
                         hashes.set(ord, hash.h1);
                     }
@@ -882,14 +927,14 @@ public class CardinalityAggregator extends NumericMetricsAggregator.SingleValue 
             SortedSetDocValues ordinalValues,
             MurmurHash3Values hashValues,
             BigArrays bigArrays,
-            CardinalityAggregationContext cardinalityContext
+            CardinalityAggregationContext cardinalityContext,
+            org.apache.lucene.codecs.lucene90.fsst.FSSTCompressedAccess fsstAccess
         ) {
             this.counts = counts;
             this.hashValues = hashValues;
             this.cardinalityContext = cardinalityContext;
 
-            // Start with OrdinalsCollector with memory monitoring enabled
-            this.ordinalsCollector = new OrdinalsCollector(counts, ordinalValues, bigArrays, cardinalityContext.getMemoryThreshold(), true);
+            this.ordinalsCollector = new OrdinalsCollector(counts, ordinalValues, bigArrays, cardinalityContext.getMemoryThreshold(), true, fsstAccess);
             this.activeCollector = ordinalsCollector;
         }
 

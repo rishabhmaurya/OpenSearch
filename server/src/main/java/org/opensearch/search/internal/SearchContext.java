@@ -577,6 +577,10 @@ public abstract class SearchContext implements Releasable {
         return false;
     }
 
+    public boolean fsstCompressedAggregationEnabled() {
+        return false;
+    }
+
     @ExperimentalApi
     public void setStreamChannelListener(StreamSearchChannelListener<SearchPhaseResult, ShardSearchRequest> listener) {
         throw new IllegalStateException("Set search channel listener should be implemented for stream search");

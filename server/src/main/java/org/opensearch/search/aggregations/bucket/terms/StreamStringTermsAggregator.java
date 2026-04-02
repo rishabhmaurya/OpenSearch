@@ -55,6 +55,9 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
     protected final ResultStrategy<?, ?> resultStrategy;
     private boolean leafCollectorCreated = false;
     private final int segmentTopN;
+    private boolean fsstCompressedAccessUsed = false;
+    private org.apache.lucene.codecs.lucene90.fsst.FSSTCompressedAccess cachedFsstAccess = null;
+    private long lookupOrdCount = 0;
 
     private Aggregator.BucketComparator ordinalComparator;
     private StringTerms.Bucket tempBucket1;
@@ -147,6 +150,14 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
         }
         this.sortedDocValuesPerBatch = valuesSource.ordinalsValues(ctx);
         this.valueCount = sortedDocValuesPerBatch.getValueCount();
+        // Cache FSST access before iteration starts (unwrapSingleton fails after iterator is used)
+        if (context.fsstCompressedAggregationEnabled()) {
+            this.cachedFsstAccess = org.apache.lucene.codecs.lucene90.fsst.FSSTCompressedAccess.unwrap(sortedDocValuesPerBatch);
+            logger.info("FSST unwrap: dv={}, cachedAccess={}, valueCount={}",
+                sortedDocValuesPerBatch.getClass().getSimpleName(),
+                cachedFsstAccess != null ? cachedFsstAccess.getClass().getSimpleName() : "null",
+                valueCount);
+        }
         if (docCounts == null) {
             this.docCounts = context.bigArrays().newLongArray(valueCount, true);
         } else {
@@ -157,10 +168,6 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
         SortedDocValues singleValues = DocValues.unwrapSingleton(sortedDocValuesPerBatch);
         if (singleValues != null) {
             segmentsWithSingleValuedOrds++;
-            /*
-             * Optimize when there isn't a filter because that is very
-             * common and marginally faster.
-             */
             return resultStrategy.wrapCollector(new LeafBucketCollectorBase(sub, sortedDocValuesPerBatch) {
                 @Override
                 public void collect(int doc, long owningBucketOrd) throws IOException {
@@ -168,16 +175,14 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
                         return;
                     }
                     int ordinal = singleValues.ordValue();
-                    collectExistingBucket(sub, doc, ordinal);
+                    // Skip per-doc multiBucketConsumer — bucket count bounded by valueCount (checked once after collection)
+                    docCounts.increment(ordinal, docCountProvider.getDocCount(doc));
+                    sub.collect(doc, ordinal);
                 }
             });
 
         }
         segmentsWithMultiValuedOrds++;
-        /*
-         * Optimize when there isn't a filter because that is very
-         * common and marginally faster.
-         */
         return resultStrategy.wrapCollector(new LeafBucketCollectorBase(sub, sortedDocValuesPerBatch) {
             @Override
             public void collect(int doc, long owningBucketOrd) throws IOException {
@@ -187,7 +192,8 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
                 int count = sortedDocValuesPerBatch.docValueCount();
                 long ordinal;
                 while ((count-- > 0) && (ordinal = sortedDocValuesPerBatch.nextOrd()) != SortedSetDocValues.NO_MORE_DOCS) {
-                    collectExistingBucket(sub, doc, ordinal);
+                    docCounts.increment(ordinal, docCountProvider.getDocCount(doc));
+                    sub.collect(doc, ordinal);
                 }
             }
         });
@@ -436,7 +442,7 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
             } else {
                 reduceOrder = order;
             }
-            return new StringTerms(
+            StringTerms result = new StringTerms(
                 name,
                 reduceOrder,
                 order,
@@ -449,6 +455,8 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
                 0,
                 bucketCountThresholds
             );
+            result.setFsstCompressedKeys(fsstCompressedAccessUsed);
+            return result;
         }
 
         @Override
@@ -463,9 +471,26 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
 
         @Override
         StringTerms.Bucket buildFinalBucket(long ordinal, long docCount) throws IOException {
-            // Recreate DocValues as needed for concurrent segment search
-            BytesRef term = BytesRef.deepCopyOf(sortedDocValuesPerBatch.lookupOrd(ordinal));
-
+            BytesRef term;
+            if (cachedFsstAccess != null) {
+                try {
+                    term = BytesRef.deepCopyOf(cachedFsstAccess.lookupCompressedOrd(ordinal));
+                    if (!fsstCompressedAccessUsed) {
+                        logger.info("FSST Stream top bucket: compressed len={} bytes={}", term.length, term);
+                    }
+                    fsstCompressedAccessUsed = true;
+                } catch (Exception e) {
+                    logger.error("FSST lookupCompressedOrd failed for ord={}: {}", ordinal, e.toString());
+                    term = BytesRef.deepCopyOf(sortedDocValuesPerBatch.lookupOrd(ordinal));
+                }
+            } else {
+                term = BytesRef.deepCopyOf(sortedDocValuesPerBatch.lookupOrd(ordinal));
+                if (lookupOrdCount == 0) {
+                    logger.info("FSST Stream top bucket: plain len={} key={}",
+                        term.length, term.utf8ToString().substring(0, Math.min(60, term.utf8ToString().length())));
+                }
+            }
+            lookupOrdCount++;
             StringTerms.Bucket result = new StringTerms.Bucket(term, docCount, null, showTermDocCountError, 0, format);
             result.bucketOrd = ordinal;
             result.setDocCountError(0);
@@ -479,6 +504,8 @@ public class StreamStringTermsAggregator extends AbstractStringTermsAggregator {
         add.accept("result_strategy", resultStrategy.describe());
         add.accept("segments_with_single_valued_ords", segmentsWithSingleValuedOrds);
         add.accept("segments_with_multi_valued_ords", segmentsWithMultiValuedOrds);
+        add.accept("fsst_compressed_access_used", fsstCompressedAccessUsed);
+        add.accept("lookup_ord_count", lookupOrdCount);
     }
 
     @Override

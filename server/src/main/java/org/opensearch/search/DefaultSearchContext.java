@@ -1282,6 +1282,14 @@ final class DefaultSearchContext extends SearchContext {
         return keywordIndexOrDocValuesEnabled;
     }
 
+    @Override
+    public boolean fsstCompressedAggregationEnabled() {
+        if (clusterService != null) {
+            return clusterService.getClusterSettings().get(SearchService.FSST_COMPRESSED_AGGREGATION_ENABLED);
+        }
+        return false;
+    }
+
     private int evaluateCardinalityAggregationPruningThreshold() {
         if (clusterService != null) {
             return clusterService.getClusterSettings().get(CARDINALITY_AGGREGATION_PRUNING_THRESHOLD);
