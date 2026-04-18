@@ -246,14 +246,6 @@ class FlightOutboundHandler extends ProtocolOutboundHandler {
 
         try {
             flightChannel.completeStream(getHeaderBuffer(task.requestId(), task.nodeVersion(), task.features()));
-            // Close the shared root to release buffers before the onComplete callback,
-            // which may close the producer's allocator.
-            if (flightChannel.getRoot() != null) {
-                flightChannel.getRoot().close();
-            }
-            if (task.onComplete() != null) {
-                task.onComplete().close();
-            }
             messageListener.onResponseSent(task.requestId(), task.action(), TransportResponse.Empty.INSTANCE);
         } catch (Exception e) {
             messageListener.onResponseSent(task.requestId(), task.action(), e);
@@ -353,6 +345,13 @@ class FlightOutboundHandler extends ProtocolOutboundHandler {
         public void close() {
             if ((isComplete || isError) && transportChannel != null) {
                 transportChannel.releaseChannel(isError);
+            }
+            // Run onComplete after releaseChannel so that FlightServerChannel.close()
+            // releases the shared root's buffers before the producer's allocator is closed.
+            if (onComplete != null) {
+                try {
+                    onComplete.close();
+                } catch (Exception ignored) {}
             }
         }
     }

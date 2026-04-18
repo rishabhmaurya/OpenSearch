@@ -102,13 +102,20 @@ public class AnalyticsSearchService {
 
             AnalyticsSearchBackendPlugin backend = backends.get(selectedPlan.getBackendId());
 
-            try (SearchExecEngine<ExecutionContext, EngineResultStream> engine = backend.createSearchExecEngine(ctx)) {
-                try (EngineResultStream stream = engine.execute(ctx)) {
-                    for (EngineResultBatch batch : stream) {
-                        channel.sendResponseBatch(new FragmentExecutionResponse(batch.getArrowRoot()));
-                    }
-                    channel.completeStream();
+            SearchExecEngine<ExecutionContext, EngineResultStream> engine = backend.createSearchExecEngine(ctx);
+            EngineResultStream stream = engine.execute(ctx);
+            try {
+                for (EngineResultBatch batch : stream) {
+                    channel.sendResponseBatch(new FragmentExecutionResponse(batch.getArrowRoot()));
                 }
+                channel.completeStream(() -> {
+                    stream.close();
+                    engine.close();
+                });
+            } catch (Exception inner) {
+                stream.close();
+                engine.close();
+                throw inner;
             }
         } catch (Exception e) {
             try {
