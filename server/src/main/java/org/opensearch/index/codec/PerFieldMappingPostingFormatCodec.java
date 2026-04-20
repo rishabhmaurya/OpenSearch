@@ -68,6 +68,10 @@ public class PerFieldMappingPostingFormatCodec extends Lucene104Codec {
         4096,
         Lucene90DocValuesFormat.TermsDictMode.FSST
     );
+    private final DocValuesFormat fsstPlusDvFormat = new Lucene90DocValuesFormat(
+        4096,
+        Lucene90DocValuesFormat.TermsDictMode.FSST_PLUS
+    );
     private final FuzzySetFactory fuzzySetFactory;
     private PostingsFormat docIdPostingsFormat;
 
@@ -108,6 +112,9 @@ public class PerFieldMappingPostingFormatCodec extends Lucene104Codec {
     public DocValuesFormat getDocValuesFormatForField(String field) {
         final MappedFieldType fieldType = mapperService.fieldType(field);
         if (fieldType != null && fieldType.unwrap() instanceof KeywordFieldMapper.KeywordFieldType kft) {
+            if ("fsst+".equals(kft.compression())) {
+                return fsstPlusDvFormat;
+            }
             if ("fsst".equals(kft.compression())) {
                 return fsstDvFormat;
             }
