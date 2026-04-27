@@ -64,14 +64,8 @@ public class PerFieldMappingPostingFormatCodec extends Lucene104Codec {
     private final Logger logger;
     private final MapperService mapperService;
     private final DocValuesFormat dvFormat = new Lucene90DocValuesFormat();
-    private final DocValuesFormat fsstDvFormat = new Lucene90DocValuesFormat(
-        4096,
-        Lucene90DocValuesFormat.TermsDictMode.FSST
-    );
-    private final DocValuesFormat fsstPlusDvFormat = new Lucene90DocValuesFormat(
-        4096,
-        Lucene90DocValuesFormat.TermsDictMode.FSST_PLUS
-    );
+    private final DocValuesFormat fsstDvFormat = new Lucene90DocValuesFormat(4096, Lucene90DocValuesFormat.TermsDictMode.FSST);
+    private final DocValuesFormat fsstPlusDvFormat = new Lucene90DocValuesFormat(4096, Lucene90DocValuesFormat.TermsDictMode.FSST_PLUS);
     private final FuzzySetFactory fuzzySetFactory;
     private PostingsFormat docIdPostingsFormat;
 
