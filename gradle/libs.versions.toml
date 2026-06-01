@@ -34,7 +34,7 @@ google_http_client      = "1.44.1"
 google_auth             = "1.29.0"
 tdigest                 = "3.3" # Warning: Before updating tdigest, ensure its serialization code for MergingDigest hasn't changed
 hdrhistogram            = "2.2.2"
-grpc                    = "1.75.0"
+grpc                    = "1.81.0"
 json_smart              = "2.5.2"
 
 # when updating the JNA version, also update the version in buildSrc/build.gradle
@@ -101,7 +101,7 @@ opentelemetry         = "1.62.0"
 opentelemetrysemconv  = "1.41.0"
 
 # arrow dependencies
-arrow                 = "18.1.0"
+arrow                 = "19.0.0"
 flatbuffers           = "2.0.0"
 
 # calcite is locally patched and published to OpenSearch maven snapshots; see .github/workflows/calcite-snapshots.yml.
