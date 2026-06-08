@@ -87,6 +87,21 @@ public final class FragmentResources implements AutoCloseable {
         return null;
     }
 
+    /**
+     * Per-query Lucene filter-delegation timing accumulated across the {@code collectDocs} upcalls
+     * during the scan (T2), or {@code null} when delegation/tracing is off. Read at fragment finalize
+     * (before close drops the FFM binding) to tag the fragment span.
+     */
+    private volatile org.opensearch.analytics.spi.DelegationTimings delegationTimings;
+
+    public void setDelegationTimings(org.opensearch.analytics.spi.DelegationTimings timings) {
+        this.delegationTimings = timings;
+    }
+
+    public org.opensearch.analytics.spi.DelegationTimings getDelegationTimings() {
+        return delegationTimings;
+    }
+
     /** Marker interface for streams that can provide execution metrics. */
     public interface MetricsCapable {
         byte[] getMetricsJson();

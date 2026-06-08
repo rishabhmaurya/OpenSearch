@@ -35,6 +35,18 @@ public final class QueryProfileBuilder {
     private QueryProfileBuilder() {}
 
     public static QueryProfile snapshot(ExecutionGraph graph, QueryContext config, String fullPlan, long planningTimeMs) {
+        return snapshot(graph, config, fullPlan, planningTimeMs, 0L, 0L);
+    }
+
+    /** As above, plus the per-query memory peaks captured at the query terminal (M1). */
+    public static QueryProfile snapshot(
+        ExecutionGraph graph,
+        QueryContext config,
+        String fullPlan,
+        long planningTimeMs,
+        long peakArrowBytes,
+        long peakNativeBytes
+    ) {
         List<String> fullPlanLines = splitPlanLines(fullPlan);
         List<StageProfile> stageProfiles = new ArrayList<>();
         long earliestStart = Long.MAX_VALUE;
@@ -89,7 +101,7 @@ public final class QueryProfileBuilder {
         }
 
         long executionTimeMs = (earliestStart != Long.MAX_VALUE && latestEnd > 0) ? latestEnd - earliestStart : 0L;
-        return new QueryProfile(graph.queryId(), fullPlanLines, planningTimeMs, executionTimeMs, stageProfiles);
+        return new QueryProfile(graph.queryId(), fullPlanLines, planningTimeMs, executionTimeMs, stageProfiles, peakArrowBytes, peakNativeBytes);
     }
 
     private static List<TaskProfile> buildTaskProfiles(StageExecution exec) {

@@ -1064,6 +1064,12 @@ pub fn cancel_query(context_id: i64) {
     query_tracker::cancel_query(context_id);
 }
 
+/// Peak native memory (bytes) for the query with the given context_id, or 0 if not registered.
+/// Non-negative on every path (FFM-safe). See [`query_tracker::peak_bytes_by_context`].
+pub fn query_peak_bytes(context_id: i64) -> i64 {
+    query_tracker::peak_bytes_by_context(context_id)
+}
+
 /// Converts SQL to Substrait plan bytes (test only).
 ///
 /// # Safety

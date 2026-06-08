@@ -42,6 +42,15 @@ public class QueryExecution {
     private final ActionListener<Iterable<VectorSchemaRoot>> listener;
     private final AtomicReference<State> state = new AtomicReference<>(State.CREATED);
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    /** Per-query memory captured at the terminal, BEFORE the per-query allocator is closed (M1). */
+    private volatile QueryMemorySnapshot memorySnapshot = QueryMemorySnapshot.EMPTY;
+    /** Guards single capture of {@link #memorySnapshot} — captured before fireListener, not again at close. */
+    private final AtomicBoolean memorySnapshotCaptured = new AtomicBoolean(false);
+
+    /** Per-query peak memory captured at the query terminal (M1). Never null; EMPTY until close() runs. */
+    public record QueryMemorySnapshot(long peakArrowBytes, long peakNativeBytes) {
+        public static final QueryMemorySnapshot EMPTY = new QueryMemorySnapshot(0L, 0L);
+    }
 
     /** Lifecycle states a query execution moves through. */
     public enum State {
@@ -123,20 +132,40 @@ public class QueryExecution {
     public void close() {
         if (closed.compareAndSet(false, true) == false) return;
         runQuietly("terminal sink close", this::closeTerminalSink);
-        // TODO: Re-evaluate this per query child allocator
-        logAllocatorState();
+        // Capture per-query memory BEFORE config.close() closes the per-query allocator (after
+        // which getPeakMemoryAllocation() reads 0). M1.
+        runQuietly("capture memory snapshot", this::captureMemorySnapshot);
         runQuietly("query context close", config::close);
     }
 
-    private void logAllocatorState() {
-        if (!config.ownsAllocator()) return;
-        BufferAllocator allocator = config.bufferAllocator();
-        long allocated = allocator.getAllocatedMemory();
-        if (allocated > 0) {
-            logger.warn("[query-{}] Arrow allocator closing with {}B still allocated — potential leak", config.queryId(), allocated);
-        } else {
-            logger.debug("[query-{}] Arrow allocator closed cleanly", config.queryId());
+    /** Per-query peak memory captured at the query terminal (M1). Never null. */
+    public QueryMemorySnapshot memorySnapshot() {
+        return memorySnapshot;
+    }
+
+    /**
+     * Captures the per-query Arrow allocator peak (still live here) and the native per-query peak
+     * (recorded earlier into {@link QueryContext} by the backend reduce path, since the native
+     * tracker is dropped by the time this terminal runs). Also emits the leak warning the old
+     * logAllocatorState() did.
+     */
+    private void captureMemorySnapshot() {
+        if (memorySnapshotCaptured.compareAndSet(false, true) == false) {
+            return; // already captured (before fireListener); don't re-read post-close (would be 0)
         }
+        long peakArrow = 0L;
+        if (config.ownsAllocator()) {
+            BufferAllocator allocator = config.bufferAllocator();
+            peakArrow = allocator.getPeakMemoryAllocation();
+            long allocated = allocator.getAllocatedMemory();
+            if (allocated > 0) {
+                logger.warn("[query-{}] Arrow allocator closing with {}B still allocated — potential leak", config.queryId(), allocated);
+            } else {
+                logger.debug("[query-{}] Arrow allocator closed cleanly", config.queryId());
+            }
+        }
+        this.memorySnapshot = new QueryMemorySnapshot(peakArrow, config.peakNativeBytes());
+        logger.debug("[query-{}] memory snapshot: peakArrow={}B peakNative={}B", config.queryId(), peakArrow, config.peakNativeBytes());
     }
 
     // ─── Internal: query-level state machine ─────────────────────────────
@@ -152,6 +181,12 @@ public class QueryExecution {
         } while (state.compareAndSet(previous, target) == false);
 
         if (isTerminal(target)) {
+            // Capture per-query memory BEFORE firing the listener: the listener builds the
+            // QueryProfile and ends the analytics.execute span, both of which read
+            // memorySnapshot(). Capturing here (while the per-query allocator is still open and
+            // the reduce sink has already recorded the native peak) ensures they see real numbers
+            // rather than zeros. Idempotent — close() calls it again only on the direct-close path.
+            runQuietly("capture memory snapshot", this::captureMemorySnapshot);
             try {
                 fireListener(target);
             } finally {

@@ -51,7 +51,9 @@ public final class ReduceStageExecutionFactory implements StageExecutionFactory 
             chosenBytes(stage),
             config.bufferAllocator(),
             buildChildInputs(stage),
-            sink
+            sink,
+            config::recordNativePeak,        // M1: backend reports per-query native peak at reduce terminal
+            new TracingReduceDrainObserver(config)  // T2: backend reports reduce produce/send timing
         );
 
         // Apply instruction handlers for the reduce stage.

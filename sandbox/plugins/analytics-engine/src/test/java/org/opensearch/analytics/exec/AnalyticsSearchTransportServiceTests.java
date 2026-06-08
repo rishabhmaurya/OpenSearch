@@ -36,7 +36,14 @@ public class AnalyticsSearchTransportServiceTests extends OpenSearchTestCase {
         ClusterService clusterService = mock(ClusterService.class);
         TaskResourceTrackingService taskResourceTrackingService = mock(TaskResourceTrackingService.class);
 
-        new AnalyticsSearchTransportService(transportService, clusterService, searchService, indicesService, taskResourceTrackingService);
+        new AnalyticsSearchTransportService(
+            transportService,
+            clusterService,
+            searchService,
+            indicesService,
+            taskResourceTrackingService,
+            org.opensearch.telemetry.tracing.noop.NoopTracer.INSTANCE
+        );
 
         verify(transportService).registerRequestHandler(
             eq(FragmentExecutionAction.NAME),

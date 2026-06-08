@@ -367,6 +367,19 @@ public class DatafusionReduceSink extends AbstractDatafusionReduceSink implement
         if (torndown.compareAndSet(false, true) == false) {
             return null;
         }
+        // M1: read the per-query native peak BEFORE outStream.close() — closing drops the native
+        // QueryTracker from the registry, after which queryPeakByContext returns 0. Best-effort:
+        // a metrics read must never fail the query.
+        if (ctx.taskId() != 0) {
+            try {
+                long peak = NativeBridge.queryPeakByContext(ctx.taskId());
+                if (peak > 0) {
+                    ctx.nativePeakRecorder().accept(peak);
+                }
+            } catch (Throwable t) {
+                logger.debug("[reduce-sink] native peak read failed for taskId={}", ctx.taskId(), t);
+            }
+        }
         Exception failure = null;
         try {
             // Close outStream first: drops the native receiver, which unblocks any sender

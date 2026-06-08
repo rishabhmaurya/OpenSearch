@@ -17,6 +17,7 @@ import org.opensearch.analytics.planner.dag.QueryDAG;
 import org.opensearch.analytics.planner.dag.ShardExecutionTarget;
 import org.opensearch.analytics.settings.AnalyticsQuerySettings;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.util.HashMap;
@@ -49,6 +50,15 @@ public class QueryContext {
     private final boolean ownsAllocator;
     private volatile ExecutorService localTaskExecutor;
     private boolean closed;  // guarded by `this`
+    /** Per-query span helper (T1 tracing). Null when no tracer is wired (tests / tracing off). */
+    private volatile AnalyticsTracing tracing;
+    /**
+     * Per-query peak NATIVE (DataFusion pool) memory in bytes (M1). Written by the backend reduce
+     * path via {@link #recordNativePeak} (cross-thread: the reduce runs on the REDUCE pool, the
+     * terminal read on the query thread — hence AtomicLong for visibility), read at the query
+     * terminal. 0 = not measured.
+     */
+    private final java.util.concurrent.atomic.AtomicLong peakNativeBytes = new java.util.concurrent.atomic.AtomicLong(0);
     /**
      * HACK: side-table for cross-stage routing of resolved {@link ShardExecutionTarget}s.
      * Today's only consumer is the QTF (late-materialization) Phase C, which needs to map
@@ -125,6 +135,64 @@ public class QueryContext {
         return dag;
     }
 
+    /** Sets the per-query span helper. Called once by {@link DefaultPlanExecutor} at query start. */
+    void setTracing(AnalyticsTracing tracing) {
+        this.tracing = tracing;
+    }
+
+    /** Per-query span helper, or {@code null} when tracing is not wired. */
+    AnalyticsTracing tracing() {
+        return tracing;
+    }
+
+    /**
+     * Hard cap on per-batch tracing spans emitted per stage/fragment — re-exported from
+     * {@link AnalyticsTracing#DEFAULT_MAX_BATCH_SPANS} so {@code exec.stage.*} packages can read it
+     * without touching the package-private tracing helper.
+     */
+    public static final int MAX_BATCH_SPANS = AnalyticsTracing.DEFAULT_MAX_BATCH_SPANS;
+
+    /**
+     * Opens a reduce-feed child span for one inbound shard batch (ordinal {@code feedOrdinal}) fed
+     * into the coordinator reduce, or {@code null} when tracing is off. Public passthrough so
+     * {@code exec.stage.*} packages can emit per-batch reduce spans without touching the
+     * package-private {@link AnalyticsTracing}. Caller owns the returned span's lifecycle.
+     */
+    public org.opensearch.telemetry.tracing.Span startReduceFeedSpan(long feedOrdinal) {
+        AnalyticsTracing t = tracing;
+        return t != null ? t.startReduceFeedSpan(feedOrdinal) : null;
+    }
+
+    /** Opens a reduce-output PRODUCE span (native FINAL-aggregation pull), or null when tracing is off. */
+    public org.opensearch.telemetry.tracing.Span startReduceProduceSpan(long ordinal) {
+        AnalyticsTracing t = tracing;
+        return t != null ? t.startReduceProduceSpan(ordinal) : null;
+    }
+
+    /** Opens a reduce-output SEND span (downstream push of a reduced batch), or null when tracing is off. */
+    public org.opensearch.telemetry.tracing.Span startReduceSendSpan(long ordinal) {
+        AnalyticsTracing t = tracing;
+        return t != null ? t.startReduceSendSpan(ordinal) : null;
+    }
+
+    /** Records the total reduced-output batch count on the execute span (cap-elision visibility). */
+    public void recordReduceOutputBatchCount(long totalBatches) {
+        AnalyticsTracing t = tracing;
+        if (t != null) {
+            t.recordReduceOutputBatchCount(totalBatches);
+        }
+    }
+
+    /** Records this query's peak native (DataFusion pool) memory, in bytes (M1). Keeps the max seen. */
+    public void recordNativePeak(long peakBytes) {
+        peakNativeBytes.accumulateAndGet(peakBytes, Math::max);
+    }
+
+    /** This query's peak native (DataFusion pool) memory in bytes, or 0 if not measured (M1). */
+    public long peakNativeBytes() {
+        return peakNativeBytes.get();
+    }
+
     public Executor searchExecutor() {
         return threadPool != null ? threadPool.executor(ThreadPool.Names.SEARCH) : Runnable::run;
     }
@@ -192,8 +260,18 @@ public class QueryContext {
         return allocator;
     }
 
-    /** Lazy per-query virtual-thread executor for LOCAL tasks. */
-    public ExecutorService localTaskExecutor() {
+    /**
+     * Lazy per-query virtual-thread executor for LOCAL tasks.
+     *
+     * <p>The raw {@link Executors#newThreadPerTaskExecutor} does <em>not</em> propagate the
+     * submitting thread's {@link ThreadContext} — unlike the node {@link ThreadPool} executors,
+     * which wrap commands in a context-preserving runnable. Without that propagation the
+     * tracing {@code CURRENT_SPAN} reference (and {@code X-Opaque-Id}) carried in the
+     * {@link ThreadContext} would be lost when a LOCAL/late-materialization task hops onto a
+     * virtual thread, detaching its spans from the query trace. We therefore decorate the
+     * executor so every submitted command runs under the submitter's context (tracing GAP-C).
+     */
+    public Executor localTaskExecutor() {
         ExecutorService exec = localTaskExecutor;
         if (exec == null) {
             synchronized (this) {
@@ -209,7 +287,21 @@ public class QueryContext {
                 }
             }
         }
-        return exec;
+        return contextPreserving(exec);
+    }
+
+    /**
+     * Wraps {@code delegate} so each submitted command first restores the submitting thread's
+     * {@link ThreadContext} (which carries the in-scope tracing span and {@code X-Opaque-Id}).
+     * No-op when there is no {@link ThreadPool} (test contexts run tasks synchronously and the
+     * context never hops threads).
+     */
+    private Executor contextPreserving(Executor delegate) {
+        if (threadPool == null) {
+            return delegate;
+        }
+        ThreadContext threadContext = threadPool.getThreadContext();
+        return command -> delegate.execute(threadContext.preserveContext(command));
     }
 
     boolean ownsAllocator() {
