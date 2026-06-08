@@ -169,6 +169,18 @@ final class FragmentTracingProbe {
         Long scanProcessingNanos;
         Long scanTotalNanos;
         Long scanUntilDataNanos;
+        List<PartitionInfo> partitions; // per-partition breakdown (null or empty when single-partition)
+    }
+
+    /** Per-partition metrics from the {@code partitions[]} sub-array. */
+    static final class PartitionInfo {
+        int partition;
+        long rows;
+        long elapsedComputeNanos;
+        long scanProcessingNanos;
+        long workNanos;
+        Long startUnixNanos;
+        Long endUnixNanos;
     }
 
     /** Cap on per-operator spans emitted per fragment (reuses the per-batch cap). */
@@ -256,15 +268,56 @@ final class FragmentTracingProbe {
             if (op.scanProcessingNanos != null) attrs.addAttribute("operator.scan_processing_ns", op.scanProcessingNanos);
             if (op.scanTotalNanos != null) attrs.addAttribute("operator.scan_total_ns", op.scanTotalNanos);
             if (op.scanUntilDataNanos != null) attrs.addAttribute("operator.scan_until_data_ns", op.scanUntilDataNanos);
+            if (op.partitions != null && op.partitions.size() >= 2) {
+                attrs.addAttribute("operator.num_partitions", (long) op.partitions.size());
+            }
+            String opName = op.operator == null ? "unknown" : op.operator;
             Span opSpan = tracer.startSpan(
                 SpanCreationContext.internal()
-                    .name(SPAN_OPERATOR_PREFIX + (op.operator == null ? "unknown" : op.operator))
+                    .name(SPAN_OPERATOR_PREFIX + opName)
                     .parent(new SpanContext(fragmentSpan))
                     .startTimestamp(Instant.ofEpochSecond(0, startNs))
                     .attributes(attrs)
             );
             opSpan.endSpan(Instant.ofEpochSecond(0, endNs));
             emitted++;
+
+            // Per-partition child spans: one bar per partition parented to the operator span,
+            // showing which partitions are stragglers. Uses real start/end timestamps when
+            // available; falls back to end-anchored placement with elapsed_compute as width.
+            if (op.partitions != null && op.partitions.size() >= 2) {
+                for (PartitionInfo pi : op.partitions) {
+                    if (emitted >= MAX_OPERATOR_SPANS) break;
+                    long pEnd;
+                    long pStart;
+                    if (pi.startUnixNanos != null && pi.endUnixNanos != null
+                        && pi.endUnixNanos > fragmentStartEpochNanos && pi.startUnixNanos > 0) {
+                        pEnd = clamp(pi.endUnixNanos, fragmentStartEpochNanos, fragmentEndEpochNanos);
+                        pStart = clamp(pi.startUnixNanos, fragmentStartEpochNanos, pEnd);
+                    } else {
+                        pEnd = endNs;
+                        long pWidth = Math.max(0L, pi.elapsedComputeNanos);
+                        pStart = Math.max(fragmentStartEpochNanos, pEnd - pWidth);
+                    }
+                    Attributes pAttrs = Attributes.create()
+                        .addAttribute("partition", (long) pi.partition)
+                        .addAttribute("partition.rows", pi.rows)
+                        .addAttribute("partition.elapsed_compute_ns", pi.elapsedComputeNanos)
+                        .addAttribute("partition.work_ns", pi.workNanos);
+                    if (pi.scanProcessingNanos > 0) {
+                        pAttrs.addAttribute("partition.scan_processing_ns", pi.scanProcessingNanos);
+                    }
+                    Span pSpan = tracer.startSpan(
+                        SpanCreationContext.internal()
+                            .name(SPAN_OPERATOR_PREFIX + opName + ".p" + pi.partition)
+                            .parent(new SpanContext(opSpan))
+                            .startTimestamp(Instant.ofEpochSecond(0, pStart))
+                            .attributes(pAttrs)
+                    );
+                    pSpan.endSpan(Instant.ofEpochSecond(0, pEnd));
+                    emitted++;
+                }
+            }
         }
         return emitted;
     }
@@ -374,9 +427,37 @@ final class FragmentTracingProbe {
                 case "scan_processing_ns" -> n.scanProcessingNanos = p.longValue();
                 case "scan_total_ns" -> n.scanTotalNanos = p.longValue();
                 case "scan_until_data_ns" -> n.scanUntilDataNanos = p.longValue();
+                case "partitions" -> n.partitions = parsePartitionsArray(p);
                 default -> p.skipChildren();
             }
         }
         return n;
+    }
+
+    private static List<PartitionInfo> parsePartitionsArray(XContentParser p) throws Exception {
+        if (p.currentToken() != XContentParser.Token.START_ARRAY) {
+            p.skipChildren();
+            return null;
+        }
+        List<PartitionInfo> out = new ArrayList<>();
+        while (p.nextToken() != XContentParser.Token.END_ARRAY) {
+            PartitionInfo pi = new PartitionInfo();
+            while (p.nextToken() != XContentParser.Token.END_OBJECT) {
+                String key = p.currentName();
+                p.nextToken();
+                switch (key) {
+                    case "partition" -> pi.partition = p.intValue();
+                    case "rows" -> pi.rows = p.longValue();
+                    case "elapsed_compute_ns" -> pi.elapsedComputeNanos = p.longValue();
+                    case "scan_processing_ns" -> pi.scanProcessingNanos = p.longValue();
+                    case "work_ns" -> pi.workNanos = p.longValue();
+                    case "start_unix_nanos" -> pi.startUnixNanos = p.longValue();
+                    case "end_unix_nanos" -> pi.endUnixNanos = p.longValue();
+                    default -> p.skipChildren();
+                }
+            }
+            out.add(pi);
+        }
+        return out.isEmpty() ? null : out;
     }
 }

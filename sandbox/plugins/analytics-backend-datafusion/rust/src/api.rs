@@ -252,6 +252,65 @@ impl QueryStreamHandle {
             // Per-operator self-work used as the span bar WIDTH on the Java side.
             let work_ns = (elapsed_compute as i64).max(processing_ns);
             op.insert("work_ns".to_string(), serde_json::Value::Number(work_ns.into()));
+
+            // Per-partition breakdown: group metrics by partition to surface skew (e.g. one
+            // partition scanning most of the surviving rows while others are nearly idle).
+            // Only emitted when the operator has 2+ partitions — avoids bloat for single-partition
+            // operators where the aggregated view is already complete.
+            let mut partition_rows: std::collections::BTreeMap<usize, i64> = std::collections::BTreeMap::new();
+            let mut partition_compute: std::collections::BTreeMap<usize, i64> = std::collections::BTreeMap::new();
+            let mut partition_processing: std::collections::BTreeMap<usize, i64> = std::collections::BTreeMap::new();
+            let mut partition_start: std::collections::BTreeMap<usize, i64> = std::collections::BTreeMap::new();
+            let mut partition_end: std::collections::BTreeMap<usize, i64> = std::collections::BTreeMap::new();
+            for m in metrics.iter() {
+                if let Some(p) = m.partition() {
+                    let val = m.value().as_usize() as i64;
+                    match m.value() {
+                        datafusion::physical_plan::metrics::MetricValue::StartTimestamp(_) => {
+                            if val > 0 {
+                                partition_start.entry(p).and_modify(|v| *v = (*v).min(val)).or_insert(val);
+                            }
+                        }
+                        datafusion::physical_plan::metrics::MetricValue::EndTimestamp(_) => {
+                            if val > 0 {
+                                partition_end.entry(p).and_modify(|v| *v = (*v).max(val)).or_insert(val);
+                            }
+                        }
+                        _ => match m.value().name() {
+                            "output_rows" => { partition_rows.entry(p).and_modify(|v| *v += val).or_insert(val); }
+                            "elapsed_compute" => { partition_compute.entry(p).and_modify(|v| *v += val).or_insert(val); }
+                            "time_elapsed_processing" => { partition_processing.entry(p).and_modify(|v| *v += val).or_insert(val); }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            let num_partitions = partition_rows.len().max(partition_compute.len());
+            if num_partitions >= 2 {
+                let mut parts: Vec<serde_json::Value> = Vec::with_capacity(num_partitions);
+                for pid in partition_rows.keys().chain(partition_compute.keys()).copied().collect::<std::collections::BTreeSet<_>>() {
+                    let rows = partition_rows.get(&pid).copied().unwrap_or(0);
+                    let compute = partition_compute.get(&pid).copied().unwrap_or(0);
+                    let proc_ns = partition_processing.get(&pid).copied().unwrap_or(0);
+                    let p_work = compute.max(proc_ns);
+                    let mut pmap = serde_json::Map::new();
+                    pmap.insert("partition".into(), serde_json::Value::Number(pid.into()));
+                    pmap.insert("rows".into(), serde_json::Value::Number(rows.into()));
+                    pmap.insert("elapsed_compute_ns".into(), serde_json::Value::Number(compute.into()));
+                    if proc_ns > 0 {
+                        pmap.insert("scan_processing_ns".into(), serde_json::Value::Number(proc_ns.into()));
+                    }
+                    pmap.insert("work_ns".into(), serde_json::Value::Number(p_work.into()));
+                    if let Some(s) = partition_start.get(&pid) {
+                        pmap.insert("start_unix_nanos".into(), serde_json::Value::Number((*s).into()));
+                    }
+                    if let Some(e) = partition_end.get(&pid) {
+                        pmap.insert("end_unix_nanos".into(), serde_json::Value::Number((*e).into()));
+                    }
+                    parts.push(serde_json::Value::Object(pmap));
+                }
+                op.insert("partitions".to_string(), serde_json::Value::Array(parts));
+            }
         }
         operators.push(serde_json::Value::Object(op));
 
