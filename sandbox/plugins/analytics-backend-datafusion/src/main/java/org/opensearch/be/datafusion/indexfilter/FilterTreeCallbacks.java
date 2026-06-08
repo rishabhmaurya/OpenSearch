@@ -57,8 +57,12 @@ public final class FilterTreeCallbacks {
      */
     private static final ConcurrentHashMap<Long, QueryBinding> BINDINGS = new ConcurrentHashMap<>();
 
-    /** Immutable pair of handle + tracker for a single query. */
-    private record QueryBinding(FilterDelegationHandle handle, DelegationThreadTracker tracker) {
+    /** Immutable triple of handle + tracker + optional delegation-timings sink for a single query. */
+    private record QueryBinding(
+        FilterDelegationHandle handle,
+        DelegationThreadTracker tracker,
+        org.opensearch.analytics.spi.DelegationTimings timings
+    ) {
     }
 
     private FilterTreeCallbacks() {}
@@ -76,7 +80,21 @@ public final class FilterTreeCallbacks {
      * @param tracker   the thread tracker for this query (may be null)
      */
     public static void register(long contextId, FilterDelegationHandle handle, DelegationThreadTracker tracker) {
-        QueryBinding prev = BINDINGS.put(contextId, new QueryBinding(handle, tracker));
+        register(contextId, handle, tracker, null);
+    }
+
+    /**
+     * Register overload that also installs a {@link org.opensearch.analytics.spi.DelegationTimings}
+     * sink so the per-segment {@code collectDocs} upcalls accumulate Lucene-delegation timing for the
+     * fragment span (T2). {@code timings} may be null (tracing off) → no accumulation.
+     */
+    public static void register(
+        long contextId,
+        FilterDelegationHandle handle,
+        DelegationThreadTracker tracker,
+        org.opensearch.analytics.spi.DelegationTimings timings
+    ) {
+        QueryBinding prev = BINDINGS.put(contextId, new QueryBinding(handle, tracker, timings));
         assert prev == null : "FilterTreeCallbacks.register: binding already present for contextId=" + contextId;
     }
 
@@ -239,7 +257,16 @@ public final class FilterTreeCallbacks {
             }
             int maxWords = (int) Math.min(outWordCap, (long) Integer.MAX_VALUE);
             MemorySegment view = outPtr.reinterpret((long) maxWords * Long.BYTES);
+            // T2: accumulate Lucene delegation CPU-time across these (potentially thousands of)
+            // per-row-group upcalls into the per-query DelegationTimings sink, so the fragment span
+            // can report filter.delegation_cpu_nanos / _collect_calls. nanoTime + LongAdder.add never
+            // throw, so this stays inside the FFM-safe try; skipped when no sink (tracing off).
+            org.opensearch.analytics.spi.DelegationTimings timings = binding.timings();
+            long collectStartNanos = (timings != null) ? System.nanoTime() : 0L;
             int wordsWritten = handle.collectDocs(collectorKey, minDoc, maxDoc, view);
+            if (timings != null) {
+                timings.addCollect(System.nanoTime() - collectStartNanos);
+            }
             return (wordsWritten < 0) ? -1L : wordsWritten;
         } catch (AssertionError e) {
             throw e;

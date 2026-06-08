@@ -14,7 +14,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.analytics.backend.AnalyticsOperationListener;
 import org.opensearch.analytics.backend.EngineResultBatch;
-import org.opensearch.analytics.backend.EngineResultStream;
+import org.opensearch.analytics.backend.EngineResultStream;  // result stream SPI (per-batch native peak accessor)
 import org.opensearch.analytics.backend.FragmentExecutionStats;
 import org.opensearch.analytics.backend.SearchExecEngine;
 import org.opensearch.analytics.backend.ShardScanExecutionContext;
@@ -39,6 +39,12 @@ import org.opensearch.index.engine.exec.IndexReaderProvider;
 import org.opensearch.index.engine.exec.IndexReaderProvider.Reader;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.tasks.Task;
+import org.opensearch.telemetry.tracing.Span;
+import org.opensearch.telemetry.tracing.SpanCreationContext;
+import org.opensearch.telemetry.tracing.SpanScope;
+import org.opensearch.telemetry.tracing.Tracer;
+import org.opensearch.telemetry.tracing.attributes.Attributes;
+import org.opensearch.telemetry.tracing.noop.NoopTracer;
 import org.opensearch.tasks.TaskResourceTrackingService;
 
 import java.io.IOException;
@@ -77,6 +83,8 @@ public class AnalyticsSearchService implements AutoCloseable {
     private TaskResourceTrackingService taskResourceTrackingService;
     private final BufferAllocator allocator;
     private final ArrowNativeAllocator nativeAllocator;
+    /** Data-node tracer (T2). Set by {@code AnalyticsSearchTransportService} (Guice-injected). NoopTracer until then. */
+    private volatile Tracer tracer = NoopTracer.INSTANCE;
 
     public AnalyticsSearchService(Map<String, AnalyticsSearchBackendPlugin> backends, ArrowNativeAllocator nativeAllocator) {
         this(backends, List.of(), nativeAllocator, null, null);
@@ -123,6 +131,11 @@ public class AnalyticsSearchService implements AutoCloseable {
         this.taskResourceTrackingService = service;
     }
 
+    /** Sets the data-node tracer (T2). Wired by {@code AnalyticsSearchTransportService}; defaults to NoopTracer. */
+    public void setTracer(Tracer tracer) {
+        this.tracer = tracer != null ? tracer : NoopTracer.INSTANCE;
+    }
+
     public FragmentResources executeFragmentStreaming(FragmentExecutionRequest request, IndexShard shard, AnalyticsShardTask task) {
         return executeFragmentStreamingResolved(request, shard, task).resources;
     }
@@ -167,25 +180,74 @@ public class AnalyticsSearchService implements AutoCloseable {
             executor.execute(() -> {
                 LOGGER.debug("[FragmentExecution] shard={} task={}", shard.shardId(), task.getId());
                 final long startNanos = System.nanoTime();
+                // Paired EPOCH anchor for the fragment window. startNanos is monotonic (good for
+                // durations, unusable as an OTel timestamp); this gives per-operator child spans a
+                // real wall-clock origin. End epoch is derived as start-epoch + monotonic-elapsed so
+                // the operator-span window width tracks the precise fragment duration.
+                final long fragmentStartEpochNanos = java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis());
                 long rowsProduced = 0;
-                try (ResolvedExecution exec = executeFragmentStreamingResolved(request, shard, task)) {
-                    Iterator<EngineResultBatch> it = exec.resources().stream().iterator();
-                    while (it.hasNext()) {
-                        EngineResultBatch batch = it.next();
-                        rowsProduced += batch.getRowCount();
-                        responseHandler.onBatch(batch);
-                    }
-                    long fragmentTookNanos = System.nanoTime() - startNanos;
-                    // Extract and log DataFusion execution metrics at DEBUG level
-                    if (LOGGER.isDebugEnabled()) {
-                        byte[] metricsJson = exec.resources().getExecutionMetrics();
-                        if (metricsJson != null) {
-                            LOGGER.debug(
-                                "[FragmentMetrics] shard={} metrics={}",
-                                shard.shardId(),
-                                new String(metricsJson, java.nio.charset.StandardCharsets.UTF_8)
-                            );
+                // T2: data-node span. The inbound Flight transport span is in this thread's
+                // ThreadContext (the SEARCH executor is context-preserving), so startSpan
+                // auto-parents to the coordinator's shard-dispatch span -> the fragment shows
+                // up as a child of the query trace on the right node. NoopTracer => no-op.
+                final Span fragmentSpan = tracer.startSpan(
+                    SpanCreationContext.server()
+                        .name("datafusion.shard_fragment")
+                        .attributes(
+                            Attributes.create()
+                                .addAttribute("query_id", request.getQueryId())
+                                .addAttribute("stage_id", request.getStageId())
+                                .addAttribute("shard_id", shard.shardId().toString())
+                        )
+                );
+                boolean fragmentSpanEnded = false;
+                // T2 per-batch instrumentation. The fragment span's interior used to be a blindspot:
+                // the old single batch span wrapped only responseHandler.onBatch (the SEND, ~microseconds)
+                // while the actual batch PRODUCTION (the native streamNext pull running scan/filter/agg,
+                // evaluated inside it.hasNext()/it.next()) fell into the untimed gaps between spans, and
+                // the entire reader-pin + native-session-build + plan-compile setup before the first
+                // batch was invisible. We now tile the fragment timeline with contiguous child spans so
+                // the durations add up:
+                //   datafusion.shard_fragment.setup  — reader pin + session build + plan compile (TTFB)
+                //   datafusion.batch.produce         — the native pull that materializes batch N
+                //   datafusion.batch.send            — pushing batch N to the stream transport
+                // All null/noop-safe; gated on a real tracer so the noop path pays nothing.
+                final boolean tracingOn = tracer != NoopTracer.INSTANCE;
+                long batchOrdinal = 0;
+                long batchSpansEmitted = 0;
+                // SETUP span brackets the resolve (reader pin, native session, Substrait decode, plan
+                // compile). Opened before executeFragmentStreamingResolved, closed once it returns —
+                // BEFORE the drain loop — so it captures only time-to-resolved, not the streaming.
+                final Span setupSpan = tracingOn ? AnalyticsTracing.startChildOf(tracer, fragmentSpan, AnalyticsTracing.SPAN_FRAGMENT_SETUP) : null;
+                final long setupStartNanos = System.nanoTime();
+                ResolvedExecution exec = null;
+                try (SpanScope ignored = tracer.withSpanInScope(fragmentSpan)) {
+                    try {
+                        exec = executeFragmentStreamingResolved(request, shard, task);
+                    } finally {
+                        if (setupSpan != null) {
+                            setupSpan.addAttribute("setup_nanos", System.nanoTime() - setupStartNanos);
+                            setupSpan.endSpan();
                         }
+                    }
+                    // T2 per-batch drain (produce/send child spans) lives in FragmentTracingProbe so
+                    // this hot loop stays a thin call. Exceptions propagate; this method's catch/finally
+                    // owns fragment-span error tagging and exec close.
+                    EngineResultStream stream = exec.resources().stream();
+                    FragmentTracingProbe.DrainResult drained = FragmentTracingProbe.drain(tracer, fragmentSpan, stream, responseHandler, tracingOn);
+                    rowsProduced = drained.rowsProduced();
+                    batchOrdinal = drained.batchCount();
+                    batchSpansEmitted = drained.batchSpansEmitted();
+                    long fragmentTookNanos = System.nanoTime() - startNanos;
+                    // DataFusion native execution metrics (per-operator EXPLAIN-ANALYZE-style JSON:
+                    // scan rows, row-groups pruned, partial-agg time, etc.) — the answer to
+                    // "what happened at shard level / where's the bottleneck" (Q2/Q4).
+                    byte[] metricsJson = exec.resources().getExecutionMetrics();
+                    String nativeMetrics = metricsJson != null
+                        ? new String(metricsJson, java.nio.charset.StandardCharsets.UTF_8)
+                        : null;
+                    if (LOGGER.isDebugEnabled() && nativeMetrics != null) {
+                        LOGGER.debug("[FragmentMetrics] shard={} metrics={}", shard.shardId(), nativeMetrics);
                     }
                     responseHandler.onComplete();
                     ResolvedFragment resolved = exec.resolved();
@@ -206,6 +268,83 @@ public class AnalyticsSearchService implements AutoCloseable {
                         task.getId(),
                         task.getHeader(Task.X_OPAQUE_ID)
                     );
+                    // T2: tag the fragment span with execution facts, then end it before the
+                    // success listener fires (so the span closes on the work thread).
+                    fragmentSpan.addAttribute("rows_produced", rowsProduced);
+                    fragmentSpan.addAttribute("took_nanos", fragmentTookNanos);
+                    fragmentSpan.addAttribute("took_ms", java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(fragmentTookNanos));
+                    fragmentSpan.addAttribute("has_partial_aggregate", hasPartialAggregate);
+                    // How many batches this fragment flushed vs how many got their own span (the rest
+                    // were elided by the per-fragment cap) — keeps the count signal even when capped.
+                    fragmentSpan.addAttribute("batch.count_total", batchOrdinal);
+                    fragmentSpan.addAttribute("batch.span_count", batchSpansEmitted);
+                    // Q4: was Lucene used as a delegated filter, and how. Human-readable summary
+                    // plus the raw fields. "lucene_pruned" = the inverted index narrowed the scan;
+                    // "datafusion_only" = no delegation, full columnar scan + native eval.
+                    fragmentSpan.addAttribute("filter.delegation", usedSecondaryIndex ? "lucene_pruned" : "datafusion_only");
+                    fragmentSpan.addAttribute("filter.delegated_predicate_count", (long) delegatedPredicateCount);
+                    if (filterTreeShape != null) {
+                        fragmentSpan.addAttribute("filter.tree_shape", filterTreeShape);
+                    }
+                    // T2: how much of the produce time was Lucene delegation. Read BEFORE exec.close()
+                    // drops the FFM binding. CPU-nanos (summed across concurrent scan threads, so it
+                    // can exceed produce wall-clock); collect_calls ≈ row-groups/segments Lucene-pruned.
+                    org.opensearch.analytics.spi.DelegationTimings dt = exec.resources().getDelegationTimings();
+                    long delegationCpuNanos = 0;
+                    long delegationCollectCalls = 0;
+                    if (dt != null) {
+                        delegationCpuNanos = dt.collectNanos();
+                        delegationCollectCalls = dt.collectCalls();
+                        fragmentSpan.addAttribute("filter.delegation_cpu_nanos", delegationCpuNanos);
+                        fragmentSpan.addAttribute("filter.delegation_collect_calls", delegationCollectCalls);
+                    }
+                    // Q2/Q4: per-operator native execution breakdown (scan/prune/agg timings & row counts).
+                    if (nativeMetrics != null) {
+                        String m = nativeMetrics.length() > 8192 ? nativeMetrics.substring(0, 8192) + "…[truncated]" : nativeMetrics;
+                        fragmentSpan.addAttribute("datafusion.metrics", m);
+                        // M2/Q3: promote the native pool high-water mark to a first-class, queryable
+                        // numeric attribute instead of leaving it buried in the metrics JSON blob.
+                        // This is the per-SHARD native peak (this node's DataFusion pool for this
+                        // fragment) — intentionally NOT summed with other shards or the coordinator
+                        // reduce (those pools live on separate nodes; see tracing SPEC "not a cluster
+                        // sum"). -1 when the field is absent so a missing value is distinguishable.
+                        long shardNativePeak = FragmentTracingProbe.extractLongMetric(nativeMetrics, "peak_mem_used");
+                        if (shardNativePeak >= 0) {
+                            fragmentSpan.addAttribute("mem.shard_native.peak_bytes", shardNativePeak);
+                        }
+                        // Q4 drill-down: synthesize one child span per native operator (SortExec,
+                        // AggregateExec, QueryShardExec, …) from the operators[] array, so the
+                        // fragment can be opened up operator-by-operator in the trace UI. Uses the
+                        // FULL (untruncated) metrics JSON — the operators array is past the 8192-char
+                        // span-attribute cap above. Best-effort; never throws.
+                        long fragmentEndEpochNanos = fragmentStartEpochNanos + (System.nanoTime() - startNanos);
+                        int operatorSpans = FragmentTracingProbe.synthesizeOperatorSpans(
+                            tracer,
+                            fragmentSpan,
+                            nativeMetrics,
+                            fragmentStartEpochNanos,
+                            fragmentEndEpochNanos
+                        );
+                        if (operatorSpans > 0) {
+                            fragmentSpan.addAttribute("datafusion.operator_span_count", (long) operatorSpans);
+                        }
+                        // Distinct Lucene span: when a predicate executed via Lucene (delegation), emit
+                        // one lucene.delegation child span (engine=lucene) alongside the datafusion.op.*
+                        // spans, so the two engines are visually separable and the Lucene pruning cost
+                        // is readable on its own bar. No-op when delegation didn't fire.
+                        FragmentTracingProbe.emitLuceneDelegationSpan(
+                            tracer,
+                            fragmentSpan,
+                            delegationCpuNanos,
+                            delegationCollectCalls,
+                            (long) delegatedPredicateCount,
+                            filterTreeShape,
+                            fragmentStartEpochNanos,
+                            fragmentEndEpochNanos
+                        );
+                    }
+                    fragmentSpan.endSpan();
+                    fragmentSpanEnded = true;
                     listener.onFragmentSuccess(
                         request.getQueryId(),
                         request.getStageId(),
@@ -215,7 +354,22 @@ public class AnalyticsSearchService implements AutoCloseable {
                         stats
                     );
                 } catch (Exception e) {
+                    fragmentSpan.setError(e);
                     responseHandler.onFailure(e);
+                } finally {
+                    // exec is no longer managed by try-with-resources (the loop was restructured to
+                    // bracket produce vs send with spans), so close it here in reverse order. Closing
+                    // releases the reader context + native stream/session; null if resolve threw.
+                    if (exec != null) {
+                        try {
+                            exec.close();
+                        } catch (Exception closeEx) {
+                            LOGGER.warn("[FragmentExecution] error closing resolved execution for shard={}", shard.shardId(), closeEx);
+                        }
+                    }
+                    if (fragmentSpanEnded == false) {
+                        fragmentSpan.endSpan();
+                    }
                 }
             });
         } catch (Exception e) {
@@ -365,6 +519,7 @@ public class AnalyticsSearchService implements AutoCloseable {
         EngineResultStream stream = null;
         BackendExecutionContext backendContext = null;
         Runnable trackerCleanup = null;
+        org.opensearch.analytics.spi.DelegationTimings delegationTimings = null;
         try {
             ShardScanExecutionContext ctx = buildContext(request, readerContext.getReader(), resolved.plan, shard, task);
             AnalyticsSearchBackendPlugin backend = backends.get(resolved.plan.getBackendId());
@@ -408,15 +563,25 @@ public class AnalyticsSearchService implements AutoCloseable {
                     };
                 }
 
+                // T2: accumulate Lucene delegation CPU-time across the per-segment collectDocs
+                // upcalls so the fragment span can report filter.delegation_cpu_nanos / _collect_calls.
+                // Only when tracing is on (the upcall path is hot — thousands of calls — so the sink
+                // is null otherwise and the upcall pays nothing).
+                if (tracer != NoopTracer.INSTANCE) {
+                    delegationTimings = new org.opensearch.analytics.spi.DelegationTimings();
+                }
+
                 // Register handle and tracker together under the query's contextId so concurrent
                 // queries have isolated FFM callback bindings. The returned cleanup removes the
                 // binding after query execution completes.
-                trackerCleanup = backend.configureFilterDelegation(contextId, handle, tracker, backendContext);
+                trackerCleanup = backend.configureFilterDelegation(contextId, handle, tracker, backendContext, delegationTimings);
             }
 
             engine = backend.getSearchExecEngineProvider().createSearchExecEngine(ctx, backendContext);
             stream = engine.execute(ctx);
-            return new FragmentResources(readerContextStore, readerContext, engine, stream, trackerCleanup);
+            FragmentResources fr = new FragmentResources(readerContextStore, readerContext, engine, stream, trackerCleanup);
+            fr.setDelegationTimings(delegationTimings);
+            return fr;
         } catch (Exception e) {
             LOGGER.error(
                 () -> new org.apache.logging.log4j.message.ParameterizedMessage(

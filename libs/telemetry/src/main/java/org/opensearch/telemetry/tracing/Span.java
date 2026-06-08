@@ -10,6 +10,8 @@ package org.opensearch.telemetry.tracing;
 
 import org.opensearch.common.annotation.ExperimentalApi;
 
+import java.time.Instant;
+
 /**
  * An interface that represents a tracing span.
  * Spans are created by the Tracer.startSpan method.
@@ -24,6 +26,17 @@ public interface Span {
      * Ends the span
      */
     void endSpan();
+
+    /**
+     * Ends the span at an explicit timestamp, for spans reconstructed after the work completed
+     * (e.g. native per-operator execution). Default implementation ignores the timestamp and ends
+     * "now" — so existing {@link Span} implementations (noop, mocks, third-party) need no change;
+     * implementations backed by a timestamp-capable tracer (OTel) override this.
+     * @param endTimestamp explicit end instant; {@code null} ends now
+     */
+    default void endSpan(Instant endTimestamp) {
+        endSpan();
+    }
 
     /**
      * Returns span's parent span

@@ -11,6 +11,8 @@ package org.opensearch.telemetry.tracing;
 import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.telemetry.tracing.attributes.Attributes;
 
+import java.time.Instant;
+
 /**
  * Context for span details.
  *
@@ -22,6 +24,7 @@ public final class SpanCreationContext {
     private Attributes attributes;
     private SpanKind spanKind = SpanKind.INTERNAL;
     private SpanContext parent;
+    private Instant startTimestamp;
 
     /**
      * Constructor.
@@ -89,6 +92,18 @@ public final class SpanCreationContext {
     }
 
     /**
+     * Sets an explicit start timestamp for the span. When set, the span is recorded as having begun
+     * at this instant rather than "now" — used to reconstruct spans for work that already happened
+     * (e.g. native per-operator execution timed after the fact). Null (the default) means start-now.
+     * @param startTimestamp explicit start instant, or null for start-now
+     * @return spanCreationContext
+     */
+    public SpanCreationContext startTimestamp(Instant startTimestamp) {
+        this.startTimestamp = startTimestamp;
+        return this;
+    }
+
+    /**
      * Returns the span name.
      * @return span name
      */
@@ -118,5 +133,13 @@ public final class SpanCreationContext {
      */
     public SpanContext getParent() {
         return parent;
+    }
+
+    /**
+     * Returns the explicit start timestamp, or null when the span should start "now".
+     * @return start timestamp or null
+     */
+    public Instant getStartTimestamp() {
+        return startTimestamp;
     }
 }

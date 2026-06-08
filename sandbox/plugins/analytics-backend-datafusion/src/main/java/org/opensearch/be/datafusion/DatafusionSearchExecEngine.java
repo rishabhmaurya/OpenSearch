@@ -60,7 +60,8 @@ public class DatafusionSearchExecEngine implements SearchExecEngine<ShardScanExe
         DatafusionSearcher searcher = datafusionContext.getSearcher();
         searcher.search(datafusionContext);
         StreamHandle handle = datafusionContext.takeStreamHandle();
-        return new DatafusionResultStream(handle, allocator);
+        // contextId lets the stream report per-batch native pool peak via queryPeakByContext.
+        return new DatafusionResultStream(handle, allocator, contextId);
     }
 
     @Override

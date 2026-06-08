@@ -390,6 +390,19 @@ pub extern "C" fn df_cancel_query(context_id: i64) {
     api::cancel_query(context_id);
 }
 
+/// Returns the peak native (DataFusion pool) memory in bytes for the query with the given
+/// `context_id`, or 0 if the query is not (or no longer) registered.
+///
+/// Deliberately NOT `#[ffm_safe]`: that macro reserves a negative return for the
+/// negated-error-pointer convention, but this getter must return a plain non-negative value
+/// (0 = "not measured") on every path. `query_peak_bytes` is infallible and saturates at
+/// `i64::MAX`, so there is no error channel to surface. Java side: FunctionDescriptor.of(
+/// JAVA_LONG /*ret*/, JAVA_LONG /*context_id*/).
+#[no_mangle]
+pub extern "C" fn df_query_peak_by_context(context_id: i64) -> i64 {
+    api::query_peak_bytes(context_id)
+}
+
 /// Sets the cancellation stats threshold in milliseconds.
 /// Queries cancelled for less than this duration are not counted in stats.
 #[no_mangle]
