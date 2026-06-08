@@ -11,6 +11,7 @@ package org.opensearch.analytics.spi;
 import org.apache.arrow.memory.BufferAllocator;
 
 import java.util.List;
+import java.util.function.LongConsumer;
 
 /**
  * Context passed to {@link ExchangeSinkProvider#createSink} when a
@@ -42,12 +43,58 @@ import java.util.List;
  *   <li>{@code downstream} — sink the backend drains its reduced output
  *       into. The backend owns {@code downstream}'s lifecycle: it must
  *       feed every produced batch and close it when draining is complete.</li>
+ *   <li>{@code nativePeakRecorder} — callback the backend invokes (once, at the
+ *       reduce terminal, before the native session is closed) with the per-query
+ *       peak native memory in bytes (M1). Decoupled so the framework SPI gains no
+ *       dependency on the engine's {@code QueryContext}. Defaults to a no-op via the
+ *       7-arg convenience constructor.</li>
+ *   <li>{@code reduceDrainObserver} — observer the backend invokes around each reduced-output
+ *       batch as it drains the FINAL-aggregation stream downstream, so the engine can time reduce
+ *       produce vs send (T2). Opaque-token based so the SPI gains no tracing dependency (mirrors
+ *       {@code nativePeakRecorder}). Defaults to {@link ReduceDrainObserver#NOOP} via the 7- and
+ *       8-arg convenience constructors.</li>
  * </ul>
  *
  * @opensearch.internal
  */
-public record ExchangeSinkContext(String queryId, int stageId, long taskId, byte[] fragmentBytes, BufferAllocator allocator, List<
-    ChildInput> childInputs, ExchangeSink downstream) implements CommonExecutionContext {
+public record ExchangeSinkContext(
+    String queryId,
+    int stageId,
+    long taskId,
+    byte[] fragmentBytes,
+    BufferAllocator allocator,
+    List<ChildInput> childInputs,
+    ExchangeSink downstream,
+    LongConsumer nativePeakRecorder,
+    ReduceDrainObserver reduceDrainObserver
+) implements CommonExecutionContext {
+
+    /** Back-compat constructor with a no-op native-peak recorder and no-op drain observer. */
+    public ExchangeSinkContext(
+        String queryId,
+        int stageId,
+        long taskId,
+        byte[] fragmentBytes,
+        BufferAllocator allocator,
+        List<ChildInput> childInputs,
+        ExchangeSink downstream
+    ) {
+        this(queryId, stageId, taskId, fragmentBytes, allocator, childInputs, downstream, peak -> {}, ReduceDrainObserver.NOOP);
+    }
+
+    /** Back-compat constructor (pre-observer): native-peak recorder supplied, no-op drain observer. */
+    public ExchangeSinkContext(
+        String queryId,
+        int stageId,
+        long taskId,
+        byte[] fragmentBytes,
+        BufferAllocator allocator,
+        List<ChildInput> childInputs,
+        ExchangeSink downstream,
+        LongConsumer nativePeakRecorder
+    ) {
+        this(queryId, stageId, taskId, fragmentBytes, allocator, childInputs, downstream, nativePeakRecorder, ReduceDrainObserver.NOOP);
+    }
 
     /**
      * Per-child input descriptor: the child stage id and the producer-side plan bytes the

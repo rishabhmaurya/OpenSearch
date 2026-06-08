@@ -922,7 +922,18 @@ public class DataFusionAnalyticsBackendPlugin implements AnalyticsSearchBackendP
         DelegationThreadTracker tracker,
         BackendExecutionContext backendContext
     ) {
-        FilterTreeCallbacks.register(contextId, handle, tracker);
+        return configureFilterDelegation(contextId, handle, tracker, backendContext, null);
+    }
+
+    @Override
+    public Runnable configureFilterDelegation(
+        long contextId,
+        FilterDelegationHandle handle,
+        DelegationThreadTracker tracker,
+        BackendExecutionContext backendContext,
+        org.opensearch.analytics.spi.DelegationTimings timings
+    ) {
+        FilterTreeCallbacks.register(contextId, handle, tracker, timings);
         return () -> {
             FilterTreeCallbacks.unregister(contextId);
             try {

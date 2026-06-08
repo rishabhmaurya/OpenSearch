@@ -369,6 +369,18 @@ pub fn get_cancellation_token(context_id: i64) -> Option<CancellationToken> {
     QUERY_REGISTRY.get(&context_id).map(|t| t.cancellation_token.clone())
 }
 
+/// Peak memory (bytes) this query's [`QueryMemoryPool`] has reserved, for the given
+/// `context_id`. Returns `0` when the query is not (or no longer) registered — callers across
+/// the FFM boundary MUST treat 0 as "not measured", never as a sentinel/error (the getter is
+/// non-negative on every path so it never collides with the negated-error-pointer convention).
+/// Saturates at [`i64::MAX`] for the (practically impossible) >8 EiB case.
+pub fn peak_bytes_by_context(context_id: i64) -> i64 {
+    QUERY_REGISTRY
+        .get(&context_id)
+        .map(|t| usize_to_i64_saturating(t.memory_pool.peak_bytes()))
+        .unwrap_or(0)
+}
+
 /// Store the CPU task's AbortHandle for the given context_id.
 pub fn set_abort_handle(context_id: i64, handle: AbortHandle) {
     if let Some(tracker) = QUERY_REGISTRY.get(&context_id) {
@@ -1031,5 +1043,29 @@ mod tests {
         for id in &ids {
             QUERY_REGISTRY.remove(id);
         }
+    }
+
+    #[test]
+    fn test_peak_bytes_by_context_point_lookup() {
+        // Unknown id => 0 (the FFM-safe "not measured" value, never negative).
+        assert_eq!(peak_bytes_by_context(50_010), 0);
+
+        let global = make_global_pool(1_000_000);
+        let ctx_id = 50_011;
+        let ctx = QueryTrackingContext::new(ctx_id, global, QueryType::Coordinator);
+        let qp = ctx.memory_pool().unwrap();
+        let pool: Arc<dyn MemoryPool> = qp.clone();
+        let mut reservation = make_reservation(&pool, "peak_lookup_test");
+
+        reservation.try_grow(7000).unwrap();
+        reservation.try_grow(2000).unwrap(); // peak now 9000
+        reservation.shrink(4000); // current 5000, peak stays 9000
+        // The point lookup reads PEAK (high-water), not current.
+        assert_eq!(peak_bytes_by_context(ctx_id), 9000);
+
+        drop(reservation);
+        drop(ctx);
+        // After the tracking context is dropped (registry entry removed), lookup returns 0.
+        assert_eq!(peak_bytes_by_context(ctx_id), 0);
     }
 }

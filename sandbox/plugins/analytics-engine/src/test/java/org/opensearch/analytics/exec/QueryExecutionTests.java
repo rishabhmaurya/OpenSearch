@@ -184,6 +184,37 @@ public class QueryExecutionTests extends OpenSearchTestCase {
         assertSame("original stage failure must reach the listener even when terminal sink close throws", rootCause, onFailure.get());
     }
 
+    /**
+     * M1/M2 ordering guarantee: the per-query memory snapshot must be captured BEFORE the
+     * terminal listener fires, so the profile/span the listener builds read real numbers. This
+     * regression-guards the fix that moved captureMemorySnapshot() ahead of fireListener() in
+     * transitionTo() (previously it ran only in close(), AFTER the listener -> always 0).
+     */
+    public void testMemorySnapshotCapturedBeforeListenerFires() {
+        Stage rootStage = stageWithId(0);
+        TestRootExecution root = new TestRootExecution(rootStage, new CountingCloseSink());
+        builder.registerFactory(StageExecutionType.LOCAL_PASSTHROUGH, (stage, s, cfg) -> root);
+
+        QueryContext ctx = queryCtx(rootStage);
+        ctx.recordNativePeak(4242L); // backend reduce path would have recorded this before terminal
+        ExecutionGraph graph = ExecutionGraph.build(ctx, builder, StageExecution::start);
+
+        java.util.concurrent.atomic.AtomicReference<QueryExecution> qeRef = new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicLong nativeSeenInListener = new java.util.concurrent.atomic.AtomicLong(-1);
+        ActionListener<Iterable<VectorSchemaRoot>> listener = ActionListener.wrap(
+            r -> nativeSeenInListener.set(qeRef.get().memorySnapshot().peakNativeBytes()),
+            e -> {}
+        );
+        QueryExecution qe = new QueryExecution(ctx, graph, StageExecution::start, listener);
+        qeRef.set(qe);
+        qe.start();
+        root.succeed();
+
+        assertEquals(QueryExecution.State.SUCCEEDED, qe.getState());
+        assertEquals("listener must observe the native peak captured before it fired", 4242L, nativeSeenInListener.get());
+        assertEquals("snapshot persists after terminal", 4242L, qe.memorySnapshot().peakNativeBytes());
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────
 
     private QueryExecution newQueryExecution(Stage rootStage, ActionListener<Iterable<VectorSchemaRoot>> listener) {

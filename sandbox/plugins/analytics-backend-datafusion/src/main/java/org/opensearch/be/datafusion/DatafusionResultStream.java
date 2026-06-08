@@ -48,12 +48,19 @@ public class DatafusionResultStream implements EngineResultStream, FragmentResou
     private final StreamHandle streamHandle;
     private final BufferAllocator allocator;
     private final CDataDictionaryProvider dictionaryProvider;
+    /** Native QUERY_REGISTRY context id for per-batch peak reads; 0 when unknown (peak unavailable). */
+    private final long contextId;
     private volatile BatchIterator iteratorInstance;
 
     // Allocator is caller-owned; this stream imports into it but never closes it.
     public DatafusionResultStream(StreamHandle streamHandle, BufferAllocator allocator) {
+        this(streamHandle, allocator, 0L);
+    }
+
+    public DatafusionResultStream(StreamHandle streamHandle, BufferAllocator allocator, long contextId) {
         this.streamHandle = streamHandle;
         this.allocator = allocator;
+        this.contextId = contextId;
         this.dictionaryProvider = new CDataDictionaryProvider();
     }
 
@@ -68,6 +75,18 @@ public class DatafusionResultStream implements EngineResultStream, FragmentResou
     @Override
     public byte[] getMetricsJson() {
         return NativeBridge.streamGetMetrics(streamHandle.getPointer());
+    }
+
+    @Override
+    public long currentNativePeakBytes() {
+        if (contextId == 0L) {
+            return -1;
+        }
+        // Cumulative high-water mark of this shard's DataFusion pool for contextId. Returns 0 once
+        // the native session is dropped from QUERY_REGISTRY; map that to -1 (unavailable) so a
+        // genuine reading is never confused with "session gone".
+        long peak = NativeBridge.queryPeakByContext(contextId);
+        return peak > 0 ? peak : -1;
     }
 
     @Override

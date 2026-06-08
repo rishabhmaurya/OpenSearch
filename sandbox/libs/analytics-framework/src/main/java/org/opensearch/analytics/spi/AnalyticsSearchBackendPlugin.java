@@ -130,6 +130,22 @@ public interface AnalyticsSearchBackendPlugin {
     }
 
     /**
+     * Overload that additionally installs a {@link DelegationTimings} sink so the driving backend's
+     * per-segment filter upcalls accumulate Lucene-delegation timing for the fragment span (T2).
+     * Back-compat default ignores {@code timings} and delegates to the 4-arg method, so existing
+     * backends keep working; {@code timings} may be null when tracing is off.
+     */
+    default Runnable configureFilterDelegation(
+        long contextId,
+        FilterDelegationHandle handle,
+        DelegationThreadTracker tracker,
+        BackendExecutionContext backendContext,
+        DelegationTimings timings
+    ) {
+        return configureFilterDelegation(contextId, handle, tracker, backendContext);
+    }
+
+    /**
      * Returns a snapshot of this backend's currently-tracked queries, keyed by {@code contextId}.
      *
      * <p>The map is a point-in-time view — entries can register or drain concurrently on the
