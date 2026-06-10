@@ -21,7 +21,9 @@
 
 use std::sync::Arc;
 
-use native_bridge_common::log_debug;
+use native_bridge_common::{log_debug, log_info};
+use futures::StreamExt;
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use datafusion::{
     physical_plan::displayable,
     physical_plan::execute_stream,
@@ -513,6 +515,9 @@ async unsafe fn execute_indexed_with_context_inner(
     // callback to the correct per-query FilterDelegationHandle and DelegationThreadTracker.
     let context_id = query_context.context_id();
 
+    // === SETUP_PHASE_R timing markers ===
+    let setup_t0 = std::time::Instant::now();
+    log_info!("SETUP_PHASE_R ctx={} t0=execute_indexed_inner_begin", context_id);
 
     // SessionContext already has RuntimeEnv, caches, memory pool, UDF from create_session_context_indexed.
     // Deregister the default ListingTable (registered by create_session_context) — will be replaced
@@ -536,6 +541,7 @@ async unsafe fn execute_indexed_with_context_inner(
     )
     .await
     .map_err(DataFusionError::Execution)?;
+    log_info!("SETUP_PHASE_R ctx={} after_build_segments segments={} elapsed_ms={}", context_id, segments.len(), setup_t0.elapsed().as_millis());
     let schema = crate::schema_coerce::coerce_inferred_schema(schema);
     // Widen to the plan's base_schema so columns absent from this shard's parquet (cross-shard drift) are null-filled at read time.
     let schema = crate::session_context::widen_schema_from_plan(&ctx, &substrait_bytes, &table_name, &schema);
@@ -898,6 +904,7 @@ async unsafe fn execute_indexed_with_context_inner(
         .map_err(|e| DataFusionError::Execution(format!("parse table_path URL: {}", e)))?;
     let store_url = ObjectStoreUrl::parse(format!("{}://{}", parsed.scheme(), parsed.authority()))?;
 
+    log_info!("SETUP_PHASE_R ctx={} before_register_provider elapsed_ms={}", context_id, setup_t0.elapsed().as_millis());
     let provider = Arc::new(IndexedTableProvider::new(IndexedTableConfig {
         schema: schema.clone(),
         segments,
@@ -910,11 +917,15 @@ async unsafe fn execute_indexed_with_context_inner(
         emit_row_ids,
     }));
     ctx.register_table(&table_name, provider)?;
+    log_info!("SETUP_PHASE_R ctx={} after_register_provider elapsed_ms={}", context_id, setup_t0.elapsed().as_millis());
 
     let logical_plan = from_substrait_plan(&ctx.state(), &plan).await?;
+    log_info!("SETUP_PHASE_R ctx={} after_from_substrait_plan elapsed_ms={}", context_id, setup_t0.elapsed().as_millis());
     log_debug!("DataFusion logical plan:\n{}", logical_plan.display_indent());
     let dataframe = ctx.execute_logical_plan(logical_plan).await?;
+    log_info!("SETUP_PHASE_R ctx={} after_execute_logical_plan elapsed_ms={}", context_id, setup_t0.elapsed().as_millis());
     let physical_plan = dataframe.create_physical_plan().await?;
+    log_info!("SETUP_PHASE_R ctx={} after_create_physical_plan elapsed_ms={}", context_id, setup_t0.elapsed().as_millis());
     // Retag bit-compatible Int↔UInt output mismatches to match the substrait-declared
     // types. The target is schema_coerce::coerce_inferred_schema(physical_schema) — same
     // narrowing the partition-stream registration uses, so consumer-side StreamingTable
@@ -929,8 +940,55 @@ async unsafe fn execute_indexed_with_context_inner(
     let target_schema = crate::schema_coerce::coerce_inferred_schema(physical_plan.schema());
     let physical_plan = crate::relabel_exec::wrap_if_relabel_needed(physical_plan, target_schema)?;
     log_debug!("DataFusion physical plan:\n{}", displayable(physical_plan.as_ref()).indent(true));
+    log_info!("SETUP_PHASE_R ctx={} before_execute_stream elapsed_ms={}", context_id, setup_t0.elapsed().as_millis());
     let df_stream = execute_stream(physical_plan.clone(), ctx.task_ctx())
         .map_err(|e| DataFusionError::Execution(format!("execute_stream: {}", e)))?;
+    log_info!("SETUP_PHASE_R ctx={} after_execute_stream elapsed_ms={}", context_id, setup_t0.elapsed().as_millis());
+
+    // STREAM_BATCH interceptor: log every RecordBatch flowing from DataFusion → Java for q23 debugging.
+    let intercept_ctx_id = context_id;
+    let stream_schema = df_stream.schema();
+    let batch_seq = std::sync::Arc::new(AtomicUsize::new(0));
+    let schema_for_log = stream_schema.clone();
+    let batch_seq_inner = batch_seq.clone();
+    let inner_stream = df_stream.inspect(move |item| {
+        match item {
+            Ok(batch) => {
+                let seq = batch_seq_inner.fetch_add(1, AtomicOrdering::Relaxed);
+                if seq == 0 {
+                    log_info!(
+                        "STREAM_SCHEMA context_id={} schema={:?}",
+                        intercept_ctx_id,
+                        schema_for_log.as_ref()
+                    );
+                }
+                let nrows = batch.num_rows();
+                if seq < 3 || nrows > 0 && seq % 50 == 0 {
+                    let preview = batch.slice(0, std::cmp::min(3, nrows));
+                    let pretty = arrow::util::pretty::pretty_format_batches(&[preview])
+                        .map(|d| d.to_string())
+                        .unwrap_or_else(|e| format!("<pretty err: {}>", e));
+                    log_info!(
+                        "STREAM_BATCH context_id={} seq={} rows={} cols={} preview=\n{}",
+                        intercept_ctx_id, seq, nrows, batch.num_columns(), pretty
+                    );
+                } else {
+                    log_info!(
+                        "STREAM_BATCH context_id={} seq={} rows={} cols={}",
+                        intercept_ctx_id, seq, nrows, batch.num_columns()
+                    );
+                }
+            }
+            Err(e) => {
+                log_info!("STREAM_ERR context_id={} err={}", intercept_ctx_id, e);
+            }
+        }
+    });
+    let total_seq = batch_seq.clone();
+    let inner_stream = inner_stream.inspect(move |_| {/* keep-alive */ let _=&total_seq;});
+    let df_stream: datafusion::execution::SendableRecordBatchStream = Box::pin(
+        datafusion::physical_plan::stream::RecordBatchStreamAdapter::new(stream_schema, inner_stream)
+    );
 
     let (cross_rt_stream, abort_handle) =
         CrossRtStream::new_with_df_error_stream_cancellable(df_stream, cpu_executor);

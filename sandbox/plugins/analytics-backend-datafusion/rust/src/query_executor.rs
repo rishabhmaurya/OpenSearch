@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 
-use native_bridge_common::log_debug;
+use native_bridge_common::{log_debug, log_info};
 use datafusion::{
     common::DataFusionError,
     datasource::listing::{ListingOptions, ListingTable, ListingTableConfig, ListingTableUrl},
@@ -350,6 +350,17 @@ pub async fn execute_with_context(
 
         let target_schema = crate::schema_coerce::coerce_inferred_schema(physical_plan.schema());
         let physical_plan = crate::relabel_exec::wrap_if_relabel_needed(physical_plan, target_schema)?;
+
+        log_info!(
+            "PHYSICAL_PLAN context_id={} oneline={}",
+            context_id,
+            displayable(physical_plan.as_ref()).one_line()
+        );
+        log_info!(
+            "PHYSICAL_PLAN_INDENT context_id={}\n{}",
+            context_id,
+            displayable(physical_plan.as_ref()).indent(true)
+        );
 
         let df_stream = execute_stream(physical_plan.clone(), handle.ctx.task_ctx()).map_err(|e| {
             error!("execute_with_context: failed to create stream: {}", e);

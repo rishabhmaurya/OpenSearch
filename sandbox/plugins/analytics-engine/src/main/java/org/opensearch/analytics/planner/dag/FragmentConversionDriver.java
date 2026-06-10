@@ -8,6 +8,7 @@
 
 package org.opensearch.analytics.planner.dag;
 
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.type.RelDataType;
@@ -134,6 +135,17 @@ public class FragmentConversionDriver {
                 delegated.size(),
                 delegated.isEmpty() ? "" : " [ids=" + delegated.stream().map(d -> String.valueOf(d.getAnnotationId())).toList() + "]"
             );
+            // === STAGE_DUMP === full RelNode + instructions per fragment for debugging.
+            if (LOGGER.isDebugEnabled()) {
+                String relText = "<unavailable>";
+                try { relText = RelOptUtil.toString(plan.resolvedFragment()); } catch (Throwable t) { relText = "<err: " + t.getMessage() + ">"; }
+                String instrText;
+                try { instrText = instructions.stream().map(i -> i.getClass().getSimpleName()).toList().toString(); } catch (Throwable t) { instrText = "<err: " + t.getMessage() + ">"; }
+                LOGGER.debug(
+                    "STAGE_DUMP stageId={} backend={} bytesLen={} instructions={}\n--- RelNode ---\n{}",
+                    stage.getStageId(), plan.backendId(), bytes.length, instrText, relText
+                );
+            }
         }
         stage.setPlanAlternatives(converted);
         // Store factory on coordinator-reduce stages (local execution, no serialization needed).

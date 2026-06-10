@@ -509,7 +509,12 @@ public class AnalyticsSearchService implements AutoCloseable {
 
     private FragmentResources startFragment(FragmentExecutionRequest request, ResolvedFragment resolved, IndexShard shard, Task task)
         throws IOException {
+        // === SETUP_PHASE_J timing — instrument each major step inside startFragment to localize delegation-on slowdown ===
+        long sf_t0 = System.nanoTime();
+        long sf_qid = task != null ? task.getId() : 0L;
+        LOGGER.info("SETUP_PHASE_J qid={} t0=startFragment_begin", sf_qid);
         GatedCloseable<Reader> gatedReader = resolved.readerProvider.acquireReader();
+        LOGGER.info("SETUP_PHASE_J qid={} after_acquireReader elapsed_ms={}", sf_qid, (System.nanoTime() - sf_t0) / 1_000_000L);
         // QTF: hand the reader to the store so the fetch phase can reuse it without re-opening.
         // FragmentResources holds a reference to the ReaderContext; close() releases it back
         // to the store, the reaper closes after keepAlive.
@@ -523,8 +528,11 @@ public class AnalyticsSearchService implements AutoCloseable {
         try {
             ShardScanExecutionContext ctx = buildContext(request, readerContext.getReader(), resolved.plan, shard, task);
             AnalyticsSearchBackendPlugin backend = backends.get(resolved.plan.getBackendId());
+            LOGGER.info("SETUP_PHASE_J qid={} after_buildContext elapsed_ms={}", sf_qid, (System.nanoTime() - sf_t0) / 1_000_000L);
 
+            long sf_t_handlers = System.nanoTime();
             backendContext = applyInstructionHandlers(backend, resolved.plan.getInstructions(), ctx);
+            LOGGER.info("SETUP_PHASE_J qid={} after_applyInstructionHandlers elapsed_ms={} step_ms={}", sf_qid, (System.nanoTime() - sf_t0) / 1_000_000L, (System.nanoTime() - sf_t_handlers) / 1_000_000L);
 
             // Handle exchange — if plan has delegation, ask accepting backend for handle and pass to driving
             // TODO: currently assumes single accepting backend. When multiple accepting backends exist
@@ -541,7 +549,9 @@ public class AnalyticsSearchService implements AutoCloseable {
 
                 String acceptingBackendId = delegation.delegatedExpressions().getFirst().getAcceptingBackendId();
                 AnalyticsSearchBackendPlugin acceptingBackend = backends.get(acceptingBackendId);
+                long sf_t_handle = System.nanoTime();
                 FilterDelegationHandle handle = acceptingBackend.getFilterDelegationHandle(delegation.delegatedExpressions(), ctx);
+                LOGGER.info("SETUP_PHASE_J qid={} after_getFilterDelegationHandle elapsed_ms={} step_ms={}", sf_qid, (System.nanoTime() - sf_t0) / 1_000_000L, (System.nanoTime() - sf_t_handle) / 1_000_000L);
 
                 // Build a thread tracker when task resource tracking is available.
                 DelegationThreadTracker tracker = null;
@@ -577,8 +587,12 @@ public class AnalyticsSearchService implements AutoCloseable {
                 trackerCleanup = backend.configureFilterDelegation(contextId, handle, tracker, backendContext, delegationTimings);
             }
 
+            long sf_t_engine = System.nanoTime();
             engine = backend.getSearchExecEngineProvider().createSearchExecEngine(ctx, backendContext);
+            LOGGER.info("SETUP_PHASE_J qid={} after_createSearchExecEngine elapsed_ms={} step_ms={}", sf_qid, (System.nanoTime() - sf_t0) / 1_000_000L, (System.nanoTime() - sf_t_engine) / 1_000_000L);
+            long sf_t_exec = System.nanoTime();
             stream = engine.execute(ctx);
+            LOGGER.info("SETUP_PHASE_J qid={} after_engine_execute elapsed_ms={} step_ms={}", sf_qid, (System.nanoTime() - sf_t0) / 1_000_000L, (System.nanoTime() - sf_t_exec) / 1_000_000L);
             FragmentResources fr = new FragmentResources(readerContextStore, readerContext, engine, stream, trackerCleanup);
             fr.setDelegationTimings(delegationTimings);
             return fr;

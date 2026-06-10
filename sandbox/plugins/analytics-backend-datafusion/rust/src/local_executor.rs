@@ -184,11 +184,23 @@ impl LocalSession {
             DataFusionError::Execution(format!("Failed to decode Substrait plan: {}", e))
         })?;
         let logical_plan = from_substrait_plan(&self.ctx.state(), &plan).await?;
+        native_bridge_common::log_info!(
+            "COORD_LOGICAL_PLAN: {}",
+            logical_plan.display_indent()
+        );
         let dataframe = self.ctx.execute_logical_plan(logical_plan).await?;
         let physical_plan = dataframe.create_physical_plan().await?;
 
         let target_schema = crate::schema_coerce::coerce_inferred_schema(physical_plan.schema());
         let physical_plan = crate::relabel_exec::wrap_if_relabel_needed(physical_plan, target_schema)?;
+        native_bridge_common::log_info!(
+            "COORD_PHYSICAL_PLAN_ONELINE: {}",
+            datafusion::physical_plan::displayable(physical_plan.as_ref()).one_line()
+        );
+        native_bridge_common::log_info!(
+            "COORD_PHYSICAL_PLAN_INDENT:\n{}",
+            datafusion::physical_plan::displayable(physical_plan.as_ref()).indent(true)
+        );
         datafusion::physical_plan::execute_stream(physical_plan, self.ctx.task_ctx())
             .map_err(|e| DataFusionError::Execution(format!("execute_substrait: {}", e)))
     }
@@ -231,6 +243,14 @@ impl LocalSession {
 
         let target_schema = crate::schema_coerce::coerce_inferred_schema(stripped.schema());
         let stripped = crate::relabel_exec::wrap_if_relabel_needed(stripped, target_schema)?;
+        native_bridge_common::log_info!(
+            "FINAL_PLAN_ONELINE: {}",
+            datafusion::physical_plan::displayable(stripped.as_ref()).one_line()
+        );
+        native_bridge_common::log_info!(
+            "FINAL_PLAN_INDENT:\n{}",
+            datafusion::physical_plan::displayable(stripped.as_ref()).indent(true)
+        );
         self.prepared_plan = Some(stripped);
         Ok(())
     }
