@@ -400,9 +400,11 @@ pub(in crate::indexed_table::tests_e2e) async fn execute_tree_single_collector(
                 call_strategy,
                 std::sync::Arc::new(std::collections::HashMap::new()),
                 std::sync::Arc::new(std::collections::HashMap::new()),
+                None,
+                None,
                 segment.writer_generation,
                 (0, segment.max_doc as i32),
-                std::sync::Arc::new(crate::indexed_table::eval::single_collector::FfmDelegatedBackendCollectorFactory),
+                                std::sync::Arc::new(crate::indexed_table::eval::single_collector::FfmDelegatedBackendCollectorFactory),
                 0,
                 None,
             ));

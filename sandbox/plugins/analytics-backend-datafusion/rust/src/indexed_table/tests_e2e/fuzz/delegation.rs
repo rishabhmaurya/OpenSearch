@@ -440,9 +440,11 @@ pub(in crate::indexed_table::tests_e2e) async fn execute_delegation_tree(
                 CollectorCallStrategy::FullRange,
                 Arc::clone(&provider_locks),
                 per_seg_cache,
+                None,
+                None,
                 segment.writer_generation,
                 seg_range,
-                Arc::clone(&factory),
+                                Arc::clone(&factory),
                 0,
                 None,
             ));
