@@ -253,6 +253,66 @@ impl QueryStreamHandle {
             // Per-operator self-work used as the span bar WIDTH on the Java side.
             let work_ns = (elapsed_compute as i64).max(processing_ns);
             op.insert("work_ns".to_string(), serde_json::Value::Number(work_ns.into()));
+
+            // Gap-2 instrumentation: per-partition breakdown so the Java side can emit
+            // datafusion.op.<X>.pN child spans. We walk the raw MetricsSet (not aggregated)
+            // and bucket per-partition values.
+            // MetricValue::partition() returns Option<usize>.
+            use std::collections::BTreeMap;
+            let mut per_part: BTreeMap<usize, serde_json::Map<String, serde_json::Value>> = BTreeMap::new();
+            for m in metrics.iter() {
+                if let Some(p) = m.partition() {
+                    let entry = per_part.entry(p).or_insert_with(serde_json::Map::new);
+                    let v = m.value();
+                    let name = v.name();
+                    let ns_or_count = v.as_usize() as i64;
+                    let key = match name {
+                        "elapsed_compute" => Some("elapsed_compute_ns"),
+                        "output_rows" => Some("rows"),
+                        "time_elapsed_processing" => Some("scan_processing_ns"),
+                        "time_elapsed_scanning_total" => Some("scan_total_ns"),
+                        "time_elapsed_scanning_until_data" => Some("scan_until_data_ns"),
+                        "time_elapsed_opening" => Some("scan_opening_ns"),
+                        _ => None,
+                    };
+                    if let Some(k) = key {
+                        if ns_or_count > 0 {
+                            entry.insert(k.to_string(), serde_json::Value::Number(ns_or_count.into()));
+                        }
+                    }
+                    // Capture per-partition wall-clock anchors for accurate span timing.
+                    match v {
+                        datafusion::physical_plan::metrics::MetricValue::StartTimestamp(_) => {
+                            if ns_or_count > 0 {
+                                entry.insert("start_unix_nanos".to_string(), ns_or_count.into());
+                            }
+                        }
+                        datafusion::physical_plan::metrics::MetricValue::EndTimestamp(_) => {
+                            if ns_or_count > 0 {
+                                entry.insert("end_unix_nanos".to_string(), ns_or_count.into());
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            // Skip emitting empty per-partition arrays; only emit when ≥2 partitions
+            // have at least one timer (matches the planned ≥2 gating from the agent's note).
+            if per_part.len() >= 2 {
+                let mut arr = Vec::with_capacity(per_part.len());
+                for (p, mut m) in per_part {
+                    m.insert("partition".to_string(), serde_json::Value::Number(p.into()));
+                    // work_ns per partition: max(elapsed_compute_ns, scan_processing_ns).
+                    let ec = m.get("elapsed_compute_ns").and_then(|v| v.as_i64()).unwrap_or(0);
+                    let sp = m.get("scan_processing_ns").and_then(|v| v.as_i64()).unwrap_or(0);
+                    let pwork = ec.max(sp);
+                    if pwork > 0 {
+                        m.insert("work_ns".to_string(), serde_json::Value::Number(pwork.into()));
+                    }
+                    arr.push(serde_json::Value::Object(m));
+                }
+                op.insert("partitions".to_string(), serde_json::Value::Array(arr));
+            }
         }
         operators.push(serde_json::Value::Object(op));
 

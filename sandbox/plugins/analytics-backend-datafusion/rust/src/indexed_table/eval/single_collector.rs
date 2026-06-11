@@ -319,14 +319,29 @@ impl SingleCollectorEvaluator {
         t: Instant,
     ) -> Result<Option<PrefetchedRg>, String> {
         if candidates.is_empty() {
+            // Gap-3 instrumentation: emit per-RG event even when fully pruned (zero candidates).
+            let elapsed_ns = t.elapsed().as_nanos() as u64;
+            log::info!(
+                "RG_PREFETCH rg_index={} num_rows={} candidates=0 result=fully_pruned eval_ns={} eval_us={}",
+                rg.index, rg.num_rows, elapsed_ns, elapsed_ns / 1000
+            );
             return Ok(None);
         }
         let mask_len = rg.num_rows as usize;
+        let cardinality = candidates.len() as u64;
         let packed_bits = bitmap_to_packed_bits(&candidates, mask_len as u32);
         let mask_buffer = datafusion::arrow::buffer::Buffer::from_vec(packed_bits);
+        let elapsed_ns = t.elapsed().as_nanos() as u64;
+        // Gap-3 instrumentation: per-RG prefetch timing — covers Lucene drain + cache check +
+        // bitmap intersect + arrow buffer construction. Pairs with on_batch_mask events for
+        // the downstream per-batch intersect cost.
+        log::info!(
+            "RG_PREFETCH rg_index={} num_rows={} candidates={} cardinality={} result=have_mask eval_ns={} eval_us={}",
+            rg.index, rg.num_rows, cardinality, cardinality, elapsed_ns, elapsed_ns / 1000
+        );
         Ok(Some(PrefetchedRg {
             candidates: candidates.clone(),
-            eval_nanos: t.elapsed().as_nanos() as u64,
+            eval_nanos: elapsed_ns,
             context: Box::new(SingleCollectorState {
                 candidates,
                 mask_buffer: mask_buffer.clone(),
@@ -434,12 +449,31 @@ impl RowGroupBitsetSource for SingleCollectorEvaluator {
             let provider_key = provider.key();
             let factory = Arc::clone(&self.delegated_backend_collector_factory);
             let ffm_calls = self.ffm_collector_calls.clone();
+            // Gap-1 instrumentation: distinguish cache HIT vs MISS.
+            // OnceLock::get() is non-blocking and returns Some only after init.
+            // First check; on miss, run init via get_or_init (blocking).
+            let was_cached = bitmap_lock.get().is_some();
+            let init_start = if was_cached { None } else { Some(std::time::Instant::now()) };
             let bm_opt = bitmap_lock.get_or_init(|| {
                 Self::drain_segment_range(
                     &factory, context_id, provider_key, writer_gen,
                     seg_start, seg_end, &ffm_calls,
                 )
             });
+            // Emit cache event log (mirrors LUCENE_DRAIN format for analyzer compatibility).
+            if was_cached {
+                log::info!(
+                    "LUCENE_BITMAP_CACHE_HIT writerGeneration={} contextId={} providerKey={} range=[{},{})",
+                    writer_gen, context_id, provider_key, min_doc, max_doc
+                );
+            } else if let Some(t0) = init_start {
+                let elapsed_ns = t0.elapsed().as_nanos() as u64;
+                log::info!(
+                    "LUCENE_BITMAP_CACHE_MISS writerGeneration={} contextId={} providerKey={} range=[{},{}) build_elapsed_ns={} build_elapsed_us={}",
+                    writer_gen, context_id, provider_key, min_doc, max_doc,
+                    elapsed_ns, elapsed_ns / 1000
+                );
+            }
 
             // Bitmap is segment-relative (bit 0 = doc seg_start); convert to RG-relative.
             let mut candidates = RoaringBitmap::new();
@@ -569,6 +603,9 @@ impl RowGroupBitsetSource for SingleCollectorEvaluator {
 
             if let Some(bitmap_lock) = self.peer_bitmap_cache.get(&annotation_id) {
                 let (seg_start, seg_end) = self.segment_doc_range;
+                // Gap-1 instrumentation: distinguish cache HIT vs MISS for peer-bitmap path.
+                let was_cached = bitmap_lock.get().is_some();
+                let init_start = if was_cached { None } else { Some(std::time::Instant::now()) };
                 let peer_bitmap = bitmap_lock.get_or_init(|| {
                     let provider_lock = self
                         .performance_provider_locks
@@ -608,6 +645,23 @@ impl RowGroupBitsetSource for SingleCollectorEvaluator {
                     }
                     Some(bm)
                 });
+
+                // Emit cache event log so the analyzer can attribute hits vs misses.
+                if was_cached {
+                    log::info!(
+                        "LUCENE_BITMAP_CACHE_HIT annotationId={} writerGeneration={} contextId={} range=[{},{}) seg=[{},{})",
+                        annotation_id, self.writer_generation, self.context_id,
+                        min_doc, max_doc, seg_start, seg_end
+                    );
+                } else if let Some(t0) = init_start {
+                    let elapsed_ns = t0.elapsed().as_nanos() as u64;
+                    log::info!(
+                        "LUCENE_BITMAP_CACHE_MISS annotationId={} writerGeneration={} contextId={} range=[{},{}) seg=[{},{}) build_elapsed_ns={} build_elapsed_us={}",
+                        annotation_id, self.writer_generation, self.context_id,
+                        min_doc, max_doc, seg_start, seg_end,
+                        elapsed_ns, elapsed_ns / 1000
+                    );
+                }
 
                 if let Some(ref full_bm) = peer_bitmap {
                     // Slice to this RG's range. The bitmap is segment-relative (position 0 =

@@ -157,7 +157,14 @@ impl Drop for ProviderHandle {
 /// to the correct per-query `FilterDelegationHandle`.
 pub fn create_provider(context_id: i64, annotation_id: i32) -> Result<ProviderHandle, String> {
     let create = load_create_provider()?;
+    let t0 = std::time::Instant::now();
     let key = unsafe { create(context_id, annotation_id) };
+    let elapsed_ns = t0.elapsed().as_nanos() as u64;
+    // Gap-4 instrumentation: FFM upcall overhead for createProvider.
+    log::info!(
+        "LUCENE_FFM_CREATE_PROVIDER contextId={} annotationId={} key={} elapsed_ns={} elapsed_us={}",
+        context_id, annotation_id, key, elapsed_ns, elapsed_ns / 1000
+    );
     if key < 0 {
         return Err(format!(
             "createProvider failed: context_id={} annotation_id={} -> {}",
@@ -191,7 +198,14 @@ impl FfmSegmentCollector {
         doc_max: i32,
     ) -> Result<Self, String> {
         let create = load_create_collector()?;
+        let t0 = std::time::Instant::now();
         let key = unsafe { create(context_id, provider_key, writer_generation, doc_min, doc_max) };
+        let elapsed_ns = t0.elapsed().as_nanos() as u64;
+        // Gap-4 instrumentation: FFM upcall overhead for createCollector.
+        log::info!(
+            "LUCENE_FFM_CREATE_COLLECTOR contextId={} providerKey={} writerGeneration={} range=[{},{}) key={} elapsed_ns={} elapsed_us={}",
+            context_id, provider_key, writer_generation, doc_min, doc_max, key, elapsed_ns, elapsed_ns / 1000
+        );
         if key < 0 {
             return Err(format!(
                 "createCollector(context_id={}, provider={}, writer_generation={}) failed: {}",
@@ -211,6 +225,7 @@ impl RowGroupDocsCollector for FfmSegmentCollector {
         let word_count = span.div_ceil(64);
         let mut buf = vec![0u64; word_count];
         let collect_fn = load_collect_docs()?;
+        let t0 = std::time::Instant::now();
         let n = unsafe {
             collect_fn(
                 self.context_id,
@@ -221,6 +236,14 @@ impl RowGroupDocsCollector for FfmSegmentCollector {
                 word_count as i64,
             )
         };
+        let elapsed_ns = t0.elapsed().as_nanos() as u64;
+        // Gap-4 instrumentation: FFM upcall overhead for collectDocs.
+        // (LUCENE_DRAIN already exists on the Java side and measures the same call from inside Java —
+        //  this Rust-side log captures the round-trip wall including JNI/FFM marshalling overhead.)
+        log::info!(
+            "LUCENE_FFM_COLLECT_DOCS contextId={} key={} range=[{},{}) words={} elapsed_ns={} elapsed_us={}",
+            self.context_id, self.key, min_doc, max_doc, n, elapsed_ns, elapsed_ns / 1000
+        );
         if n < 0 {
             return Err(format!(
                 "collectDocs(context_id={}, key={}) failed: {}",
@@ -248,7 +271,14 @@ impl RowGroupDocsCollector for FfmSegmentCollector {
 impl Drop for FfmSegmentCollector {
     fn drop(&mut self) {
         if let Some(release) = load_release_collector() {
+            let t0 = std::time::Instant::now();
             unsafe { release(self.context_id, self.key) };
+            let elapsed_ns = t0.elapsed().as_nanos() as u64;
+            // Gap-4 instrumentation: FFM upcall overhead for releaseCollector.
+            log::info!(
+                "LUCENE_FFM_RELEASE_COLLECTOR contextId={} key={} elapsed_ns={} elapsed_us={}",
+                self.context_id, self.key, elapsed_ns, elapsed_ns / 1000
+            );
         }
     }
 }

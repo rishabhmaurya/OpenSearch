@@ -169,6 +169,24 @@ final class FragmentTracingProbe {
         Long scanProcessingNanos;
         Long scanTotalNanos;
         Long scanUntilDataNanos;
+        // Gap-2 instrumentation: per-partition breakdown emitted by the Rust side when ≥2 partitions.
+        // Each entry has: partition (int), elapsed_compute_ns, rows, work_ns,
+        // scan_processing_ns?, scan_total_ns?, scan_until_data_ns?, scan_opening_ns?,
+        // start_unix_nanos?, end_unix_nanos?
+        List<PartitionNode> partitions;
+    }
+
+    static final class PartitionNode {
+        int partition;
+        long elapsedComputeNanos;
+        long workNanos;
+        long rows;
+        Long scanProcessingNanos;
+        Long scanTotalNanos;
+        Long scanUntilDataNanos;
+        Long scanOpeningNanos;
+        Long startUnixNanos;
+        Long endUnixNanos;
     }
 
     /** Cap on per-operator spans emitted per fragment (reuses the per-batch cap). */
@@ -265,6 +283,43 @@ final class FragmentTracingProbe {
             );
             opSpan.endSpan(Instant.ofEpochSecond(0, endNs));
             emitted++;
+
+            // Gap-2: emit datafusion.op.<X>.pN child spans when per-partition data is present.
+            if (op.partitions != null && op.partitions.size() >= 2) {
+                String opName = op.operator == null ? "unknown" : op.operator;
+                for (PartitionNode pn : op.partitions) {
+                    if (emitted >= MAX_OPERATOR_SPANS) break;
+                    long pwidth = Math.max(0L, pn.workNanos);
+                    long pendNs = (pn.endUnixNanos != null && pn.endUnixNanos > fragmentStartEpochNanos)
+                        ? clamp(pn.endUnixNanos, fragmentStartEpochNanos, fragmentEndEpochNanos)
+                        : endNs;
+                    long pstartNs = Math.max(fragmentStartEpochNanos, pendNs - pwidth);
+                    Attributes pattrs = Attributes.create()
+                        .addAttribute("operator", opName)
+                        .addAttribute("operator.node_id", op.nodeId)
+                        .addAttribute("partition", pn.partition)
+                        .addAttribute("partition.elapsed_compute_ns", pn.elapsedComputeNanos)
+                        .addAttribute("partition.work_ns", pn.workNanos)
+                        .addAttribute("partition.rows", pn.rows)
+                        .addAttribute("timing.bar", "work_ns")
+                        .addAttribute("timing.semantics", "bar_width=partition.work_ns; end-anchored@partition.end_unix_nanos");
+                    if (pn.scanProcessingNanos != null) pattrs.addAttribute("partition.scan_processing_ns", pn.scanProcessingNanos);
+                    if (pn.scanTotalNanos != null) pattrs.addAttribute("partition.scan_total_ns", pn.scanTotalNanos);
+                    if (pn.scanUntilDataNanos != null) pattrs.addAttribute("partition.scan_until_data_ns", pn.scanUntilDataNanos);
+                    if (pn.scanOpeningNanos != null) pattrs.addAttribute("partition.scan_opening_ns", pn.scanOpeningNanos);
+                    if (pn.startUnixNanos != null) pattrs.addAttribute("partition.start_unix_nanos", pn.startUnixNanos);
+                    if (pn.endUnixNanos != null) pattrs.addAttribute("partition.end_unix_nanos", pn.endUnixNanos);
+                    Span pSpan = tracer.startSpan(
+                        SpanCreationContext.internal()
+                            .name(SPAN_OPERATOR_PREFIX + opName + ".p" + pn.partition)
+                            .parent(new SpanContext(opSpan))
+                            .startTimestamp(Instant.ofEpochSecond(0, pstartNs))
+                            .attributes(pattrs)
+                    );
+                    pSpan.endSpan(Instant.ofEpochSecond(0, pendNs));
+                    emitted++;
+                }
+            }
         }
         return emitted;
     }
@@ -374,6 +429,36 @@ final class FragmentTracingProbe {
                 case "scan_processing_ns" -> n.scanProcessingNanos = p.longValue();
                 case "scan_total_ns" -> n.scanTotalNanos = p.longValue();
                 case "scan_until_data_ns" -> n.scanUntilDataNanos = p.longValue();
+                case "partitions" -> {
+                    // Gap-2: parse the per-partition array if Rust emitted one (≥2 partitions).
+                    if (p.currentToken() == XContentParser.Token.START_ARRAY) {
+                        n.partitions = new ArrayList<>();
+                        while (p.nextToken() != XContentParser.Token.END_ARRAY) {
+                            PartitionNode pn = new PartitionNode();
+                            // p is at START_OBJECT for this entry
+                            while (p.nextToken() != XContentParser.Token.END_OBJECT) {
+                                String pf = p.currentName();
+                                p.nextToken();
+                                switch (pf) {
+                                    case "partition" -> pn.partition = p.intValue();
+                                    case "elapsed_compute_ns" -> pn.elapsedComputeNanos = p.longValue();
+                                    case "work_ns" -> pn.workNanos = p.longValue();
+                                    case "rows" -> pn.rows = p.longValue();
+                                    case "scan_processing_ns" -> pn.scanProcessingNanos = p.longValue();
+                                    case "scan_total_ns" -> pn.scanTotalNanos = p.longValue();
+                                    case "scan_until_data_ns" -> pn.scanUntilDataNanos = p.longValue();
+                                    case "scan_opening_ns" -> pn.scanOpeningNanos = p.longValue();
+                                    case "start_unix_nanos" -> pn.startUnixNanos = p.longValue();
+                                    case "end_unix_nanos" -> pn.endUnixNanos = p.longValue();
+                                    default -> p.skipChildren();
+                                }
+                            }
+                            n.partitions.add(pn);
+                        }
+                    } else {
+                        p.skipChildren();
+                    }
+                }
                 default -> p.skipChildren();
             }
         }
