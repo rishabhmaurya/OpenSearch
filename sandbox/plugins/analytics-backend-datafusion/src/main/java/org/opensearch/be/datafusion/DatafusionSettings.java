@@ -118,6 +118,23 @@ public final class DatafusionSettings {
         Setting.Property.Dynamic
     );
 
+    /**
+     * Cost short-circuit for Lucene PERFORMANCE-PEER delegation: skip building the
+     * peer bitmap when {@code ScorerSupplier.cost()} estimates the predicate matches
+     * at least this fraction of a segment (near-MatchAll ⇒ the bitmap prunes nothing,
+     * so DataFusion's FilterExec runs the predicate natively instead). Range [0,1].
+     * {@code 1.0} disables the gate (nothing can reach the threshold). Default 0.95.
+     * Correctness-delegated predicates are never affected.
+     */
+    public static final Setting<Double> INDEXED_COST_GATE_NEAR_MATCH_ALL_THRESHOLD = Setting.doubleSetting(
+        "datafusion.indexed.cost_gate_near_match_all_threshold",
+        0.95,
+        0.0,
+        1.0,
+        Setting.Property.NodeScope,
+        Setting.Property.Dynamic
+    );
+
     // Strategy constants for CollectorCallStrategy
     public static final String STRATEGY_FULL_RANGE = "full_range";
     public static final String STRATEGY_TIGHTEN_OUTER_BOUNDS = "tighten_outer_bounds";
@@ -290,7 +307,8 @@ public final class DatafusionSettings {
         INDEXED_TREE_COLLECTOR_STRATEGY,
         INDEXED_MAX_COLLECTOR_PARALLELISM,
         INDEXED_QUERY_STRATEGY,
-        INDEXED_DYNAMIC_FILTER_PUSHDOWN
+        INDEXED_DYNAMIC_FILTER_PUSHDOWN,
+        INDEXED_COST_GATE_NEAR_MATCH_ALL_THRESHOLD
     );
 
     // ── Snapshot management ──
@@ -334,6 +352,7 @@ public final class DatafusionSettings {
             .maxCollectorParallelism(INDEXED_MAX_COLLECTOR_PARALLELISM.get(settings))
             .queryStrategy(queryStrategyToWireValue(INDEXED_QUERY_STRATEGY.get(settings)))
             .indexedDynamicFilterPushdown(INDEXED_DYNAMIC_FILTER_PUSHDOWN.get(settings))
+            .costGateNearMatchAllThreshold(INDEXED_COST_GATE_NEAR_MATCH_ALL_THRESHOLD.get(settings))
             .build();
 
         registerListeners(clusterSettings);
@@ -359,6 +378,7 @@ public final class DatafusionSettings {
             .maxCollectorParallelism(INDEXED_MAX_COLLECTOR_PARALLELISM.get(settings))
             .queryStrategy(queryStrategyToWireValue(INDEXED_QUERY_STRATEGY.get(settings)))
             .indexedDynamicFilterPushdown(INDEXED_DYNAMIC_FILTER_PUSHDOWN.get(settings))
+            .costGateNearMatchAllThreshold(INDEXED_COST_GATE_NEAR_MATCH_ALL_THRESHOLD.get(settings))
             .build();
     }
 
@@ -401,6 +421,10 @@ public final class DatafusionSettings {
 
         clusterSettings.addSettingsUpdateConsumer(INDEXED_DYNAMIC_FILTER_PUSHDOWN, newValue -> {
             snapshot = WireConfigSnapshot.builder(snapshot).indexedDynamicFilterPushdown(newValue).build();
+        });
+
+        clusterSettings.addSettingsUpdateConsumer(INDEXED_COST_GATE_NEAR_MATCH_ALL_THRESHOLD, newValue -> {
+            snapshot = WireConfigSnapshot.builder(snapshot).costGateNearMatchAllThreshold(newValue).build();
         });
 
         clusterSettings.addSettingsUpdateConsumer(SearchService.CONCURRENT_SEGMENT_SEARCH_TARGET_MAX_SLICE_COUNT_SETTING, newValue -> {

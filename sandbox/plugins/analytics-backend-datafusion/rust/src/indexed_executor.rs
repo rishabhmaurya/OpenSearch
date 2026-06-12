@@ -716,6 +716,7 @@ async unsafe fn execute_indexed_with_context_inner(
             let bloom_store = Arc::clone(&store);
             let bloom_schema = schema.clone();
             let bloom_on_read = query_config.bloom_filter_on_read;
+            let cost_gate_threshold = query_config.cost_gate_near_match_all_threshold;
             Arc::new(
                 move |segment: &SegmentFileInfo, chunk, stream_metrics: &StreamMetrics| {
                     // Piece 1: NO eager FfmSegmentCollector::create here. The per-segment
@@ -791,7 +792,7 @@ async unsafe fn execute_indexed_with_context_inner(
                             Arc::new(crate::indexed_table::eval::single_collector::FfmDelegatedBackendCollectorFactory),
                             context_id,
                             bloom_config,
-                        ));
+                        ).with_cost_gate_threshold(cost_gate_threshold));
                     Ok(eval)
                 },
             )

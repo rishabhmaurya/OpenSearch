@@ -190,6 +190,11 @@ pub struct SingleCollectorEvaluator {
     context_id: i64,
     /// Bloom filter pruning config. None = disabled.
     bloom_config: Option<BloomConfig>,
+    /// Cost short-circuit threshold (from `DatafusionQueryConfig`). Defaults to
+    /// `NEAR_MATCH_ALL_THRESHOLD`; production overrides via
+    /// [`Self::with_cost_gate_threshold`]. A peer bitmap build is skipped when the
+    /// `cost()` estimate ≥ this fraction of the segment. `>= 1.0` disables the gate.
+    cost_gate_threshold: f64,
 }
 
 /// Resources needed for per-RG bloom filter pruning.
@@ -239,7 +244,16 @@ impl SingleCollectorEvaluator {
             delegated_backend_collector_factory,
             context_id,
             bloom_config,
+            // Default; production overrides from query config via with_cost_gate_threshold.
+            cost_gate_threshold: NEAR_MATCH_ALL_THRESHOLD,
         }
+    }
+
+    /// Override the cost short-circuit threshold (from `DatafusionQueryConfig`).
+    /// Builder-style so the 16-arg `new()` and all test call sites stay unchanged.
+    pub fn with_cost_gate_threshold(mut self, threshold: f64) -> Self {
+        self.cost_gate_threshold = threshold;
+        self
     }
 }
 
@@ -764,8 +778,9 @@ impl RowGroupBitsetSource for SingleCollectorEvaluator {
                         estimated_match_docs: -1,
                         segment_max_doc: -1,
                     });
+                    let cost_gate_threshold = self.cost_gate_threshold;
                     let decision = match cost_opt {
-                        Some(ref c) => cost_gate_decision(c, NEAR_MATCH_ALL_THRESHOLD),
+                        Some(ref c) => cost_gate_decision(c, cost_gate_threshold),
                         None => CostGateDecision::ConsultLucene { reason: "NO_SIGNAL" },
                     };
                     emit_cost_gate_marker(
@@ -773,7 +788,7 @@ impl RowGroupBitsetSource for SingleCollectorEvaluator {
                         self.writer_generation,
                         context_id,
                         &cost_for_marker,
-                        NEAR_MATCH_ALL_THRESHOLD,
+                        cost_gate_threshold,
                         decision,
                     );
                     if matches!(decision, CostGateDecision::SkipLuceneUseDf { .. }) {
