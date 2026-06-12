@@ -324,9 +324,9 @@ pub struct PeerScorerCost {
 ///    true fraction — that's fine, we only test the `≥ thr` direction.
 ///
 /// Returns the decision plus the reason, so the caller can both act and emit a
-/// faithful instrumentation marker (see [`cost_gate_decision`]).
-#[allow(dead_code)] // wired into prefetch_rg's peer branch once the `prepare_scorer`
-                    // FFM upcall lands to populate PeerScorerCost (build-host change).
+/// faithful instrumentation marker (see [`cost_gate_decision`]). Test-only
+/// convenience wrapper; the live path calls [`cost_gate_decision`] directly.
+#[cfg(test)]
 fn cost_says_skip_peer(cost: &PeerScorerCost, threshold: f64) -> bool {
     matches!(cost_gate_decision(cost, threshold), CostGateDecision::SkipLuceneUseDf { .. })
 }
@@ -334,7 +334,6 @@ fn cost_says_skip_peer(cost: &PeerScorerCost, threshold: f64) -> bool {
 /// The outcome of the cost gate, carrying the reason for instrumentation.
 /// `&'static str` reasons keep the marker output stable and grep-friendly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum CostGateDecision {
     /// Skip building the Lucene bitmap; DataFusion's `FilterExec` evaluates the
     /// peer predicate. `reason` is one of `PRESENCE_NEAR_MATCH_ALL` /
@@ -345,10 +344,9 @@ pub enum CostGateDecision {
     ConsultLucene { reason: &'static str },
 }
 
-/// Pure policy core — see [`cost_says_skip_peer`] for the contract. Split out so
-/// both the decision and the instrumentation marker are driven by one source of
-/// truth (no risk of the logged reason drifting from the acted-on decision).
-#[allow(dead_code)]
+/// Pure policy core — the cost gate. Split out so both the decision and the
+/// instrumentation marker are driven by one source of truth (no risk of the
+/// logged reason drifting from the acted-on decision).
 fn cost_gate_decision(cost: &PeerScorerCost, threshold: f64) -> CostGateDecision {
     if cost.segment_max_doc <= 0 {
         // empty/unknown segment — no basis to skip, keep default (build).
@@ -380,7 +378,6 @@ fn cost_gate_decision(cost: &PeerScorerCost, threshold: f64) -> CostGateDecision
 ///  est_match_docs=.. field_doc_count=.. segment_max_doc=.. threshold=.. \
 ///  decision={SKIP_LUCENE_USE_DF|CONSULT_LUCENE} reason=..`
 /// `est_match_docs`/`field_doc_count` are `-1` when that signal is unavailable.
-#[allow(dead_code)]
 fn emit_cost_gate_marker(
     annotation_id: i32,
     writer_generation: i64,
@@ -755,6 +752,43 @@ impl RowGroupBitsetSource for SingleCollectorEvaluator {
                         create_provider(context_id, annotation_id)
                             .expect("create_provider FFM upcall failed")
                     });
+
+                    // ── COST SHORT-CIRCUIT ──────────────────────────────────────────
+                    // Read the peer scorer's cost signals BEFORE building it (no FST
+                    // walk to materialize the bitmap). If the bitmap won't earn its
+                    // build (near-MatchAll, or a saturated-high many-term wildcard —
+                    // the over-delegation regression family), SKIP it: return `None`,
+                    // which leaves `candidates` = the page-pruned universe and lets
+                    // DataFusion's FilterExec evaluate the (peer) predicate via the
+                    // retained residual. SAFE: peers always keep `original` for DF, so
+                    // skipping never drops rows. The decision is memoized per-segment
+                    // by this very `OnceLock`. `prepare_scorer` returning `None`
+                    // (callback unregistered / Java error) degrades to "consult".
+                    let cost_opt = crate::indexed_table::ffm_callbacks::prepare_scorer(
+                        context_id, provider.key(), self.writer_generation,
+                    );
+                    let cost_for_marker = cost_opt.unwrap_or(PeerScorerCost {
+                        estimated_match_docs: -1,
+                        field_doc_count: -1,
+                        segment_max_doc: -1,
+                    });
+                    let decision = match cost_opt {
+                        Some(ref c) => cost_gate_decision(c, NEAR_MATCH_ALL_THRESHOLD),
+                        None => CostGateDecision::ConsultLucene { reason: "NO_SIGNAL" },
+                    };
+                    emit_cost_gate_marker(
+                        annotation_id,
+                        self.writer_generation,
+                        context_id,
+                        &cost_for_marker,
+                        NEAR_MATCH_ALL_THRESHOLD,
+                        decision,
+                    );
+                    if matches!(decision, CostGateDecision::SkipLuceneUseDf { .. }) {
+                        return None;
+                    }
+                    // ────────────────────────────────────────────────────────────────
+
                     let collector = match self.delegated_backend_collector_factory.create(
                         context_id, provider.key(), self.writer_generation, seg_start, seg_end,
                     ) {

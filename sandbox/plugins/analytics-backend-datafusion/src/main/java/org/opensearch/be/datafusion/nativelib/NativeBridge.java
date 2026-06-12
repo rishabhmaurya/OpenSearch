@@ -89,6 +89,8 @@ public final class NativeBridge {
     private static final MethodHandle FREE_METRICS_BUF;
     private static final MethodHandle SQL_TO_SUBSTRAIT;
     private static final MethodHandle REGISTER_FILTER_TREE_CALLBACKS;
+    /** Optional — null when the native lib predates the cost short-circuit (`df_register_prepare_scorer_callback`). */
+    private static final MethodHandle REGISTER_PREPARE_SCORER_CALLBACK;
     private static final MethodHandle CREATE_LOCAL_SESSION;
     private static final MethodHandle CLOSE_LOCAL_SESSION;
     private static final MethodHandle REGISTER_PARTITION_STREAM;
@@ -348,6 +350,14 @@ public final class NativeBridge {
                 ValueLayout.ADDRESS
             )
         );
+
+        // void df_register_prepare_scorer_callback(prepareScorer) — OPTIONAL.
+        // Resolved via map(): a native lib without the symbol leaves this null,
+        // and installFilterTreeCallbacks simply skips registering it (cost gate
+        // then degrades to "consult" on the Rust side). Non-breaking by design.
+        REGISTER_PREPARE_SCORER_CALLBACK = lib.find("df_register_prepare_scorer_callback")
+            .map(sym -> linker.downcallHandle(sym, FunctionDescriptor.ofVoid(ValueLayout.ADDRESS)))
+            .orElse(null);
 
         // void df_register_filter_tree_callbacks(createCollector, collectDocs, releaseCollector)
         REGISTER_FILTER_TREE_CALLBACKS = linker.downcallHandle(
@@ -656,6 +666,38 @@ public final class NativeBridge {
                 collectDocsStub,
                 releaseCollectorStub
             );
+
+            // Optional cost short-circuit callback. Registered only when both the
+            // native symbol exists (REGISTER_PREPARE_SCORER_CALLBACK != null) AND the
+            // Java target is present. Either side missing → not registered → Rust's
+            // prepare_scorer returns None → cost gate consults (today's behaviour).
+            if (REGISTER_PREPARE_SCORER_CALLBACK != null) {
+                MethodHandle prepareScorer = lookup.findStatic(
+                    cb,
+                    "prepareScorer",
+                    java.lang.invoke.MethodType.methodType(
+                        long.class,        // status (0 ok, <0 error)
+                        long.class,        // contextId
+                        int.class,         // providerKey
+                        long.class,        // writerGeneration
+                        java.lang.foreign.MemorySegment.class, // out (i64[>=3])
+                        long.class         // outLen
+                    )
+                );
+                java.lang.foreign.MemorySegment prepareScorerStub = linker.upcallStub(
+                    prepareScorer,
+                    FunctionDescriptor.of(
+                        ValueLayout.JAVA_LONG,
+                        ValueLayout.JAVA_LONG,
+                        ValueLayout.JAVA_INT,
+                        ValueLayout.JAVA_LONG,
+                        ValueLayout.ADDRESS,
+                        ValueLayout.JAVA_LONG
+                    ),
+                    arena
+                );
+                NativeCall.invokeVoid(REGISTER_PREPARE_SCORER_CALLBACK, prepareScorerStub);
+            }
         } catch (Throwable t) {
             throw new ExceptionInInitializerError(t);
         }

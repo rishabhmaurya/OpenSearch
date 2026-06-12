@@ -39,12 +39,28 @@ type ReleaseProviderFn = unsafe extern "C" fn(i64, i32);
 type CreateCollectorFn = unsafe extern "C" fn(i64, i32, i64, i32, i32) -> i32;
 type CollectDocsFn = unsafe extern "C" fn(i64, i32, i32, i32, *mut u64, i64) -> i64;
 type ReleaseCollectorFn = unsafe extern "C" fn(i64, i32);
+/// `(context_id, provider_key, writer_generation, out: *mut i64, out_len: i64) -> status`.
+///
+/// Reads the cost short-circuit signals from the peer scorer WITHOUT building it
+/// (Java does `weight.scorerSupplier(leaf)` + `cost()` + `Terms.getDocCount()`,
+/// the bounded term walk — never `get()`). Writes 3 i64s into `out` (capacity in
+/// `out_len`, must be ≥ 3): `out[0]=ScorerSupplier.cost()` (matched-doc estimate,
+/// over-estimate), `out[1]=Terms.getDocCount()` (exact field presence),
+/// `out[2]=leaf.maxDoc()`. Returns `0` on success, `<0` on any error (Java
+/// could not produce the signals). Mirrors the `collectDocs` out-buffer ABI.
+type PrepareScorerFn = unsafe extern "C" fn(i64, i32, i64, *mut i64, i64) -> i64;
 
 static CREATE_PROVIDER: AtomicPtr<()> = AtomicPtr::new(std::ptr::null_mut());
 static RELEASE_PROVIDER: AtomicPtr<()> = AtomicPtr::new(std::ptr::null_mut());
 static CREATE_COLLECTOR: AtomicPtr<()> = AtomicPtr::new(std::ptr::null_mut());
 static COLLECT_DOCS: AtomicPtr<()> = AtomicPtr::new(std::ptr::null_mut());
 static RELEASE_COLLECTOR: AtomicPtr<()> = AtomicPtr::new(std::ptr::null_mut());
+/// Separate atomic slot, registered independently of the 5 core callbacks via
+/// `df_register_prepare_scorer_callback`. Keeping it OUT of
+/// `df_register_filter_tree_callbacks` makes the addition non-breaking: an older
+/// Java side that never registers it leaves this null, and `prepare_scorer`
+/// returns `None` → the cost gate degrades to "consult" (today's behaviour).
+static PREPARE_SCORER: AtomicPtr<()> = AtomicPtr::new(std::ptr::null_mut());
 
 /// Registered by Java at startup. Stores function pointers into atomic
 /// slots. Each call to this entry replaces the slots wholesale.
@@ -72,6 +88,25 @@ pub unsafe extern "C" fn df_register_filter_tree_callbacks(
         COLLECT_DOCS.store(collect_docs as *mut (), Ordering::Release);
         RELEASE_COLLECTOR.store(release_collector as *mut (), Ordering::Release);
     }));
+}
+
+/// Register the optional `prepare_scorer` callback. Separate entry point from
+/// `df_register_filter_tree_callbacks` so it is purely additive — Java may call
+/// it after the core registration, or not at all (then the cost gate is inert).
+#[no_mangle]
+pub unsafe extern "C" fn df_register_prepare_scorer_callback(prepare_scorer: PrepareScorerFn) {
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        PREPARE_SCORER.store(prepare_scorer as *mut (), Ordering::Release);
+    }));
+}
+
+fn load_prepare_scorer() -> Option<PrepareScorerFn> {
+    let p = PREPARE_SCORER.load(Ordering::Acquire);
+    if p.is_null() {
+        None
+    } else {
+        Some(unsafe { std::mem::transmute::<*mut (), PrepareScorerFn>(p) })
+    }
 }
 
 fn load_create_provider() -> Result<CreateProviderFn, String> {
@@ -174,6 +209,40 @@ pub fn create_provider(context_id: i64, annotation_id: i32) -> Result<ProviderHa
         ));
     }
     Ok(ProviderHandle { context_id, key })
+}
+
+/// Read the cost short-circuit signals for one peer predicate on one segment,
+/// without building the scorer. Returns `None` when the callback isn't
+/// registered (older Java side) or Java reports an error — callers MUST treat
+/// `None` as "no signal → consult Lucene" (the safe default), never as "skip".
+///
+/// `context_id` routes to the per-query Java handle; `provider_key` identifies
+/// the compiled peer query; `writer_generation` the segment.
+pub fn prepare_scorer(
+    context_id: i64,
+    provider_key: i32,
+    writer_generation: i64,
+) -> Option<super::eval::single_collector::PeerScorerCost> {
+    let prepare = load_prepare_scorer()?;
+    let mut out: [i64; 3] = [-1, -1, -1];
+    let t0 = std::time::Instant::now();
+    let status = unsafe { prepare(context_id, provider_key, writer_generation, out.as_mut_ptr(), 3) };
+    let elapsed_ns = t0.elapsed().as_nanos() as u64;
+    // Routed via FFM → log4j (NOT log::info!, which is discarded in the cdylib).
+    native_bridge_common::log_info!(
+        "LUCENE_FFM_PREPARE_SCORER contextId={} providerKey={} writerGeneration={} status={} \
+         est_match_docs={} field_doc_count={} segment_max_doc={} elapsed_ns={} elapsed_us={}",
+        context_id, provider_key, writer_generation, status,
+        out[0], out[1], out[2], elapsed_ns, elapsed_ns / 1000
+    );
+    if status < 0 {
+        return None;
+    }
+    Some(super::eval::single_collector::PeerScorerCost {
+        estimated_match_docs: out[0],
+        field_doc_count: out[1],
+        segment_max_doc: out[2],
+    })
 }
 
 // ── FfmSegmentCollector — owns `releaseCollector` on drop ─────────────

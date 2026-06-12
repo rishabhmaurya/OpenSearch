@@ -20,7 +20,9 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.Weight;
+import org.apache.lucene.index.Terms;
 import org.apache.lucene.util.FixedBitSet;
 import org.opensearch.analytics.spi.DelegatedExpression;
 import org.opensearch.analytics.spi.FilterDelegationHandle;
@@ -135,6 +137,80 @@ final class LuceneFilterDelegationHandle implements FilterDelegationHandle {
             LOGGER.error("createProvider failed for annotationId=" + annotationId, exception);
             return -1;
         }
+    }
+
+    @Override
+    public long[] prepareScorer(int providerKey, long writerGeneration) {
+        Weight weight = weightsByProviderKey.get(providerKey);
+        if (weight == null) {
+            return null;
+        }
+        LeafReaderContext leaf = resolveLeaf(writerGeneration);
+        if (leaf == null) {
+            return null;
+        }
+        try {
+            long maxDoc = leaf.reader().maxDoc();
+            // ScorerSupplier exposes cost() (matched-doc estimate) WITHOUT get() —
+            // i.e. without building the scorer / materializing the bitmap. A null
+            // supplier means the field has no terms in this segment → 0 matches.
+            ScorerSupplier ss = weight.scorerSupplier(leaf);
+            long cost = (ss == null) ? 0L : ss.cost();
+            // Best-effort exact presence count for the query's field (O(1) header
+            // read, no FST walk). Only available for single-field multi-term-style
+            // queries; -1 = unavailable, which the native policy treats as "skip
+            // this signal" and falls back to the cost() estimate.
+            long fieldDocCount = -1L;
+            try {
+                Query q = weight.getQuery();
+                String field = extractFieldOrNull(q);
+                if (field != null) {
+                    Terms terms = leaf.reader().terms(field);
+                    if (terms != null) {
+                        fieldDocCount = terms.getDocCount();
+                    }
+                }
+            } catch (Throwable ignored) {
+                // presence signal is optional; never let it fail the cost read
+                fieldDocCount = -1L;
+            }
+            return new long[] { cost, fieldDocCount, maxDoc };
+        } catch (IOException exception) {
+            LOGGER.error(
+                "prepareScorer failed for providerKey=" + providerKey + ", writerGeneration=" + writerGeneration,
+                exception
+            );
+            return null;
+        }
+    }
+
+    /** Resolve the Lucene leaf for a writer generation, or null. Shared by prepareScorer/createCollector. */
+    private LeafReaderContext resolveLeaf(long writerGeneration) {
+        String segName = generationToSegmentName.get(writerGeneration);
+        if (segName == null) {
+            return null;
+        }
+        for (LeafReaderContext lrc : leaves) {
+            if (unwrapSegmentReader(lrc.reader()).getSegmentInfo().info.name.equals(segName)) {
+                return lrc;
+            }
+        }
+        return null;
+    }
+
+    /** Best-effort single-field name for a delegated query, or null when not a simple field predicate. */
+    private static String extractFieldOrNull(Query q) {
+        if (q instanceof org.apache.lucene.search.MultiTermQuery mtq) {
+            return mtq.getField();
+        }
+        if (q instanceof org.apache.lucene.search.TermQuery tq) {
+            return tq.getTerm().field();
+        }
+        // ConstantScoreQuery wraps the real query (the blended-wrapper case) — unwrap once.
+        if (q instanceof org.apache.lucene.search.ConstantScoreQuery csq) {
+            return extractFieldOrNull(csq.getQuery());
+        }
+        return null;
     }
 
     @Override
