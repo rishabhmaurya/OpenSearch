@@ -41,13 +41,13 @@ type CollectDocsFn = unsafe extern "C" fn(i64, i32, i32, i32, *mut u64, i64) -> 
 type ReleaseCollectorFn = unsafe extern "C" fn(i64, i32);
 /// `(context_id, provider_key, writer_generation, out: *mut i64, out_len: i64) -> status`.
 ///
-/// Reads the cost short-circuit signals from the peer scorer WITHOUT building it
-/// (Java does `weight.scorerSupplier(leaf)` + `cost()` + `Terms.getDocCount()`,
-/// the bounded term walk — never `get()`). Writes 3 i64s into `out` (capacity in
-/// `out_len`, must be ≥ 3): `out[0]=ScorerSupplier.cost()` (matched-doc estimate,
-/// over-estimate), `out[1]=Terms.getDocCount()` (exact field presence),
-/// `out[2]=leaf.maxDoc()`. Returns `0` on success, `<0` on any error (Java
-/// could not produce the signals). Mirrors the `collectDocs` out-buffer ABI.
+/// Reads the cost short-circuit signal from the peer scorer WITHOUT building it
+/// (Java does `weight.scorerSupplier(leaf)` + `cost()`, the bounded term walk —
+/// never `get()`). Writes 2 i64s into `out` (capacity in `out_len`, must be ≥ 2):
+/// `out[0]=ScorerSupplier.cost()` (per-predicate matched-doc estimate, an
+/// over-estimate), `out[1]=leaf.maxDoc()`. Returns `0` on success, `<0` on any
+/// error (Java could not produce the signal). Mirrors the `collectDocs`
+/// out-buffer ABI.
 type PrepareScorerFn = unsafe extern "C" fn(i64, i32, i64, *mut i64, i64) -> i64;
 
 static CREATE_PROVIDER: AtomicPtr<()> = AtomicPtr::new(std::ptr::null_mut());
@@ -224,24 +224,24 @@ pub fn prepare_scorer(
     writer_generation: i64,
 ) -> Option<super::eval::single_collector::PeerScorerCost> {
     let prepare = load_prepare_scorer()?;
-    let mut out: [i64; 3] = [-1, -1, -1];
+    // out[0] = ScorerSupplier.cost() (matched-doc estimate), out[1] = leaf maxDoc.
+    let mut out: [i64; 2] = [-1, -1];
     let t0 = std::time::Instant::now();
-    let status = unsafe { prepare(context_id, provider_key, writer_generation, out.as_mut_ptr(), 3) };
+    let status = unsafe { prepare(context_id, provider_key, writer_generation, out.as_mut_ptr(), 2) };
     let elapsed_ns = t0.elapsed().as_nanos() as u64;
     // Routed via FFM → log4j (NOT log::info!, which is discarded in the cdylib).
     native_bridge_common::log_info!(
         "LUCENE_FFM_PREPARE_SCORER contextId={} providerKey={} writerGeneration={} status={} \
-         est_match_docs={} field_doc_count={} segment_max_doc={} elapsed_ns={} elapsed_us={}",
+         est_match_docs={} segment_max_doc={} elapsed_ns={} elapsed_us={}",
         context_id, provider_key, writer_generation, status,
-        out[0], out[1], out[2], elapsed_ns, elapsed_ns / 1000
+        out[0], out[1], elapsed_ns, elapsed_ns / 1000
     );
     if status < 0 {
         return None;
     }
     Some(super::eval::single_collector::PeerScorerCost {
         estimated_match_docs: out[0],
-        field_doc_count: out[1],
-        segment_max_doc: out[2],
+        segment_max_doc: out[1],
     })
 }
 

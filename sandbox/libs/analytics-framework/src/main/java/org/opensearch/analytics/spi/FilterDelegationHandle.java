@@ -97,10 +97,11 @@ public interface FilterDelegationHandle extends Closeable {
      *
      * @param providerKey key returned by {@link #createProvider(int)}
      * @param writerGeneration the segment identifier
-     * @return a 3-element array {@code [ScorerSupplier.cost(), Terms.getDocCount(),
-     *         leaf.maxDoc()]}, or {@code null} if unavailable (caller treats null as
-     *         "no signal → consult Lucene", the safe default). Default returns
-     *         {@code null} so backends without cost support are unaffected.
+     * @return a 2-element array {@code [ScorerSupplier.cost(), leaf.maxDoc()]} — a
+     *         per-predicate matched-doc estimate and the segment size — or
+     *         {@code null} if unavailable (caller treats null as "no signal →
+     *         consult Lucene", the safe default). Default returns {@code null} so
+     *         backends without cost support are unaffected.
      */
     default long[] prepareScorer(int providerKey, long writerGeneration) {
         return null;
