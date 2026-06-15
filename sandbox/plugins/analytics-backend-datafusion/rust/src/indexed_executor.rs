@@ -500,6 +500,7 @@ async unsafe fn execute_indexed_with_context_inner(
 
     let query_config = Arc::new(handle.query_config);
     let num_partitions = query_config.target_partitions.max(1);
+    let aggregate_mode = handle.aggregate_mode;
     let ctx = handle.ctx;
     let table_name = handle.table_name;
     let table_path = handle.table_path;
@@ -511,6 +512,7 @@ async unsafe fn execute_indexed_with_context_inner(
     // below. The closures pass it through every FFM upcall so Java can route each
     // callback to the correct per-query FilterDelegationHandle and DelegationThreadTracker.
     let context_id = query_context.context_id();
+
 
     // SessionContext already has RuntimeEnv, caches, memory pool, UDF from create_session_context_indexed.
     // Deregister the default ListingTable (registered by create_session_context) — will be replaced
@@ -666,6 +668,25 @@ async unsafe fn execute_indexed_with_context_inner(
                 Arc::new(map)
             };
 
+            // Pre-computed peer bitmap cache: keyed by (annotation_id, writer_generation).
+            // Each segment gets its own lazily-computed bitmap, shared across all partitions.
+            let peer_bitmap_global: Arc<
+                std::sync::Mutex<std::collections::HashMap<(i32, i64), Arc<std::sync::OnceLock<Option<roaring::RoaringBitmap>>>>>,
+            > = Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
+
+            // Pre-computed correctness bitmap cache, keyed by writer_generation.
+            // Built ONCE per query × segment, lazily, on the first stream poll that
+            // needs it — across all partitions sharing that segment. Replaces the
+            // prior eager FfmSegmentCollector::create per (segment × chunk) which
+            // serialized scorer construction.
+            // Note: a per-chunk OnceLock variant was tried and reverted because
+            // concurrent createCollector calls for the same Lucene segment serialize
+            // on Java-side state (FST traversal, term enum). 4 × 12.5M concurrent
+            // drains end up taking ~6s each (worse than 1 × 50M serial at 5s).
+            let correctness_bitmap_global: Arc<
+                std::sync::Mutex<std::collections::HashMap<i64, Arc<std::sync::OnceLock<Option<roaring::RoaringBitmap>>>>>,
+            > = Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
+
             // Extract the residual (non-Collector children of top-level
             // AND) as a BoolNode and convert to PhysicalExpr. Used for:
             //   - Page-stats pruning in candidate stage (via PruningPredicate).
@@ -691,29 +712,24 @@ async unsafe fn execute_indexed_with_context_inner(
             let bloom_on_read = query_config.bloom_filter_on_read;
             Arc::new(
                 move |segment: &SegmentFileInfo, chunk, stream_metrics: &StreamMetrics| {
-                    let collector_opt: Option<Arc<dyn RowGroupDocsCollector>> = match &correctness_provider {
-                        Some(provider) => {
-                            let collector = FfmSegmentCollector::create(
-                                context_id,
-                                provider.key(),
-                                segment.writer_generation,
-                                chunk.doc_min,
-                                chunk.doc_max,
-                            )
-                            .map_err(|e| {
-                                format!(
-                                    "FfmSegmentCollector::create(context_id={}, provider={}, writer_generation={}, doc_range=[{},{})): {}",
-                                    context_id,
-                                    provider.key(),
-                                    segment.writer_generation,
-                                    chunk.doc_min,
-                                    chunk.doc_max,
-                                    e
-                                )
-                            })?;
-                            Some(Arc::new(collector) as Arc<dyn RowGroupDocsCollector>)
-                        }
-                        None => None,
+                    // No eager FfmSegmentCollector::create here. The per-segment
+                    // correctness bitmap is built lazily inside SingleCollectorEvaluator
+                    // on first prefetch_rg, then shared with every other chunk/partition
+                    // of the same segment via Arc<OnceLock>. `collector_opt` stays None
+                    // for the cache path — the legacy `collector` field is kept on the
+                    // evaluator only for tests that inject stub collectors.
+                    let _ = chunk; // chunk doc_min/doc_max no longer needed for correctness setup
+                    let collector_opt: Option<Arc<dyn RowGroupDocsCollector>> = None;
+                    let correctness_bitmap_lock: Option<
+                        Arc<std::sync::OnceLock<Option<roaring::RoaringBitmap>>>,
+                    > = if correctness_provider.is_some() {
+                        let mut g = correctness_bitmap_global.lock().unwrap();
+                        Some(Arc::clone(
+                            g.entry(segment.writer_generation)
+                                .or_insert_with(|| Arc::new(std::sync::OnceLock::new())),
+                        ))
+                    } else {
+                        None
                     };
                     let pruner = Arc::new(PagePruner::new(
                         &schema_for_pruner,
@@ -732,6 +748,25 @@ async unsafe fn execute_indexed_with_context_inner(
                     } else {
                         None
                     };
+                    // Build per-segment bitmap cache view (shared across partitions).
+                    let per_seg_cache: Arc<std::collections::HashMap<i32, Arc<std::sync::OnceLock<Option<roaring::RoaringBitmap>>>>> = {
+                        let ann_ids: Vec<i32> = performance_provider_locks.keys().copied().collect();
+                        let mut global = peer_bitmap_global.lock().unwrap();
+                        let mut local = std::collections::HashMap::with_capacity(ann_ids.len());
+                        for ann_id in ann_ids {
+                            let lock = Arc::clone(
+                                global.entry((ann_id, segment.writer_generation))
+                                    .or_insert_with(|| Arc::new(std::sync::OnceLock::new()))
+                            );
+                            local.insert(ann_id, lock);
+                        }
+                        Arc::new(local)
+                    };
+                    // Segment's global doc range from its row_groups.
+                    let seg_doc_range = match (segment.row_groups.first(), segment.row_groups.last()) {
+                        (Some(first), Some(last)) => (first.first_row as i32, (last.first_row + last.num_rows) as i32),
+                        _ => (0, 0),
+                    };
                     let eval: Arc<dyn RowGroupBitsetSource> =
                         Arc::new(SingleCollectorEvaluator::new(
                             collector_opt,
@@ -742,7 +777,11 @@ async unsafe fn execute_indexed_with_context_inner(
                             stream_metrics.ffm_collector_calls.clone(),
                             call_strategy,
                             Arc::clone(&performance_provider_locks),
+                            per_seg_cache,
+                            correctness_bitmap_lock,
+                            correctness_provider.clone(),
                             segment.writer_generation,
+                            seg_doc_range,
                             Arc::new(crate::indexed_table::eval::single_collector::FfmDelegatedBackendCollectorFactory),
                             context_id,
                             bloom_config,
@@ -880,6 +919,13 @@ async unsafe fn execute_indexed_with_context_inner(
     // types. The target is schema_coerce::coerce_inferred_schema(physical_schema) — same
     // narrowing the partition-stream registration uses, so consumer-side StreamingTable
     // and producer-side batches agree by construction (see crate::relabel_exec).
+    // Apply partial/final mode strip per session.aggregate_mode. When prepare_partial_plan was
+    // called for this session (engine-native-merge), aggregate_mode=Partial and the stripped
+    // plan must emit partial state (e.g. dc[hll_registers]: Binary) on the wire. The non-indexed
+    // path (query_executor::execute_with_context) honors this via the prepared_plan branch; the
+    // indexed path historically did not, causing schema mismatch on the coord side when filter
+    // delegation routed an aggregate query through this executor.
+    let physical_plan = crate::agg_mode::apply_aggregate_mode(physical_plan, aggregate_mode)?;
     let target_schema = crate::schema_coerce::coerce_inferred_schema(physical_plan.schema());
     let physical_plan = crate::relabel_exec::wrap_if_relabel_needed(physical_plan, target_schema)?;
     log_debug!("DataFusion physical plan:\n{}", displayable(physical_plan.as_ref()).indent(true));

@@ -497,6 +497,20 @@ impl ExecutionPlan for QueryShardExec {
             let evaluator = (self.config.evaluator_factory)(segment, chunk, &stream_metrics)
                 .map_err(|e| DataFusionError::External(e.into()))?;
 
+            // Pre-warm the correctness bitmap cache concurrently across
+            // partitions on the blocking pool. `warm_cache` only touches the
+            // per-segment OnceLock (no page-pruner, no per-RG metrics), so by
+            // the time the partition stream actually polls, the FFM upcall +
+            // bitmap drain is already done (or in progress) on a different
+            // blocking thread. Idempotent — the actual prefetch_rg later just
+            // hits the cached bitmap.
+            {
+                let evaluator_warm = Arc::clone(&evaluator);
+                tokio::task::spawn_blocking(move || {
+                    evaluator_warm.warm_cache();
+                });
+            }
+
             let props = Arc::new(PlanProperties::new(
                 EquivalenceProperties::new(self.projected_schema.clone()),
                 Partitioning::UnknownPartitioning(1),
