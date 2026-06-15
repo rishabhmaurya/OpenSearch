@@ -27,7 +27,7 @@ use std::sync::OnceLock;
 
 use datafusion::arrow::array::BooleanArray;
 use datafusion::arrow::record_batch::RecordBatch;
-use native_bridge_common::log_debug;
+use native_bridge_common::{log_debug, log_info};
 use roaring::RoaringBitmap;
 
 use super::{PrefetchedRg, RowGroupBitsetSource};
@@ -45,9 +45,12 @@ use std::time::Instant;
 pub use super::CollectorCallStrategy;
 use crate::indexed_table::stream::RowGroupInfo;
 
-/// Selectivity threshold for opportunistic peer consultation: a performance-delegated
-/// leaf consults the peer only when DF page-pruning kept more than 5% of an RG.
-const PEER_CONSULT_SELECTIVITY_THRESHOLD: f64 = 0.05;
+/// TODO(phase-99): hardcoded selectivity threshold for opportunistic peer consultation.
+/// Replaced by a cluster setting plumbed through `WireConfigSnapshot` and
+/// `DatafusionQueryConfig` in the very last phase, after Phase 7 OR/NOT support and
+/// everything else. Until then, performance-delegated leaves consult the peer when DF
+/// page-pruning kept more than 5% of an RG.
+const HARDCODED_SELECTIVITY_THRESHOLD: f64 = 0.05;
 
 /// Builds delegated-backend collectors for performance-delegated leaves. Production impl
 /// wraps `FfmSegmentCollector::create` (Java/Lucene round-trip); fuzz tests inject a
@@ -164,10 +167,10 @@ pub struct SingleCollectorEvaluator {
     /// the same segment via Arc<OnceLock>. Keyed by annotation_id. Lazily populated
     /// on first access (when any partition's RG passes the selectivity gate).
     peer_bitmap_cache: Arc<HashMap<i32, Arc<OnceLock<Option<RoaringBitmap>>>>>,
-    /// Pre-computed full-segment **correctness** bitmap cache. Shared across all
-    /// partitions touching the same segment via Arc<OnceLock>. Lazily populated on
-    /// the first prefetch_rg that needs the correctness collector; once init, all
-    /// subsequent chunks/partitions slice from this bitmap with no FFM.
+    /// Pre-computed full-segment **correctness** bitmap cache (Piece 1: scorer-cache).
+    /// Shared across all partitions touching the same segment via Arc<OnceLock>.
+    /// Lazily populated on first prefetch_rg that needs the correctness collector;
+    /// once init, all subsequent chunks/partitions slice from this bitmap with no FFM.
     /// `None` when the query has no correctness-delegated leaf (performance-only).
     correctness_bitmap_lock: Option<Arc<OnceLock<Option<RoaringBitmap>>>>,
     /// Provider for the correctness annotation, used by the bitmap-cache initializer
@@ -247,7 +250,7 @@ impl SingleCollectorEvaluator {
     }
 
     /// Override the cost short-circuit threshold (from `DatafusionQueryConfig`).
-    /// Builder-style so the `new()` signature and all test call sites stay unchanged.
+    /// Builder-style so the 16-arg `new()` and all test call sites stay unchanged.
     pub fn with_cost_gate_threshold(mut self, threshold: f64) -> Self {
         self.cost_gate_threshold = threshold;
         self
@@ -281,67 +284,82 @@ fn should_consult_lucene(
     surviving_fraction > threshold
 }
 
-/// Default near-MatchAll threshold for the cost short-circuit. When a Lucene peer
-/// predicate is estimated to match at least this fraction of a segment, its bitmap
-/// prunes ~nothing, so building it (the expensive scorer/FST walk) is wasted —
-/// DataFusion's native `FilterExec` is cheaper. Overridable per query via the
-/// `cost_gate_near_match_all_threshold` cluster setting.
+/// Default near-MatchAll threshold for the cost short-circuit. When a Lucene
+/// peer predicate is estimated to match at least this fraction of a segment,
+/// its bitmap prunes ~nothing, so building it (the expensive scorer/FST walk)
+/// is wasted — DataFusion's native `FilterExec` is cheaper. Tunable later via
+/// `WireConfigSnapshot`/`DatafusionQueryConfig`; hardcoded until then, mirroring
+/// `HARDCODED_SELECTIVITY_THRESHOLD`.
 const NEAR_MATCH_ALL_THRESHOLD: f64 = 0.95;
 
 /// Signals about a Lucene peer scorer, read from `ScorerSupplier` *before* the
-/// expensive `get()` build (FFM upcall `prepare_scorer`). Per-segment (leaf-scoped),
-/// matching the per-segment bitmap build they gate.
+/// expensive `get()` build (FFM upcall `prepare_scorer`). Per-segment
+/// (leaf-scoped), matching the per-segment bitmap build they gate.
 ///
-/// - `estimated_match_docs` = `ScorerSupplier.cost()` — the matched-doc estimate for
-///   THIS PEER PREDICATE'S query (whatever field(s) it touches), NOT a per-field
-///   population count. An over-estimate: for a wildcard that enumerated ≤16 terms it
-///   is the exact `Σ docFreq` ceiling; once term collection bails (>16 terms) it
-///   saturates toward `Terms.getSumDocFreq()` (≈ total field postings, which can
-///   exceed `segment_max_doc`). Reliable for proving NON-selectivity (high ⇒ really
-///   matches a lot), NOT for proving selectivity (a low estimate is not trustworthy).
+/// - `estimated_match_docs` = `ScorerSupplier.cost()` — the matched-doc estimate
+///   for THIS PEER PREDICATE'S query (whatever field(s) it touches), NOT a
+///   per-field population count. An **over-estimate**: for a wildcard that
+///   enumerated ≤16 terms it is the exact `Σ docFreq` ceiling; once term
+///   collection bails (>16 terms) it saturates toward `Terms.getSumDocFreq()`
+///   (≈ total field postings, which can exceed `segment_max_doc`). Reliable for
+///   proving NON-selectivity (high ⇒ really matches a lot), NOT for proving
+///   selectivity (a low estimate is not trustworthy).
 /// - `segment_max_doc` = leaf `maxDoc` (the denominator).
 ///
-/// Keying solely on this per-predicate match estimate is deliberate: a per-field
-/// `Terms.getDocCount` population signal cannot distinguish a 13%-selective `!= ''`
-/// (a delegation win) from a 99.9%-selective one (a regression) when both fields are
-/// ~always populated.
+/// NOTE: an earlier draft also carried `field_doc_count` (`Terms.getDocCount`),
+/// but that measures *field population*, not *predicate selectivity* — it cannot
+/// distinguish a 13%-selective `!= ''` (a delegation WIN, e.g. q27) from a
+/// 99.9%-selective one (a regression, q28) when both fields are ~always
+/// populated. Removed: the gate keys on the per-predicate match estimate only.
 #[derive(Debug, Clone, Copy)]
 pub struct PeerScorerCost {
     pub estimated_match_docs: i64,
     pub segment_max_doc: i64,
 }
 
+/// Per-segment decision: should we SKIP building the peer bitmap and let
+/// DataFusion's native `FilterExec` evaluate the predicate instead?
+///
+/// Pure function — the policy core of the cost short-circuit. Skip-only and
+/// one-directional: it may return `true` (skip Lucene, use DF) only when it can
+/// argue the bitmap won't earn its build. It NEVER asserts "selective, therefore
+/// delegate" — `cost()` over-estimates, so a low estimate is not trustworthy and
+/// the default (when not skipping) is to keep today's behaviour (build + consult).
+///
+/// SAFETY: only valid for **performance-peer** predicates. The caller MUST NOT
+/// invoke this for correctness-delegated predicates: those have no DataFusion
+/// fallback (the original expr isn't retained), so skipping would drop rows.
+///
+/// One skip reason: **estimated near-MatchAll** — `estimated_match_docs /
+/// segment_max_doc ≥ thr`. Catches genuinely non-selective predicates AND
+/// many-term wildcards whose `cost()` has saturated high (the expensive-FST-walk
+/// regression family): in both, the bitmap won't earn its build. Because
+/// `estimated_match_docs` can exceed `segment_max_doc`, the ratio is tested
+/// only in the `≥ thr` direction (clamp-by-comparison, not a true fraction).
+///
+/// Returns the decision plus the reason, so the caller can both act and emit a
+/// faithful instrumentation marker (see [`cost_gate_decision`]). Test-only
+/// convenience wrapper; the live path calls [`cost_gate_decision`] directly.
+#[cfg(test)]
+fn cost_says_skip_peer(cost: &PeerScorerCost, threshold: f64) -> bool {
+    matches!(cost_gate_decision(cost, threshold), CostGateDecision::SkipLuceneUseDf { .. })
+}
+
 /// The outcome of the cost gate, carrying the reason for instrumentation.
-/// `&'static str` reasons keep the (instrumented) marker output stable and
-/// grep-friendly.
+/// `&'static str` reasons keep the marker output stable and grep-friendly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CostGateDecision {
-    /// Skip building the Lucene bitmap; DataFusion's `FilterExec` evaluates the peer
-    /// predicate. `reason` is `ESTIMATED_NEAR_MATCH_ALL`.
+    /// Skip building the Lucene bitmap; DataFusion's `FilterExec` evaluates the
+    /// peer predicate. `reason` is `ESTIMATED_NEAR_MATCH_ALL`.
     SkipLuceneUseDf { reason: &'static str },
     /// Build the bitmap as usual (selective enough, or no basis to skip).
     /// `reason` is `SELECTIVE` / `EMPTY_SEGMENT` / `NO_SIGNAL`.
     ConsultLucene { reason: &'static str },
 }
 
-/// Per-segment decision: should we SKIP building the peer bitmap and let DataFusion's
-/// native `FilterExec` evaluate the predicate instead?
-///
-/// Pure function — the policy core of the cost short-circuit. Skip-only and
-/// one-directional: it returns `SkipLuceneUseDf` only when it can argue the bitmap
-/// won't earn its build. It never asserts "selective, therefore delegate" — `cost()`
-/// over-estimates, so a low estimate is not trustworthy and the default (when not
-/// skipping) is today's behaviour (build + consult).
-///
-/// SAFETY: only valid for **performance-peer** predicates. The caller MUST NOT invoke
-/// this for correctness-delegated predicates: those have no DataFusion fallback (the
-/// original expr isn't retained), so skipping would drop rows.
-///
-/// One skip reason — estimated near-MatchAll: `estimated_match_docs / segment_max_doc
-/// ≥ thr`. Catches genuinely non-selective predicates AND many-term wildcards whose
-/// `cost()` has saturated high (the expensive-FST-walk regression family). Because
-/// `estimated_match_docs` can exceed `segment_max_doc`, the ratio is tested only in
-/// the `≥ thr` direction (clamp by comparison, not a true fraction).
+/// Pure policy core — the cost gate. Split out so both the decision and the
+/// instrumentation marker are driven by one source of truth (no risk of the
+/// logged reason drifting from the acted-on decision).
 fn cost_gate_decision(cost: &PeerScorerCost, threshold: f64) -> CostGateDecision {
     if cost.segment_max_doc <= 0 {
         // empty/unknown segment — no basis to skip, keep default (build).
@@ -358,10 +376,41 @@ fn cost_gate_decision(cost: &PeerScorerCost, threshold: f64) -> CostGateDecision
     CostGateDecision::ConsultLucene { reason: "SELECTIVE" }
 }
 
-/// Test-only convenience wrapper; the live path matches on [`cost_gate_decision`].
-#[cfg(test)]
-fn cost_says_skip_peer(cost: &PeerScorerCost, threshold: f64) -> bool {
-    matches!(cost_gate_decision(cost, threshold), CostGateDecision::SkipLuceneUseDf { .. })
+/// Emit the cost-gate instrumentation marker. ONE line per (segment × peer
+/// predicate) when the gate is evaluated. Routed via `native_bridge_common::
+/// log_info!` (→ FFM → Java log4j) — **not** `log::info!`, which is silently
+/// discarded in the cdylib (the dead-marker bug, see how-delegation-works.md §10).
+///
+/// Marker schema (stable; parsed by the analysis pipeline):
+/// `LUCENE_COST_GATE annotationId=.. writerGeneration=.. contextId=.. \
+///  est_match_docs=.. segment_max_doc=.. threshold=.. \
+///  decision={SKIP_LUCENE_USE_DF|CONSULT_LUCENE} reason=..`
+/// `est_match_docs` is `-1` when the estimate is unavailable.
+fn emit_cost_gate_marker(
+    annotation_id: i32,
+    writer_generation: i64,
+    context_id: i64,
+    cost: &PeerScorerCost,
+    threshold: f64,
+    decision: CostGateDecision,
+) {
+    let (decision_str, reason) = match decision {
+        CostGateDecision::SkipLuceneUseDf { reason } => ("SKIP_LUCENE_USE_DF", reason),
+        CostGateDecision::ConsultLucene { reason } => ("CONSULT_LUCENE", reason),
+    };
+    log_info!(
+        "LUCENE_COST_GATE annotationId={} writerGeneration={} contextId={} \
+         est_match_docs={} segment_max_doc={} threshold={:.4} \
+         decision={} reason={}",
+        annotation_id,
+        writer_generation,
+        context_id,
+        cost.estimated_match_docs,
+        cost.segment_max_doc,
+        threshold,
+        decision_str,
+        reason
+    );
 }
 
 impl SingleCollectorEvaluator {
@@ -413,14 +462,29 @@ impl SingleCollectorEvaluator {
         t: Instant,
     ) -> Result<Option<PrefetchedRg>, String> {
         if candidates.is_empty() {
+            // Gap-3 instrumentation: emit per-RG event even when fully pruned (zero candidates).
+            let elapsed_ns = t.elapsed().as_nanos() as u64;
+            log::info!(
+                "RG_PREFETCH rg_index={} num_rows={} candidates=0 result=fully_pruned eval_ns={} eval_us={}",
+                rg.index, rg.num_rows, elapsed_ns, elapsed_ns / 1000
+            );
             return Ok(None);
         }
         let mask_len = rg.num_rows as usize;
+        let cardinality = candidates.len() as u64;
         let packed_bits = bitmap_to_packed_bits(&candidates, mask_len as u32);
         let mask_buffer = datafusion::arrow::buffer::Buffer::from_vec(packed_bits);
+        let elapsed_ns = t.elapsed().as_nanos() as u64;
+        // Gap-3 instrumentation: per-RG prefetch timing — covers Lucene drain + cache check +
+        // bitmap intersect + arrow buffer construction. Pairs with on_batch_mask events for
+        // the downstream per-batch intersect cost.
+        log::info!(
+            "RG_PREFETCH rg_index={} num_rows={} candidates={} cardinality={} result=have_mask eval_ns={} eval_us={}",
+            rg.index, rg.num_rows, cardinality, cardinality, elapsed_ns, elapsed_ns / 1000
+        );
         Ok(Some(PrefetchedRg {
             candidates: candidates.clone(),
-            eval_nanos: t.elapsed().as_nanos() as u64,
+            eval_nanos: elapsed_ns,
             context: Box::new(SingleCollectorState {
                 candidates,
                 mask_buffer: mask_buffer.clone(),
@@ -432,11 +496,12 @@ impl SingleCollectorEvaluator {
 }
 
 impl RowGroupBitsetSource for SingleCollectorEvaluator {
-    /// Pre-warm only the per-segment correctness bitmap cache. Single-shot drain:
-    /// a K-way parallel split was tried and reverted because the redundant FST walks
-    /// on the Java/Lucene side serialized through shared state and made things slower
-    /// (5s → 7s for the big segment). Skips page-pruning + per-RG metrics so it is
-    /// safe to call from `QueryShardExec.execute()` without inflating counters.
+    /// Piece 2: pre-warm only the per-segment correctness bitmap cache.
+    /// Single-shot drain — Piece 3's K-way parallel split was tried and reverted
+    /// because the redundant FST walks on the Java/Lucene side serialized through
+    /// shared state and made things slower (5s → 7s for the big segment).
+    /// Skips page-pruning + per-RG metrics so safe to call from
+    /// `QueryShardExec.execute()` without inflating counters.
     fn warm_cache(&self) {
         let (Some(bitmap_lock), Some(provider)) =
             (self.correctness_bitmap_lock.as_ref(), self.correctness_provider.as_ref())
@@ -516,8 +581,8 @@ impl RowGroupBitsetSource for SingleCollectorEvaluator {
             }
         }
 
-        // Build the per-segment correctness bitmap once, shared across all chunks
-        // of the segment via Arc<OnceLock>.
+        // Piece 1 (scorer-cache): build per-segment correctness bitmap once,
+        // shared across all chunks of the segment via Arc<OnceLock>.
         if let (Some(bitmap_lock), Some(provider)) =
             (self.correctness_bitmap_lock.as_ref(), self.correctness_provider.as_ref())
         {
@@ -527,12 +592,31 @@ impl RowGroupBitsetSource for SingleCollectorEvaluator {
             let provider_key = provider.key();
             let factory = Arc::clone(&self.delegated_backend_collector_factory);
             let ffm_calls = self.ffm_collector_calls.clone();
+            // Gap-1 instrumentation: distinguish cache HIT vs MISS.
+            // OnceLock::get() is non-blocking and returns Some only after init.
+            // First check; on miss, run init via get_or_init (blocking).
+            let was_cached = bitmap_lock.get().is_some();
+            let init_start = if was_cached { None } else { Some(std::time::Instant::now()) };
             let bm_opt = bitmap_lock.get_or_init(|| {
                 Self::drain_segment_range(
                     &factory, context_id, provider_key, writer_gen,
                     seg_start, seg_end, &ffm_calls,
                 )
             });
+            // Emit cache event log (mirrors LUCENE_DRAIN format for analyzer compatibility).
+            if was_cached {
+                log::info!(
+                    "LUCENE_BITMAP_CACHE_HIT writerGeneration={} contextId={} providerKey={} range=[{},{})",
+                    writer_gen, context_id, provider_key, min_doc, max_doc
+                );
+            } else if let Some(t0) = init_start {
+                let elapsed_ns = t0.elapsed().as_nanos() as u64;
+                log::info!(
+                    "LUCENE_BITMAP_CACHE_MISS writerGeneration={} contextId={} providerKey={} range=[{},{}) build_elapsed_ns={} build_elapsed_us={}",
+                    writer_gen, context_id, provider_key, min_doc, max_doc,
+                    elapsed_ns, elapsed_ns / 1000
+                );
+            }
 
             // Bitmap is segment-relative (bit 0 = doc seg_start); convert to RG-relative.
             let mut candidates = RoaringBitmap::new();
@@ -649,10 +733,10 @@ impl RowGroupBitsetSource for SingleCollectorEvaluator {
         // Opportunistic peer consultation for performance-delegated leaves. The peer
         // bitmap is computed ONCE per (annotation_id × segment) on first access and
         // shared across all partitions — eliminating repeated scorer creation.
-        // TODO: consult ALL performance leaves whose gate fires and AND their bitsets;
-        // today we consult the first (lowest annotation_id) leaf only.
+        // TODO(d3): consult ALL performance leaves whose gate fires and AND their
+        // bitsets. Today we consult the first leaf only.
         if !self.performance_provider_locks.is_empty()
-            && should_consult_lucene(&page_ranges, rg, PEER_CONSULT_SELECTIVITY_THRESHOLD)
+            && should_consult_lucene(&page_ranges, rg, HARDCODED_SELECTIVITY_THRESHOLD)
         {
             let annotation_id = *self
                 .performance_provider_locks
@@ -662,6 +746,9 @@ impl RowGroupBitsetSource for SingleCollectorEvaluator {
 
             if let Some(bitmap_lock) = self.peer_bitmap_cache.get(&annotation_id) {
                 let (seg_start, seg_end) = self.segment_doc_range;
+                // Gap-1 instrumentation: distinguish cache HIT vs MISS for peer-bitmap path.
+                let was_cached = bitmap_lock.get().is_some();
+                let init_start = if was_cached { None } else { Some(std::time::Instant::now()) };
                 let peer_bitmap = bitmap_lock.get_or_init(|| {
                     let provider_lock = self
                         .performance_provider_locks
@@ -673,26 +760,41 @@ impl RowGroupBitsetSource for SingleCollectorEvaluator {
                             .expect("create_provider FFM upcall failed")
                     });
 
-                    // Cost short-circuit: read the peer scorer's cost signals BEFORE
-                    // building it (no FST walk to materialize the bitmap). If the
-                    // bitmap won't earn its build (near-MatchAll, or a saturated-high
-                    // many-term wildcard — the over-delegation regression family),
-                    // SKIP it: return None, which leaves `candidates` = the page-pruned
-                    // universe and lets DataFusion's FilterExec evaluate the predicate
-                    // via the retained residual. Safe because peers always keep
-                    // `original` for DF, so skipping never drops rows; memoized
-                    // per-segment by this OnceLock. `prepare_scorer` returning None
+                    // ── COST SHORT-CIRCUIT ──────────────────────────────────────────
+                    // Read the peer scorer's cost signals BEFORE building it (no FST
+                    // walk to materialize the bitmap). If the bitmap won't earn its
+                    // build (near-MatchAll, or a saturated-high many-term wildcard —
+                    // the over-delegation regression family), SKIP it: return `None`,
+                    // which leaves `candidates` = the page-pruned universe and lets
+                    // DataFusion's FilterExec evaluate the (peer) predicate via the
+                    // retained residual. SAFE: peers always keep `original` for DF, so
+                    // skipping never drops rows. The decision is memoized per-segment
+                    // by this very `OnceLock`. `prepare_scorer` returning `None`
                     // (callback unregistered / Java error) degrades to "consult".
                     let cost_opt = crate::indexed_table::ffm_callbacks::prepare_scorer(
                         context_id, provider.key(), self.writer_generation,
                     );
+                    let cost_for_marker = cost_opt.unwrap_or(PeerScorerCost {
+                        estimated_match_docs: -1,
+                        segment_max_doc: -1,
+                    });
+                    let cost_gate_threshold = self.cost_gate_threshold;
                     let decision = match cost_opt {
-                        Some(ref c) => cost_gate_decision(c, self.cost_gate_threshold),
+                        Some(ref c) => cost_gate_decision(c, cost_gate_threshold),
                         None => CostGateDecision::ConsultLucene { reason: "NO_SIGNAL" },
                     };
+                    emit_cost_gate_marker(
+                        annotation_id,
+                        self.writer_generation,
+                        context_id,
+                        &cost_for_marker,
+                        cost_gate_threshold,
+                        decision,
+                    );
                     if matches!(decision, CostGateDecision::SkipLuceneUseDf { .. }) {
                         return None;
                     }
+                    // ────────────────────────────────────────────────────────────────
 
                     let collector = match self.delegated_backend_collector_factory.create(
                         context_id, provider.key(), self.writer_generation, seg_start, seg_end,
@@ -723,6 +825,23 @@ impl RowGroupBitsetSource for SingleCollectorEvaluator {
                     }
                     Some(bm)
                 });
+
+                // Emit cache event log so the analyzer can attribute hits vs misses.
+                if was_cached {
+                    log::info!(
+                        "LUCENE_BITMAP_CACHE_HIT annotationId={} writerGeneration={} contextId={} range=[{},{}) seg=[{},{})",
+                        annotation_id, self.writer_generation, self.context_id,
+                        min_doc, max_doc, seg_start, seg_end
+                    );
+                } else if let Some(t0) = init_start {
+                    let elapsed_ns = t0.elapsed().as_nanos() as u64;
+                    log::info!(
+                        "LUCENE_BITMAP_CACHE_MISS annotationId={} writerGeneration={} contextId={} range=[{},{}) seg=[{},{}) build_elapsed_ns={} build_elapsed_us={}",
+                        annotation_id, self.writer_generation, self.context_id,
+                        min_doc, max_doc, seg_start, seg_end,
+                        elapsed_ns, elapsed_ns / 1000
+                    );
+                }
 
                 if let Some(ref full_bm) = peer_bitmap {
                     // Slice to this RG's range. The bitmap is segment-relative (position 0 =
@@ -928,10 +1047,10 @@ mod cost_shortcircuit_tests {
         assert!(cost_says_skip_peer(&c, NEAR_MATCH_ALL_THRESHOLD));
     }
 
-    /// Leading-wildcard `%google%` that matched MANY terms, so `cost()` saturated
-    /// toward total field postings and EXCEEDS segment_max_doc. The ratio is > 1.0;
-    /// we must still skip (the build is the expensive FST walk, not worth it).
-    /// Verifies the "clamp by comparison, not fraction" contract.
+    /// q22/q24 family: leading-wildcard `%google%` that matched MANY terms, so
+    /// `cost()` saturated toward total field postings and EXCEEDS segment_max_doc.
+    /// The ratio is > 1.0; we must still skip (the build is the expensive FST
+    /// walk, not worth it). Verifies the "clamp by comparison, not fraction" note.
     #[test]
     fn saturated_estimate_above_max_doc_skips() {
         // est 35_000 postings over a 10_000-doc segment (avg ~3.5 terms/doc).
@@ -940,8 +1059,9 @@ mod cost_shortcircuit_tests {
     }
 
     /// The case we must NOT break: a genuinely selective peer (13%) → do NOT skip
-    /// (delegation should still run; the default keeps build-and-consult). A
-    /// non-selective *field* with a selective *predicate* must not be skipped.
+    /// (delegation should still run; the default keeps build-and-consult). This is
+    /// the q27 win — a non-selective *field* with a selective *predicate* must not
+    /// be skipped, which is exactly why the per-field signal was removed.
     #[test]
     fn selective_peer_does_not_skip() {
         let c = cost(/*est*/ 1_300, /*max_doc*/ 10_000); // 13%
@@ -1134,7 +1254,7 @@ mod tests {
     #[allow(dead_code)]
     fn _use(_: &dyn fmt::Debug) {}
 
-    // ── correctness bitmap cache tests ───────────────────────────────────
+    // ── Piece 1 (correctness bitmap cache) tests ─────────────────────────
 
     /// Counts how many times the factory builds a collector. Used to assert
     /// the bitmap cache hits across multiple `prefetch_rg` calls on the same

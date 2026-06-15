@@ -29,6 +29,7 @@ import org.opensearch.ratelimitting.admissioncontrol.enums.AdmissionControlActio
 import org.opensearch.tasks.Task;
 import org.opensearch.tasks.TaskResourceTrackingService;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.telemetry.tracing.Tracer;
 import org.opensearch.transport.StreamTransportService;
 import org.opensearch.transport.Transport;
 import org.opensearch.transport.TransportChannel;
@@ -63,7 +64,8 @@ public class AnalyticsSearchTransportService {
         ClusterService clusterService,
         AnalyticsSearchService searchService,
         IndicesService indicesService,
-        TaskResourceTrackingService taskResourceTrackingService
+        TaskResourceTrackingService taskResourceTrackingService,
+        Tracer tracer
     ) {
         if (streamTransportService == null) {
             throw new IllegalStateException(
@@ -74,6 +76,7 @@ public class AnalyticsSearchTransportService {
             );
         }
         searchService.setTaskResourceTrackingService(taskResourceTrackingService);
+        searchService.setTracer(tracer);  // T2: data-node fragment spans
         this.transportService = streamTransportService;
         this.clusterService = clusterService;
         registerStreamingFragmentHandler(this.transportService, searchService, indicesService);

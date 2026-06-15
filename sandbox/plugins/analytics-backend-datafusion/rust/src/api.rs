@@ -148,28 +148,176 @@ impl QueryStreamHandle {
     }
 
     /// Returns execution metrics from ALL operators in the physical plan tree as JSON bytes.
-    /// Walks the tree recursively, collecting metrics from every node.
+    ///
+    /// Two views are emitted side by side:
+    ///  - the legacy FLAT keys (output_rows, peak_mem_used, time_elapsed_scanning_total, …) kept for
+    ///    back-compat with the Java probe that regex-scans the blob (e.g. for `peak_mem_used`). These
+    ///    are last-writer-wins; the deepest leaf (scan) dominates, which is the historical behavior.
+    ///  - a sibling `operators` ARRAY: one entry per plan node with a preorder `node_id`, its
+    ///    `parent_id`, and per-operator metrics including `elapsed_compute_ns` and the real
+    ///    `start_unix_nanos`/`end_unix_nanos` wall-clock anchors (from BaselineMetrics, folded
+    ///    min-start/max-end across partitions via `aggregate_by_name`). The Java side turns these
+    ///    into per-operator child spans so a query can be drilled down operator-by-operator.
     pub fn get_metrics_json(&self) -> Option<Vec<u8>> {
         let plan = self.physical_plan.as_ref()?;
         let mut map = serde_json::Map::new();
-        Self::collect_metrics(plan.as_ref(), &mut map);
-        if map.is_empty() {
+        let mut operators: Vec<serde_json::Value> = Vec::new();
+        let mut next_id: u32 = 0;
+        Self::collect_metrics(plan.as_ref(), None, &mut next_id, &mut map, &mut operators);
+        if map.is_empty() && operators.is_empty() {
             return None;
+        }
+        if !operators.is_empty() {
+            map.insert("operators".to_string(), serde_json::Value::Array(operators));
         }
         serde_json::to_vec(&map).ok()
     }
 
-    fn collect_metrics(plan: &dyn datafusion::physical_plan::ExecutionPlan, map: &mut serde_json::Map<String, serde_json::Value>) {
+    fn collect_metrics(
+        plan: &dyn datafusion::physical_plan::ExecutionPlan,
+        parent_id: Option<u32>,
+        next_id: &mut u32,
+        map: &mut serde_json::Map<String, serde_json::Value>,
+        operators: &mut Vec<serde_json::Value>,
+    ) {
+        let node_id = *next_id;
+        *next_id += 1;
+
+        let mut op = serde_json::Map::new();
+        op.insert("operator".to_string(), serde_json::Value::String(plan.name().to_string()));
+        op.insert("node_id".to_string(), serde_json::Value::Number(node_id.into()));
+        if let Some(pid) = parent_id {
+            op.insert("parent_id".to_string(), serde_json::Value::Number(pid.into()));
+        }
+
         if let Some(metrics) = plan.metrics() {
+            // Flat view (back-compat): keep the legacy last-writer-wins keying.
             for m in metrics.iter() {
                 let name = m.value().name().to_string();
                 let value = m.value().as_usize() as i64;
-                // Later operators override earlier ones if same name — leaf (scan) metrics take priority
                 map.insert(name, serde_json::Value::Number(serde_json::Number::from(value)));
             }
+            // Per-operator view: fold per-partition rows so each metric appears once for this node.
+            let agg = metrics.aggregate_by_name();
+            let num = |v: Option<usize>| serde_json::Value::Number((v.unwrap_or(0) as i64).into());
+            let elapsed_compute = agg.elapsed_compute().unwrap_or(0);
+            op.insert("elapsed_compute_ns".to_string(), num(Some(elapsed_compute)));
+            op.insert("rows".to_string(), num(agg.output_rows()));
+            op.insert("spill_count".to_string(), num(agg.spill_count()));
+            op.insert("spilled_bytes".to_string(), num(agg.spilled_bytes()));
+            // Wall-clock anchors + named scan timers, read generically from the aggregated set.
+            // The four time_elapsed_* are FileStream/ParquetSource Time metrics (nanos) that the scan
+            // node (QueryShardExec) re-exports; the scan's elapsed_compute is ~0, so its real cost
+            // lives in time_elapsed_processing. work_ns = max(elapsed_compute, processing) gives a
+            // correct per-operator "self work" (CPU for normal ops, scan-processing for the scan)
+            // WITHOUT hiding the scan and WITHOUT double-counting (processing already envelopes
+            // scanning_total — see file_stream.rs). Summed across partitions; a bar WIDTH, not a
+            // wall-clock interval.
+            let mut processing_ns: i64 = 0;
+            for m in agg.iter() {
+                match m.value() {
+                    datafusion::physical_plan::metrics::MetricValue::StartTimestamp(_) => {
+                        let ns = m.value().as_usize() as i64;
+                        if ns > 0 {
+                            op.insert("start_unix_nanos".to_string(), serde_json::Value::Number(ns.into()));
+                        }
+                    }
+                    datafusion::physical_plan::metrics::MetricValue::EndTimestamp(_) => {
+                        let ns = m.value().as_usize() as i64;
+                        if ns > 0 {
+                            op.insert("end_unix_nanos".to_string(), serde_json::Value::Number(ns.into()));
+                        }
+                    }
+                    other => {
+                        // Named scan timers (all Time => as_usize() is nanos). Whitelist by name so
+                        // we never fold a Count (e.g. bytes_scanned) into a time field.
+                        let field = match other.name() {
+                            "time_elapsed_processing" => Some("scan_processing_ns"),
+                            "time_elapsed_scanning_total" => Some("scan_total_ns"),
+                            "time_elapsed_scanning_until_data" => Some("scan_until_data_ns"),
+                            "time_elapsed_opening" => Some("scan_opening_ns"),
+                            _ => None,
+                        };
+                        if let Some(f) = field {
+                            let ns = other.as_usize() as i64;
+                            if ns > 0 {
+                                op.insert(f.to_string(), serde_json::Value::Number(ns.into()));
+                                if f == "scan_processing_ns" {
+                                    processing_ns = ns;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Per-operator self-work used as the span bar WIDTH on the Java side.
+            let work_ns = (elapsed_compute as i64).max(processing_ns);
+            op.insert("work_ns".to_string(), serde_json::Value::Number(work_ns.into()));
+
+            // Gap-2 instrumentation: per-partition breakdown so the Java side can emit
+            // datafusion.op.<X>.pN child spans. We walk the raw MetricsSet (not aggregated)
+            // and bucket per-partition values.
+            // MetricValue::partition() returns Option<usize>.
+            use std::collections::BTreeMap;
+            let mut per_part: BTreeMap<usize, serde_json::Map<String, serde_json::Value>> = BTreeMap::new();
+            for m in metrics.iter() {
+                if let Some(p) = m.partition() {
+                    let entry = per_part.entry(p).or_insert_with(serde_json::Map::new);
+                    let v = m.value();
+                    let name = v.name();
+                    let ns_or_count = v.as_usize() as i64;
+                    let key = match name {
+                        "elapsed_compute" => Some("elapsed_compute_ns"),
+                        "output_rows" => Some("rows"),
+                        "time_elapsed_processing" => Some("scan_processing_ns"),
+                        "time_elapsed_scanning_total" => Some("scan_total_ns"),
+                        "time_elapsed_scanning_until_data" => Some("scan_until_data_ns"),
+                        "time_elapsed_opening" => Some("scan_opening_ns"),
+                        _ => None,
+                    };
+                    if let Some(k) = key {
+                        if ns_or_count > 0 {
+                            entry.insert(k.to_string(), serde_json::Value::Number(ns_or_count.into()));
+                        }
+                    }
+                    // Capture per-partition wall-clock anchors for accurate span timing.
+                    match v {
+                        datafusion::physical_plan::metrics::MetricValue::StartTimestamp(_) => {
+                            if ns_or_count > 0 {
+                                entry.insert("start_unix_nanos".to_string(), ns_or_count.into());
+                            }
+                        }
+                        datafusion::physical_plan::metrics::MetricValue::EndTimestamp(_) => {
+                            if ns_or_count > 0 {
+                                entry.insert("end_unix_nanos".to_string(), ns_or_count.into());
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            // Skip emitting empty per-partition arrays; only emit when ≥2 partitions
+            // have at least one timer (matches the planned ≥2 gating from the agent's note).
+            if per_part.len() >= 2 {
+                let mut arr = Vec::with_capacity(per_part.len());
+                for (p, mut m) in per_part {
+                    m.insert("partition".to_string(), serde_json::Value::Number(p.into()));
+                    // work_ns per partition: max(elapsed_compute_ns, scan_processing_ns).
+                    let ec = m.get("elapsed_compute_ns").and_then(|v| v.as_i64()).unwrap_or(0);
+                    let sp = m.get("scan_processing_ns").and_then(|v| v.as_i64()).unwrap_or(0);
+                    let pwork = ec.max(sp);
+                    if pwork > 0 {
+                        m.insert("work_ns".to_string(), serde_json::Value::Number(pwork.into()));
+                    }
+                    arr.push(serde_json::Value::Object(m));
+                }
+                op.insert("partitions".to_string(), serde_json::Value::Array(arr));
+            }
         }
+        operators.push(serde_json::Value::Object(op));
+
         for child in plan.children() {
-            Self::collect_metrics(child.as_ref(), map);
+            Self::collect_metrics(child.as_ref(), Some(node_id), next_id, map, operators);
         }
     }
 }
@@ -1134,6 +1282,12 @@ pub unsafe fn stream_close(stream_ptr: i64) {
 /// No-op for unknown or already-completed queries.
 pub fn cancel_query(context_id: i64) {
     query_tracker::cancel_query(context_id);
+}
+
+/// Peak native memory (bytes) for the query with the given context_id, or 0 if not registered.
+/// Non-negative on every path (FFM-safe). See [`query_tracker::peak_bytes_by_context`].
+pub fn query_peak_bytes(context_id: i64) -> i64 {
+    query_tracker::peak_bytes_by_context(context_id)
 }
 
 /// Converts SQL to Substrait plan bytes (test only).

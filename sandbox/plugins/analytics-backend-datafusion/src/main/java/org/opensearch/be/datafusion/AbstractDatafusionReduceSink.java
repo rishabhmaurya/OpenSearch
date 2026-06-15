@@ -160,25 +160,70 @@ abstract class AbstractDatafusionReduceSink implements ReducingExchangeSink, Can
      */
     protected final void drainOutputIntoDownstream(StreamHandle outStream) {
         BufferAllocator alloc = ctx.allocator();
+        // T2 reduce breakdown: report each reduced-output batch's native PRODUCE (FINAL-aggregation
+        // pull) and downstream SEND to the engine via the opaque-token observer, mirroring the
+        // data-node produce/send split. The observer is no-op when tracing is off; tokens are opaque
+        // (the backend never inspects them) so no tracing type leaks into this backend.
+        final org.opensearch.analytics.spi.ReduceDrainObserver obs = ctx.reduceDrainObserver();
+        long ordinal = 0;
         try (CDataDictionaryProvider dictProvider = new CDataDictionaryProvider()) {
             DatafusionResultStream.BatchIterator it = new DatafusionResultStream.BatchIterator(outStream, alloc, dictProvider);
-            while (it.hasNext()) {
+            while (true) {
+                // PRODUCE: the native pull that runs the FINAL aggregation and materializes one
+                // reduced output batch (hasNext triggers streamNext; next imports the VSR).
+                Object produceToken = obs.onProduceStart(ordinal);
+                long produceStartNanos = System.nanoTime();
+                boolean hasNext;
+                VectorSchemaRoot batch = null;
+                Throwable produceErr = null;
+                try {
+                    hasNext = it.hasNext();
+                    batch = hasNext ? it.next().getArrowRoot() : null;
+                } catch (RuntimeException | Error e) {
+                    produceErr = e;
+                    throw e;
+                } finally {
+                    long rows = batch != null ? batch.getRowCount() : 0;
+                    long bytes = batch != null ? arrowBytes(batch) : 0;
+                    obs.onProduceEnd(produceToken, rows, bytes, System.nanoTime() - produceStartNanos, produceErr);
+                }
+                if (!hasNext) {
+                    break;
+                }
                 // next() transfers ownership of the imported VSR to us. feed() takes ownership only
                 // on success; if it throws (e.g. the downstream sink was torn down on a concurrent
                 // cancel), the imported batch would otherwise leak in the per-query allocator —
                 // close it ourselves on the failure path.
-                VectorSchemaRoot batch = it.next().getArrowRoot();
                 boolean fed = false;
+                Object sendToken = obs.onSendStart(ordinal);
+                long sendStartNanos = System.nanoTime();
+                Throwable sendErr = null;
                 try {
                     ctx.downstream().feed(batch);
                     fed = true;
+                } catch (RuntimeException | Error e) {
+                    sendErr = e;
+                    throw e;
                 } finally {
+                    obs.onSendEnd(sendToken, batch.getRowCount(), System.nanoTime() - sendStartNanos, sendErr);
                     if (!fed) {
                         batch.close();
                     }
                 }
+                ordinal++;
             }
+        } finally {
+            obs.onDrainComplete(ordinal);
         }
+    }
+
+    /** Best-effort Arrow buffer footprint of a reduced output batch (not native/intermediate memory). */
+    private static long arrowBytes(VectorSchemaRoot root) {
+        long total = 0L;
+        for (org.apache.arrow.vector.FieldVector v : root.getFieldVectors()) {
+            total += v.getBufferSize();
+        }
+        return total;
     }
 
     /** Returns {@code t} if {@code acc} is null; otherwise adds {@code t} as a suppressed of {@code acc}. */

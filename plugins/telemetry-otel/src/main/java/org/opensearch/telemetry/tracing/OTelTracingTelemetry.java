@@ -60,7 +60,8 @@ public class OTelTracingTelemetry<T extends TracerProvider & Closeable> implemen
             spanCreationContext.getSpanName(),
             parentSpan,
             OTelAttributesConverter.convert(spanCreationContext.getAttributes()),
-            OTelSpanKindConverter.convert(spanCreationContext.getSpanKind())
+            OTelSpanKindConverter.convert(spanCreationContext.getSpanKind()),
+            spanCreationContext.getStartTimestamp()
         );
         Span newSpan = new OTelSpan(spanCreationContext.getSpanName(), otelSpan, parentSpan);
         return newSpan;
@@ -70,14 +71,19 @@ public class OTelTracingTelemetry<T extends TracerProvider & Closeable> implemen
         String spanName,
         Span parentOTelSpan,
         io.opentelemetry.api.common.Attributes attributes,
-        io.opentelemetry.api.trace.SpanKind spanKind
+        io.opentelemetry.api.trace.SpanKind spanKind,
+        java.time.Instant startTimestamp
     ) {
-        return !(parentOTelSpan instanceof OTelSpan oTelSpan)
-            ? otelTracer.spanBuilder(spanName).setAllAttributes(attributes).startSpan()
+        io.opentelemetry.api.trace.SpanBuilder builder = !(parentOTelSpan instanceof OTelSpan oTelSpan)
+            ? otelTracer.spanBuilder(spanName).setAllAttributes(attributes)
             : otelTracer.spanBuilder(spanName)
                 .setParent(Context.current().with(oTelSpan.getDelegateSpan()))
                 .setAllAttributes(attributes)
-                .setSpanKind(spanKind)
-                .startSpan();
+                .setSpanKind(spanKind);
+        // Explicit start timestamp for reconstructed/after-the-fact spans; null => start now (default).
+        if (startTimestamp != null) {
+            builder.setStartTimestamp(startTimestamp);
+        }
+        return builder.startSpan();
     }
 }

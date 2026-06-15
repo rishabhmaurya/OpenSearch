@@ -113,6 +113,7 @@ public final class NativeBridge {
     private static final MethodHandle CLOSE_SESSION_CONTEXT;
     private static final MethodHandle EXECUTE_WITH_CONTEXT;
     private static final MethodHandle CANCEL_QUERY;
+    private static final MethodHandle QUERY_PEAK_BY_CONTEXT;
     private static final MethodHandle SET_CANCEL_STATS_THRESHOLD_MS;
     private static final MethodHandle STATS;
     private static final MethodHandle QUERY_REGISTRY_TOP_N_BY_CURRENT;
@@ -486,6 +487,10 @@ public final class NativeBridge {
         );
 
         CANCEL_QUERY = linker.downcallHandle(lib.find("df_cancel_query").orElseThrow(), FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG));
+        QUERY_PEAK_BY_CONTEXT = linker.downcallHandle(
+            lib.find("df_query_peak_by_context").orElseThrow(),
+            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG)
+        );
 
         SET_CANCEL_STATS_THRESHOLD_MS = linker.downcallHandle(
             lib.find("df_set_cancel_stats_threshold_ms").orElseThrow(),
@@ -1007,6 +1012,19 @@ public final class NativeBridge {
     /** Fires the cancellation token for the given context. No-op if already completed. */
     public static void cancelQuery(long contextId) {
         NativeCall.invokeVoid(CANCEL_QUERY, contextId);
+    }
+
+    /**
+     * Peak native (DataFusion pool) memory in bytes for the query with the given {@code contextId}
+     * (= the OpenSearch task id), or {@code 0} if the query is not (or no longer) registered in the
+     * native QUERY_REGISTRY. MUST be read before the native session/stream for this context is
+     * closed (the tracker is removed from the registry on drop). The native getter is non-negative
+     * on every path, so this is a plain value read, not the negated-error-pointer convention.
+     */
+    public static long queryPeakByContext(long contextId) {
+        try (var call = new NativeCall()) {
+            return call.invoke(QUERY_PEAK_BY_CONTEXT, contextId);
+        }
     }
 
     /**

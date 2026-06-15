@@ -356,6 +356,9 @@ pub struct IndexedExec {
     /// parquet statistics cannot satisfy the (tightening) predicate. `None`
     /// when no dynamic filter was pushed to this query.
     pub(crate) dynamic_filter: Option<Arc<dyn datafusion::physical_expr::PhysicalExpr>>,
+    /// Per-partition id propagated from QueryShardExec.execute(partition) so per-stream
+    /// log markers can correlate timing across the 8 (or N) partitions of a query.
+    pub(crate) partition_id: usize,
 }
 
 impl fmt::Debug for IndexedExec {
@@ -451,6 +454,8 @@ impl ExecutionPlan for IndexedExec {
             self.emit_row_ids,
             self.row_id_output_index,
             self.dynamic_filter.clone(),
+            self.partition_id,
+            self.row_groups.len(),
         )))
     }
 }
@@ -523,6 +528,26 @@ struct IndexedStream {
     /// was pushed. Owns its own snapshot generation tracking, so it must NOT be
     /// shared across sibling segment streams.
     dynamic_rg_pruner: Option<super::dynamic_filter::DynamicRgPruner>,
+    /// Per-partition id (from QueryShardExec.execute(partition)) for log correlation.
+    partition_id: usize,
+    /// Number of row groups this stream will process — for `STREAM_R` log accounting.
+    n_rgs: usize,
+    /// `Instant::now()` captured on first poll, used as t=0 for per-partition events.
+    stream_t0: Option<Instant>,
+    /// Set true after first batch event was logged.
+    logged_first_batch: bool,
+    /// Per-stream batch counter (for the final event).
+    batches_emitted: u64,
+    /// Per-stream row counter (for the final event).
+    rows_emitted: u64,
+    /// Per-stream cumulative parquet_poll_pending count (Pending-returns from current parquet stream).
+    parquet_pending_count: u64,
+    /// Current row group index for `rg_open` / `rg_close` event boundaries.
+    last_rg_idx_logged: Option<usize>,
+    /// Tracks rows emitted from current RG since `rg_open`.
+    rg_rows_emitted: u64,
+    /// Tracks `Instant::now()` of current `rg_open` event (for `rg_close` elapsed).
+    rg_t0: Option<Instant>,
 }
 
 impl IndexedStream {
@@ -549,6 +574,8 @@ impl IndexedStream {
         emit_row_ids: bool,
         row_id_output_index: Option<usize>,
         dynamic_filter: Option<Arc<dyn datafusion::physical_expr::PhysicalExpr>>,
+        partition_id: usize,
+        n_rgs: usize,
     ) -> Self {
         let evaluator = Arc::clone(&index_reader.evaluator);
         let batch_coalescer =
@@ -592,6 +619,16 @@ impl IndexedStream {
             emit_row_ids,
             row_id_output_index,
             dynamic_rg_pruner,
+            partition_id,
+            n_rgs,
+            stream_t0: None,
+            logged_first_batch: false,
+            batches_emitted: 0,
+            rows_emitted: 0,
+            parquet_pending_count: 0,
+            last_rg_idx_logged: None,
+            rg_rows_emitted: 0,
+            rg_t0: None,
         }
     }
 
@@ -779,6 +816,12 @@ impl Stream for IndexedStream {
         if !self.initialized {
             self.index_reader.init_prefetch();
             self.initialized = true;
+            // Per-partition log markers (Piece 2 instrumentation): emit on first poll.
+            self.stream_t0 = Some(Instant::now());
+            native_bridge_common::log_info!(
+                "STREAM_R partition={} event=first_poll n_rgs={}",
+                self.partition_id, self.n_rgs
+            );
         }
 
         let result = self.as_mut().poll_inner(cx);
@@ -790,6 +833,17 @@ impl Stream for IndexedStream {
     }
 }
 
+impl Drop for IndexedStream {
+    fn drop(&mut self) {
+        if let Some(t0) = self.stream_t0 {
+            native_bridge_common::log_info!(
+                "STREAM_R partition={} event=last_batch total_batches={} total_rows={} parquet_pending_count={} elapsed_ms={}",
+                self.partition_id, self.batches_emitted, self.rows_emitted,
+                self.parquet_pending_count, t0.elapsed().as_millis()
+            );
+        }
+    }
+}
 
 impl IndexedStream {
     fn poll_inner(
@@ -804,6 +858,17 @@ impl IndexedStream {
                 }
                 if let Some(ref counter) = self.metrics.batches_produced {
                     counter.add(1);
+                }
+                self.batches_emitted += 1;
+                self.rows_emitted += batch.num_rows() as u64;
+                self.rg_rows_emitted += batch.num_rows() as u64;
+                if !self.logged_first_batch {
+                    self.logged_first_batch = true;
+                    let elapsed_ms = self.stream_t0.map(|t| t.elapsed().as_millis()).unwrap_or(0);
+                    native_bridge_common::log_info!(
+                        "STREAM_R partition={} event=first_batch rows={} elapsed_ms={}",
+                        self.partition_id, batch.num_rows(), elapsed_ms
+                    );
                 }
                 return Poll::Ready(Some(Ok(batch)));
             }
@@ -840,6 +905,9 @@ impl IndexedStream {
                 let poll_result = Pin::new(stream).poll_next(cx);
                 if let Some(ref t) = self.metrics.parquet_poll_time {
                     t.add_duration(t_poll.elapsed());
+                }
+                if matches!(poll_result, Poll::Pending) {
+                    self.parquet_pending_count += 1;
                 }
                 match poll_result {
                     Poll::Ready(Some(Ok(batch))) if batch.num_rows() > 0 => {
@@ -962,6 +1030,25 @@ impl IndexedStream {
                     // per-RG state.
                     self.current_rg_context = Some(prefetched.prefetched.context);
                     self.batch_offset = 0;
+
+                    // Per-partition RG transition logging.
+                    if let Some(prev_idx) = self.last_rg_idx_logged {
+                        if prev_idx != rg.index {
+                            let elapsed = self.rg_t0.map(|t| t.elapsed().as_millis()).unwrap_or(0);
+                            native_bridge_common::log_info!(
+                                "STREAM_R partition={} event=rg_close rg_idx={} rows_emitted={} elapsed_ms={}",
+                                self.partition_id, prev_idx, self.rg_rows_emitted, elapsed
+                            );
+                        }
+                    }
+                    self.rg_rows_emitted = 0;
+                    self.rg_t0 = Some(Instant::now());
+                    self.last_rg_idx_logged = Some(rg.index);
+                    let stream_elapsed = self.stream_t0.map(|t| t.elapsed().as_millis()).unwrap_or(0);
+                    native_bridge_common::log_info!(
+                        "STREAM_R partition={} event=rg_open rg_idx={} num_rows={} candidates={} stream_elapsed_ms={}",
+                        self.partition_id, rg.index, rg.num_rows, candidates.len(), stream_elapsed
+                    );
 
                     // Decide min_skip_run for this RG.
                     //

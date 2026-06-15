@@ -15,12 +15,18 @@ import org.apache.lucene.index.FilterLeafReader;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SegmentReader;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.ScorerSupplier;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.util.FixedBitSet;
 import org.opensearch.analytics.spi.DelegatedExpression;
@@ -159,6 +165,61 @@ final class LuceneFilterDelegationHandle implements FilterDelegationHandle {
             // non-selective one — see PeerScorerCost docs on the native side.
             ScorerSupplier ss = weight.scorerSupplier(leaf);
             long cost = (ss == null) ? 0L : ss.cost();
+
+            // ── INSTRUMENTATION: expose what cost() was actually computed on ──
+            // We've been INFERRING the rewritten query/weight/supplier shape from
+            // the cost numbers. Log the concrete classes + query string + the
+            // term stats that drive cost, so the rewrite (e.g. BooleanQuery{FILTER:
+            // TermRange(all-terms), MUST_NOT: term("")}) and the cost inputs are
+            // directly visible. Pure logging — no behavior change.
+            if (LOGGER.isInfoEnabled()) {
+                try {
+                    Query q = weight.getQuery();
+                    String qClass = (q == null) ? "null" : q.getClass().getSimpleName();
+                    String qStr = (q == null) ? "null" : q.toString();
+                    if (qStr.length() > 200) {
+                        qStr = qStr.substring(0, 200) + "…";
+                    }
+                    String ssClass = (ss == null) ? "null" : ss.getClass().getName();
+                    // Decompose to find the cost inputs: field docCount and, for a
+                    // NOT_EQUALS (MUST_NOT term) shape, the excluded term's docFreq.
+                    // True selectivity of `field != v` = docCount(field) − docFreq(v).
+                    String field = extractFieldForStats(q);
+                    long fieldDocCount = -1L;
+                    long sumDocFreq = -1L;
+                    long excludedDocFreq = -1L;
+                    String excludedTerm = mustNotTermText(q);
+                    if (field != null) {
+                        Terms terms = leaf.reader().terms(field);
+                        if (terms != null) {
+                            fieldDocCount = terms.getDocCount();
+                            sumDocFreq = terms.getSumDocFreq();
+                            if (excludedTerm != null) {
+                                TermsEnum te = terms.iterator();
+                                if (te.seekExact(new org.apache.lucene.util.BytesRef(excludedTerm))) {
+                                    excludedDocFreq = te.docFreq();
+                                }
+                            }
+                        }
+                    }
+                    long impliedTrueMatch = (fieldDocCount >= 0 && excludedDocFreq >= 0)
+                        ? fieldDocCount - excludedDocFreq
+                        : -1L;
+                    LOGGER.info(
+                        "LUCENE_SCORER_DEBUG providerKey={} writerGeneration={} maxDoc={} cost={} "
+                            + "queryClass={} ssClass={} field={} fieldDocCount={} sumDocFreq={} "
+                            + "mustNotTerm=[{}] excludedDocFreq={} impliedTrueMatch={} query={}",
+                        providerKey, writerGeneration, maxDoc, cost,
+                        qClass, ssClass, field, fieldDocCount, sumDocFreq,
+                        excludedTerm, excludedDocFreq, impliedTrueMatch, qStr
+                    );
+                } catch (Throwable t) {
+                    // Instrumentation must never break the cost read.
+                    LOGGER.info("LUCENE_SCORER_DEBUG providerKey={} cost={} (decompose failed: {})",
+                        providerKey, cost, t.toString());
+                }
+            }
+
             return new long[] { cost, maxDoc };
         } catch (IOException exception) {
             LOGGER.error(
@@ -167,6 +228,80 @@ final class LuceneFilterDelegationHandle implements FilterDelegationHandle {
             );
             return null;
         }
+    }
+
+    /**
+     * Instrumentation helper: best-effort field name for the cost-relevant clause
+     * of a delegated query. Unwraps ConstantScore/Boost; for a BooleanQuery picks
+     * the first FILTER/MUST clause's field (the "required" side that drives cost).
+     * Returns null when no single field is identifiable. Logging-only.
+     */
+    private static String extractFieldForStats(Query q) {
+        if (q == null) {
+            return null;
+        }
+        if (q instanceof org.apache.lucene.search.ConstantScoreQuery csq) {
+            return extractFieldForStats(csq.getQuery());
+        }
+        if (q instanceof org.apache.lucene.search.BoostQuery bq) {
+            return extractFieldForStats(bq.getQuery());
+        }
+        if (q instanceof org.apache.lucene.search.MultiTermQuery mtq) {
+            return mtq.getField();
+        }
+        if (q instanceof TermQuery tq) {
+            return tq.getTerm().field();
+        }
+        if (q instanceof BooleanQuery bool) {
+            // Prefer a required clause (FILTER/MUST) — that's what drives cost().
+            for (BooleanClause c : bool.clauses()) {
+                if (c.occur() == BooleanClause.Occur.FILTER || c.occur() == BooleanClause.Occur.MUST) {
+                    String f = extractFieldForStats(c.query());
+                    if (f != null) {
+                        return f;
+                    }
+                }
+            }
+            // else fall back to any clause's field (e.g. a bare MUST_NOT shape)
+            for (BooleanClause c : bool.clauses()) {
+                String f = extractFieldForStats(c.query());
+                if (f != null) {
+                    return f;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Instrumentation helper: if the query has a MUST_NOT term clause (the
+     * NOT_EQUALS shape, e.g. `field != ''` → BooleanQuery{ MUST_NOT: term(field,v) }),
+     * return the excluded term's text so we can read its docFreq and see how much
+     * cost() over-counts by. Returns null otherwise. Logging-only.
+     */
+    private static String mustNotTermText(Query q) {
+        if (q == null) {
+            return null;
+        }
+        if (q instanceof org.apache.lucene.search.ConstantScoreQuery csq) {
+            return mustNotTermText(csq.getQuery());
+        }
+        if (q instanceof org.apache.lucene.search.BoostQuery bq) {
+            return mustNotTermText(bq.getQuery());
+        }
+        if (q instanceof BooleanQuery bool) {
+            for (BooleanClause c : bool.clauses()) {
+                if (c.occur() == BooleanClause.Occur.MUST_NOT && c.query() instanceof TermQuery tq) {
+                    return tq.getTerm().text();
+                }
+                // recurse for nested booleans
+                String nested = mustNotTermText(c.query());
+                if (nested != null) {
+                    return nested;
+                }
+            }
+        }
+        return null;
     }
 
     /** Resolve the Lucene leaf for a writer generation, or null. Shared by prepareScorer/createCollector. */

@@ -433,6 +433,8 @@ pub async fn prepare_partial_plan(
 
     let target_schema = crate::schema_coerce::coerce_inferred_schema(stripped.schema());
     let stripped = crate::relabel_exec::wrap_if_relabel_needed(stripped, target_schema)?;
+    native_bridge_common::log_info!("PREPARED_PLAN_ONELINE: {}", datafusion::physical_plan::displayable(stripped.as_ref()).one_line());
+    native_bridge_common::log_info!("PREPARED_PLAN_INDENT:\n{}", datafusion::physical_plan::displayable(stripped.as_ref()).indent(true));
     handle.prepared_plan = Some(stripped);
     Ok(())
 }

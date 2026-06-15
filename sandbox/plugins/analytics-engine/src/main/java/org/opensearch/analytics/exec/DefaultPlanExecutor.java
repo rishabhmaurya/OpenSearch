@@ -51,6 +51,9 @@ import org.opensearch.common.unit.TimeValue;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.search.SearchService;
 import org.opensearch.tasks.Task;
+import org.opensearch.telemetry.tracing.Span;
+import org.opensearch.telemetry.tracing.SpanScope;
+import org.opensearch.telemetry.tracing.Tracer;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
 import org.opensearch.transport.client.node.NodeClient;
@@ -98,6 +101,7 @@ public class DefaultPlanExecutor extends HandledTransportAction<AnalyticsQueryRe
     private final PlannerSettings plannerSettings;
     private final IndexNameExpressionResolver indexNameExpressionResolver;
     private final AnalyticsSearchSlowLog analyticsSearchSlowLog;
+    private final Tracer tracer;
 
     @Inject
     public DefaultPlanExecutor(
@@ -112,9 +116,11 @@ public class DefaultPlanExecutor extends HandledTransportAction<AnalyticsQueryRe
         CoordinatorAllocatorHandle coordinatorAllocatorHandle,
         IndexNameExpressionResolver indexNameExpressionResolver,
         AnalyticsSearchSlowLog analyticsSearchSlowLog,
-        AnalyticsStatsCollector statsCollector
+        AnalyticsStatsCollector statsCollector,
+        Tracer tracer
     ) {
         super(AnalyticsQueryAction.NAME, transportService, actionFilters, AnalyticsQueryRequest::new);
+        this.tracer = tracer;
         this.capabilityRegistry = capabilityRegistry;
         this.clusterService = clusterService;
         this.searchExecutor = threadPool.executor(ThreadPool.Names.SEARCH);
@@ -223,6 +229,10 @@ public class DefaultPlanExecutor extends HandledTransportAction<AnalyticsQueryRe
         final AnalyticsSearchSlowLog.QuerySlowLogListener queryListener = analyticsSearchSlowLog.createQueryListener(querySource);
         final long queryStartNanos = System.nanoTime();
 
+        // T1 tracing: open the analytics.execute root span. Closed on the query terminal
+        // (see the batchesListener / rowsListener below). No-op under the noop tracer.
+        final AnalyticsTracing tracing = AnalyticsTracing.start(tracer, queryTask.getQueryId(), querySource);
+
         // Always time planning and capture the full plan: every query produces a QueryProfile
         // that's fed into AnalyticsStatsCollector for the _plugins/_analytics/stats endpoint.
         // The non-explain path drops the profile from the response after recording it; the
@@ -241,17 +251,43 @@ public class DefaultPlanExecutor extends HandledTransportAction<AnalyticsQueryRe
             preferMetadataDriver
         );
         plannerContext.setPlannerSettings(plannerSettings);
-        RelNode plan = PlannerImpl.createPlan(logicalFragment, plannerContext);
-        final String fullPlan = profile ? org.apache.calcite.plan.RelOptUtil.toString(plan) : null;
-        QueryDAG dag = DAGBuilder.build(plan, capabilityRegistry, clusterService, indexNameExpressionResolver);
-        PlanForker.forkAll(dag, capabilityRegistry);
-        BackendPlanAdapter.adaptAll(dag, capabilityRegistry);
-        // Collapse multi-backend stages to a single chosen alternative before conversion
-        // so the convertor runs once per stage and the wire request carries one PlanAlternative.
-        PlanAlternativeSelector.selectAll(dag, capabilityRegistry, preferMetadataDriver);
-        FragmentConversionDriver.convertAll(dag, capabilityRegistry);
+        // T1 tracing: analytics.plan child span around the whole RBO+CBO+DAG+convert pipeline.
+        final Span planSpan = tracing.startChildSpan(AnalyticsTracing.SPAN_PLAN);
+        final RelNode plan;
+        final String fullPlan;
+        final QueryDAG dag;
+        try {
+            plan = PlannerImpl.createPlan(logicalFragment, plannerContext);
+            fullPlan = profile ? org.apache.calcite.plan.RelOptUtil.toString(plan) : null;
+            dag = DAGBuilder.build(plan, capabilityRegistry, clusterService, indexNameExpressionResolver);
+            PlanForker.forkAll(dag, capabilityRegistry);
+            BackendPlanAdapter.adaptAll(dag, capabilityRegistry);
+            // Collapse multi-backend stages to a single chosen alternative before conversion
+            // so the convertor runs once per stage and the wire request carries one PlanAlternative.
+            PlanAlternativeSelector.selectAll(dag, capabilityRegistry, preferMetadataDriver);
+            FragmentConversionDriver.convertAll(dag, capabilityRegistry);
+        } catch (RuntimeException e) {
+            AnalyticsTracing.endSpanWithError(planSpan, e);
+            throw e;
+        }
+        AnalyticsTracing.endSpan(planSpan);
+        // Re-tag the execute span with the canonical DAG query id (the task id was "unassigned"
+        // at span-open time). Keeps coordinator + data-node spans on one query_id. (T1)
+        tracing.setQueryId(dag.queryId());
+        // Plan-shape summary on the execute span (Q1/Q4 context): indices touched, stage count,
+        // and the chosen backends across stages.
+        tracing.recordPlanSummary(dag, String.join(",", RelNodeUtils.extractIndices(logicalFragment)));
+        // Q1 fallback: when the front-end didn't supply the original query text (e.g. the external
+        // /_plugins/_ppl route passes a null querySource), tag the execute span with the optimized
+        // plan string so the trace is still self-identifying. Reuse fullPlan when profiling already
+        // computed it; otherwise derive it only when tracing is recording (skip the toString cost
+        // under the noop tracer). recordQueryPlanText is a no-op if a real query.text was set.
+        if (tracing.isRecording()) {
+            tracing.recordQueryPlanText(fullPlan != null ? fullPlan : org.apache.calcite.plan.RelOptUtil.toString(plan));
+        }
         final long planningTimeNanos = System.nanoTime() - planStartNanos;
         final long planningTimeMs = profile ? java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(planningTimeNanos) : 0;
+        tracing.recordPlanningTime(java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(planningTimeNanos));
         logger.debug("[DefaultPlanExecutor] QueryDAG:\n{}", dag);
 
         queryListener.onPlanningComplete(dag.queryId(), planningTimeNanos);
@@ -294,8 +330,11 @@ public class DefaultPlanExecutor extends HandledTransportAction<AnalyticsQueryRe
             );
         } catch (Exception e) {
             if (ownsAllocator) queryAllocator.close();
+            tracing.endExecuteWithError(e);
             throw e;
         }
+        // Make the per-query span helper visible to ExecutionGraph (per-stage spans) via the context.
+        context.setTracing(tracing);
 
         // ─── Execution + materialization ──────────────────────────────────
         /*
@@ -326,8 +365,14 @@ public class DefaultPlanExecutor extends HandledTransportAction<AnalyticsQueryRe
             Iterable<Object[]> rows = batchesToRows(batches, outputColumnOrder);
             long totalRows = rows instanceof List ? ((List<?>) rows).size() : 0;
             queryListener.onQueryComplete(dag.queryId(), System.nanoTime() - queryStartNanos, totalRows);
+            recordMemoryOnSpan(execRef, tracing);  // M2: per-query peak Arrow + native onto the execute span
+            tracing.endExecute(totalRows);  // T1: close analytics.execute on success
             rowsListener.onResponse(rows);
-        }, rowsListener::onFailure);
+        }, e -> {
+            recordMemoryOnSpan(execRef, tracing);  // M2: also on the failure path
+            tracing.endExecuteWithError(e);  // T1: close analytics.execute on failure/cancel
+            rowsListener.onFailure(e);
+        });
 
         TimeValue taskTimeout = queryTask.getCancelAfterTimeInterval();
         TimeValue clusterTimeout = clusterService.getClusterSettings().get(SEARCH_CANCEL_AFTER_TIME_INTERVAL_SETTING);
@@ -341,7 +386,12 @@ public class DefaultPlanExecutor extends HandledTransportAction<AnalyticsQueryRe
             );
         }
 
-        execRef.set(scheduler.execute(context, batchesListener)); // execRef read by profile listener after execution completes
+        // T1: put the execute span in scope so the ExecutionGraph build (per-stage spans) and the
+        // shard-fragment Flight dispatch (the inherited transport client span) nest under it. The
+        // span itself is closed asynchronously on the query terminal (batchesListener above).
+        try (SpanScope ignored = tracing.withExecuteInScope(tracer)) {
+            execRef.set(scheduler.execute(context, batchesListener)); // execRef read by profile listener after execution completes
+        }
     }
 
     /**
@@ -350,6 +400,16 @@ public class DefaultPlanExecutor extends HandledTransportAction<AnalyticsQueryRe
      * plan stringification. The full {@link QueryProfile} is only built when
      * {@code includeProfileInResponse} is true (i.e. for the {@code _explain} response).
      */
+
+    /** M2: tags the analytics.execute span with the captured per-query memory peaks (no-op if unavailable). */
+    private static void recordMemoryOnSpan(AtomicReference<QueryExecution> execRef, AnalyticsTracing tracing) {
+        QueryExecution exec = execRef.get();
+        if (exec != null) {
+            QueryExecution.QueryMemorySnapshot mem = exec.memorySnapshot();
+            tracing.recordMemory(mem.peakArrowBytes(), mem.peakNativeBytes());
+        }
+    }
+
     private static ActionListener<Iterable<Object[]>> buildProfilingRowsListener(
         AtomicReference<QueryExecution> execRef,
         QueryContext context,
@@ -360,18 +420,30 @@ public class DefaultPlanExecutor extends HandledTransportAction<AnalyticsQueryRe
         ActionListener<ProfiledResult> listener
     ) {
         return ActionListener.wrap(rows -> {
+            QueryExecution.QueryMemorySnapshot mem = execRef.get().memorySnapshot();
             ExecutionGraph graph = execRef.get().getGraph();
             statsCollector.recordExecution(graph, context.dag(), planningTimeMs);
-            QueryProfile qp = includeProfileInResponse ? QueryProfileBuilder.snapshot(graph, context, fullPlan, planningTimeMs) : null;
+            QueryProfile qp = includeProfileInResponse
+                ? QueryProfileBuilder.snapshot(graph, context, fullPlan, planningTimeMs, mem.peakArrowBytes(), mem.peakNativeBytes())
+                : null;
             listener.onResponse(new ProfiledResult(rows, null, qp));
         }, e -> {
             QueryExecution exec = execRef.get();
             ExecutionGraph graph = exec != null ? exec.getGraph() : null;
             statsCollector.recordExecution(graph, context.dag(), planningTimeMs);
+            QueryExecution.QueryMemorySnapshot mem = exec != null ? exec.memorySnapshot() : QueryExecution.QueryMemorySnapshot.EMPTY;
             QueryProfile qp = includeProfileInResponse
                 ? (graph != null
-                    ? QueryProfileBuilder.snapshot(graph, context, fullPlan, planningTimeMs)
-                    : new QueryProfile(context.queryId(), java.util.List.of(), planningTimeMs, 0L, java.util.List.of()))
+                    ? QueryProfileBuilder.snapshot(graph, context, fullPlan, planningTimeMs, mem.peakArrowBytes(), mem.peakNativeBytes())
+                    : new QueryProfile(
+                        context.queryId(),
+                        java.util.List.of(),
+                        planningTimeMs,
+                        0L,
+                        java.util.List.of(),
+                        mem.peakArrowBytes(),
+                        mem.peakNativeBytes()
+                    ))
                 : null;
             listener.onResponse(new ProfiledResult(null, e, qp));
         });

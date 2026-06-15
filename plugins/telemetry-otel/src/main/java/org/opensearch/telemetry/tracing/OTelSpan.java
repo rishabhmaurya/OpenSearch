@@ -11,6 +11,8 @@ package org.opensearch.telemetry.tracing;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 
+import java.time.Instant;
+
 /**
  * Default implementation of {@link Span} using Otel span. It keeps a reference of OpenTelemetry Span and handles span
  * lifecycle management by delegating calls to it.
@@ -33,6 +35,15 @@ class OTelSpan extends AbstractSpan {
     @Override
     public void endSpan() {
         delegateSpan.end();
+    }
+
+    @Override
+    public void endSpan(Instant endTimestamp) {
+        if (endTimestamp != null) {
+            delegateSpan.end(endTimestamp);
+        } else {
+            delegateSpan.end();
+        }
     }
 
     @Override

@@ -486,6 +486,13 @@ public class DataFusionFragmentConvertor implements FragmentConvertor {
         io.substrait.proto.Plan protoPlan = SubstraitPlanProtoRewriter.rewrite(new PlanProtoConverter().toProto(plan));
         byte[] bytes = protoPlan.toByteArray();
         LOGGER.debug("Substrait plan: {} bytes", bytes.length);
+        if (LOGGER.isDebugEnabled()) {
+            try {
+                LOGGER.debug("SUBSTRAIT_DUMP fragment=[{}] bytesLen={}\n{}", fragment.getClass().getSimpleName(), bytes.length, protoPlan.toString());
+            } catch (Throwable t) {
+                LOGGER.debug("SUBSTRAIT_DUMP fragment=[{}] dump failed: {}", fragment.getClass().getSimpleName(), t.toString());
+            }
+        }
         return bytes;
     }
 
@@ -733,7 +740,16 @@ public class DataFusionFragmentConvertor implements FragmentConvertor {
 
     /** Serializes a model-level {@link Plan} to proto bytes. */
     private static byte[] serializePlan(Plan plan) {
-        return SubstraitPlanProtoRewriter.rewrite(new PlanProtoConverter().toProto(plan)).toByteArray();
+        io.substrait.proto.Plan protoPlan = SubstraitPlanProtoRewriter.rewrite(new PlanProtoConverter().toProto(plan));
+        byte[] bytes = protoPlan.toByteArray();
+        if (LOGGER.isDebugEnabled()) {
+            try {
+                LOGGER.debug("SUBSTRAIT_DUMP serializePlan bytesLen={}\n{}", bytes.length, protoPlan.toString());
+            } catch (Throwable t) {
+                LOGGER.debug("SUBSTRAIT_DUMP serializePlan dump failed: {}", t.toString());
+            }
+        }
+        return bytes;
     }
 
     // ── Calcite TableScan wrappers for OpenSearchStageInputScan rewrite ─────────

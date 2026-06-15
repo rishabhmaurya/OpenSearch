@@ -475,6 +475,13 @@ impl ExecutionPlan for QueryShardExec {
         // already serialized within one partition assignment.
         let mut streams: Vec<SendableRecordBatchStream> =
             Vec::with_capacity(assignment.chunks.len());
+        // === SETUP_PHASE_R per-partition timing ===
+        let qs_t0 = std::time::Instant::now();
+        let n_chunks = assignment.chunks.len();
+        native_bridge_common::log_info!(
+            "SETUP_PHASE_R QueryShardExec.execute partition={} n_chunks={} t0=loop_begin",
+            partition, n_chunks
+        );
         for chunk in &assignment.chunks {
             let segment = self.config.segments.get(chunk.segment_idx).ok_or_else(|| {
                 DataFusionError::Internal(format!("segment_idx {} out of range", chunk.segment_idx))
@@ -494,10 +501,15 @@ impl ExecutionPlan for QueryShardExec {
             }
 
             // Build evaluator for this chunk.
+            let chunk_t = std::time::Instant::now();
             let evaluator = (self.config.evaluator_factory)(segment, chunk, &stream_metrics)
                 .map_err(|e| DataFusionError::External(e.into()))?;
+            native_bridge_common::log_info!(
+                "SETUP_PHASE_R QueryShardExec.execute partition={} segment_idx={} chunk_factory_create_ms={} cumulative_ms={}",
+                partition, chunk.segment_idx, chunk_t.elapsed().as_millis(), qs_t0.elapsed().as_millis()
+            );
 
-            // Pre-warm the correctness bitmap cache concurrently across
+            // Piece 2: pre-warm the correctness bitmap cache concurrently across
             // partitions on the blocking pool. `warm_cache` only touches the
             // per-segment OnceLock (no page-pruner, no per-RG metrics), so by
             // the time the partition stream actually polls, the FFM upcall +
@@ -506,8 +518,15 @@ impl ExecutionPlan for QueryShardExec {
             // hits the cached bitmap.
             {
                 let evaluator_warm = Arc::clone(&evaluator);
+                let part_id = partition;
+                let seg_idx = chunk.segment_idx;
                 tokio::task::spawn_blocking(move || {
+                    let t = std::time::Instant::now();
                     evaluator_warm.warm_cache();
+                    native_bridge_common::log_info!(
+                        "STREAM_R partition={} event=prewarm_done segment_idx={} elapsed_ms={}",
+                        part_id, seg_idx, t.elapsed().as_millis()
+                    );
                 });
             }
 
@@ -539,10 +558,15 @@ impl ExecutionPlan for QueryShardExec {
                 emit_row_ids: self.config.emit_row_ids,
                 row_id_output_index: self.row_id_output_index,
                 dynamic_filter: dynamic_filter.clone(),
+                partition_id: partition,
             };
             streams.push(exec.execute(0, Arc::clone(&context))?);
         }
 
+        native_bridge_common::log_info!(
+            "SETUP_PHASE_R QueryShardExec.execute partition={} loop_done streams={} elapsed_ms={}",
+            partition, streams.len(), qs_t0.elapsed().as_millis()
+        );
         match streams.len() {
             0 => {
                 let empty = datafusion::physical_plan::empty::EmptyExec::new(

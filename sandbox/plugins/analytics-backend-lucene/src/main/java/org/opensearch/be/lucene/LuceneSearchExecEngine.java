@@ -21,6 +21,13 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreMode;
+import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.ScorerSupplier;
+import org.apache.lucene.search.Weight;
 import org.opensearch.analytics.backend.EngineResultStream;
 import org.opensearch.analytics.backend.SearchExecEngine;
 import org.opensearch.analytics.backend.ShardScanExecutionContext;
@@ -68,13 +75,64 @@ final class LuceneSearchExecEngine implements SearchExecEngine<ShardScanExecutio
 
     @Override
     public EngineResultStream execute(ShardScanExecutionContext context) throws IOException {
-        long count = state.searcher().count(state.filterQuery());
-        LOGGER.debug(
-            "[lucene-count] shardId={} query={} count={} columns={}",
+        // G3 + G4-leaf instrumentation: per-leaf scorer-build vs iterate split.
+        // Replaces a single `searcher.count(query)` with the equivalent loop so we can
+        // measure (a) Weight.scorerSupplier(leaf).get() — the term-FST walk for
+        // Wildcard/Automaton queries — separately from (b) bulkScorer iteration over the
+        // resulting DocIdSetIterator. The overall semantics match `IndexSearcher.count`
+        // (per-leaf weight.count fast-path with iteration fallback for dirty leaves).
+        long t0Total = System.nanoTime();
+        IndexSearcher searcher = state.searcher();
+        Query filterQuery = state.filterQuery();
+        Query rewritten = searcher.rewrite(filterQuery);
+        Weight weight = searcher.createWeight(rewritten, ScoreMode.COMPLETE_NO_SCORES, 1f);
+        long count = 0;
+        for (LeafReaderContext leaf : searcher.getIndexReader().leaves()) {
+            long tLeaf0 = System.nanoTime();
+            int fast = weight.count(leaf);
+            long fastNs = System.nanoTime() - tLeaf0;
+            if (fast >= 0) {
+                count += fast;
+                LOGGER.info(
+                    "LUCENE_SCAN_LEAF shardId={} ord={} maxDoc={} mode=fast_count count={} elapsed_ns={} elapsed_us={}",
+                    context.getShardId(), leaf.ord, leaf.reader().maxDoc(), fast, fastNs, fastNs / 1000
+                );
+                continue;
+            }
+            // Fallback: build scorer + iterate. Split scorer-build (FST walk) from iteration.
+            long tScorer0 = System.nanoTime();
+            ScorerSupplier supplier = weight.scorerSupplier(leaf);
+            Scorer scorer = supplier == null ? null : supplier.get(Long.MAX_VALUE);
+            long scorerBuildNs = System.nanoTime() - tScorer0;
+            long iterNs;
+            int leafCount = 0;
+            if (scorer == null) {
+                iterNs = 0;
+            } else {
+                long tIter0 = System.nanoTime();
+                org.apache.lucene.search.DocIdSetIterator it = scorer.iterator();
+                if (it != null) {
+                    while (it.nextDoc() != org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS) {
+                        leafCount++;
+                    }
+                }
+                iterNs = System.nanoTime() - tIter0;
+            }
+            count += leafCount;
+            LOGGER.info(
+                "LUCENE_SCAN_LEAF shardId={} ord={} maxDoc={} mode=iterate scorer_build_ns={} scorer_build_us={} iter_ns={} iter_us={} count={}",
+                context.getShardId(), leaf.ord, leaf.reader().maxDoc(),
+                scorerBuildNs, scorerBuildNs / 1000, iterNs, iterNs / 1000, leafCount
+            );
+        }
+        long elapsedTotalNs = System.nanoTime() - t0Total;
+        LOGGER.info(
+            "LUCENE_SCAN_COUNT shardId={} query={} count={} columns={} elapsed_ms={}",
             context.getShardId(),
-            state.filterQuery(),
+            filterQuery,
             count,
-            state.outputColumnNames()
+            state.outputColumnNames(),
+            elapsedTotalNs / 1_000_000L
         );
         BufferAllocator allocator = context.getAllocator();
         Schema schema = buildSchema(state.outputColumnNames());

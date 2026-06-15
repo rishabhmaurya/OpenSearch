@@ -57,6 +57,7 @@ public class ExecutionGraph {
         try {
             StageExecution rootExec = builder.buildRootExecution(rootStage, context);
             executions.put(rootStage.getStageId(), rootExec);
+            attachStageSpan(context, rootStage, rootExec);
             List<StageExecution> leaves = new ArrayList<>();
 
             buildChildrenRecursively(scheduler, executions, builder, rootExec, rootStage, context);
@@ -65,6 +66,14 @@ public class ExecutionGraph {
             return new ExecutionGraph(context.queryId(), executions, rootExec, leaves);
         } finally {
             if (!success) cancelPartialBuild(executions);
+        }
+    }
+
+    /** Attaches the per-stage tracing span (no-op when tracing is not wired on the context). */
+    private static void attachStageSpan(QueryContext context, Stage stage, StageExecution exec) {
+        AnalyticsTracing tracing = context.tracing();
+        if (tracing != null) {
+            tracing.attachStageSpan(exec, stage.getExecutionType().name());
         }
     }
 
@@ -100,6 +109,7 @@ public class ExecutionGraph {
         for (Stage child : children) {
             StageExecution childExec = builder.buildExecution(child, parentExec, config);
             executions.put(child.getStageId(), childExec);
+            attachStageSpan(config, child, childExec);
             childExecs.add(childExec);
             buildChildrenRecursively(scheduler, executions, builder, childExec, child, config);
         }
