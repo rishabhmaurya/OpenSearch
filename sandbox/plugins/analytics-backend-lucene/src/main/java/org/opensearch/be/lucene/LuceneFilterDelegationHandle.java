@@ -20,6 +20,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.util.FixedBitSet;
 import org.opensearch.analytics.spi.DelegatedExpression;
@@ -135,6 +136,51 @@ final class LuceneFilterDelegationHandle implements FilterDelegationHandle {
             LOGGER.error("createProvider failed for annotationId=" + annotationId, exception);
             return -1;
         }
+    }
+
+    @Override
+    public long[] prepareScorer(int providerKey, long writerGeneration) {
+        Weight weight = weightsByProviderKey.get(providerKey);
+        if (weight == null) {
+            return null;
+        }
+        LeafReaderContext leaf = resolveLeaf(writerGeneration);
+        if (leaf == null) {
+            return null;
+        }
+        try {
+            long maxDoc = leaf.reader().maxDoc();
+            // ScorerSupplier.cost() is the matched-doc estimate for THIS PREDICATE'S
+            // query, read WITHOUT get() — i.e. without building the scorer /
+            // materializing the bitmap (only the bounded term-collection walk). A
+            // null supplier means the query has no terms in this segment → 0 matches.
+            // This is a per-predicate signal, NOT a per-field population count
+            // (Terms.getDocCount), which cannot tell a selective `!= ''` from a
+            // non-selective one — see PeerScorerCost docs on the native side.
+            ScorerSupplier ss = weight.scorerSupplier(leaf);
+            long cost = (ss == null) ? 0L : ss.cost();
+            return new long[] { cost, maxDoc };
+        } catch (IOException exception) {
+            LOGGER.error(
+                "prepareScorer failed for providerKey=" + providerKey + ", writerGeneration=" + writerGeneration,
+                exception
+            );
+            return null;
+        }
+    }
+
+    /** Resolve the Lucene leaf for a writer generation, or null. Shared by prepareScorer/createCollector. */
+    private LeafReaderContext resolveLeaf(long writerGeneration) {
+        String segName = generationToSegmentName.get(writerGeneration);
+        if (segName == null) {
+            return null;
+        }
+        for (LeafReaderContext lrc : leaves) {
+            if (unwrapSegmentReader(lrc.reader()).getSegmentInfo().info.name.equals(segName)) {
+                return lrc;
+            }
+        }
+        return null;
     }
 
     @Override

@@ -187,6 +187,11 @@ pub struct SingleCollectorEvaluator {
     context_id: i64,
     /// Bloom filter pruning config. None = disabled.
     bloom_config: Option<BloomConfig>,
+    /// Cost short-circuit threshold (from `DatafusionQueryConfig`). Defaults to
+    /// `NEAR_MATCH_ALL_THRESHOLD`; production overrides via
+    /// [`Self::with_cost_gate_threshold`]. A peer bitmap build is skipped when the
+    /// `cost()` estimate ≥ this fraction of the segment. `>= 1.0` disables the gate.
+    cost_gate_threshold: f64,
 }
 
 /// Resources needed for per-RG bloom filter pruning.
@@ -236,7 +241,16 @@ impl SingleCollectorEvaluator {
             delegated_backend_collector_factory,
             context_id,
             bloom_config,
+            // Default; production overrides from query config via with_cost_gate_threshold.
+            cost_gate_threshold: NEAR_MATCH_ALL_THRESHOLD,
         }
+    }
+
+    /// Override the cost short-circuit threshold (from `DatafusionQueryConfig`).
+    /// Builder-style so the `new()` signature and all test call sites stay unchanged.
+    pub fn with_cost_gate_threshold(mut self, threshold: f64) -> Self {
+        self.cost_gate_threshold = threshold;
+        self
     }
 }
 
@@ -265,6 +279,89 @@ fn should_consult_lucene(
     }
     let surviving_fraction = surviving_rows as f64 / rg.num_rows as f64;
     surviving_fraction > threshold
+}
+
+/// Default near-MatchAll threshold for the cost short-circuit. When a Lucene peer
+/// predicate is estimated to match at least this fraction of a segment, its bitmap
+/// prunes ~nothing, so building it (the expensive scorer/FST walk) is wasted —
+/// DataFusion's native `FilterExec` is cheaper. Overridable per query via the
+/// `cost_gate_near_match_all_threshold` cluster setting.
+const NEAR_MATCH_ALL_THRESHOLD: f64 = 0.95;
+
+/// Signals about a Lucene peer scorer, read from `ScorerSupplier` *before* the
+/// expensive `get()` build (FFM upcall `prepare_scorer`). Per-segment (leaf-scoped),
+/// matching the per-segment bitmap build they gate.
+///
+/// - `estimated_match_docs` = `ScorerSupplier.cost()` — the matched-doc estimate for
+///   THIS PEER PREDICATE'S query (whatever field(s) it touches), NOT a per-field
+///   population count. An over-estimate: for a wildcard that enumerated ≤16 terms it
+///   is the exact `Σ docFreq` ceiling; once term collection bails (>16 terms) it
+///   saturates toward `Terms.getSumDocFreq()` (≈ total field postings, which can
+///   exceed `segment_max_doc`). Reliable for proving NON-selectivity (high ⇒ really
+///   matches a lot), NOT for proving selectivity (a low estimate is not trustworthy).
+/// - `segment_max_doc` = leaf `maxDoc` (the denominator).
+///
+/// Keying solely on this per-predicate match estimate is deliberate: a per-field
+/// `Terms.getDocCount` population signal cannot distinguish a 13%-selective `!= ''`
+/// (a delegation win) from a 99.9%-selective one (a regression) when both fields are
+/// ~always populated.
+#[derive(Debug, Clone, Copy)]
+pub struct PeerScorerCost {
+    pub estimated_match_docs: i64,
+    pub segment_max_doc: i64,
+}
+
+/// The outcome of the cost gate, carrying the reason for instrumentation.
+/// `&'static str` reasons keep the (instrumented) marker output stable and
+/// grep-friendly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CostGateDecision {
+    /// Skip building the Lucene bitmap; DataFusion's `FilterExec` evaluates the peer
+    /// predicate. `reason` is `ESTIMATED_NEAR_MATCH_ALL`.
+    SkipLuceneUseDf { reason: &'static str },
+    /// Build the bitmap as usual (selective enough, or no basis to skip).
+    /// `reason` is `SELECTIVE` / `EMPTY_SEGMENT` / `NO_SIGNAL`.
+    ConsultLucene { reason: &'static str },
+}
+
+/// Per-segment decision: should we SKIP building the peer bitmap and let DataFusion's
+/// native `FilterExec` evaluate the predicate instead?
+///
+/// Pure function — the policy core of the cost short-circuit. Skip-only and
+/// one-directional: it returns `SkipLuceneUseDf` only when it can argue the bitmap
+/// won't earn its build. It never asserts "selective, therefore delegate" — `cost()`
+/// over-estimates, so a low estimate is not trustworthy and the default (when not
+/// skipping) is today's behaviour (build + consult).
+///
+/// SAFETY: only valid for **performance-peer** predicates. The caller MUST NOT invoke
+/// this for correctness-delegated predicates: those have no DataFusion fallback (the
+/// original expr isn't retained), so skipping would drop rows.
+///
+/// One skip reason — estimated near-MatchAll: `estimated_match_docs / segment_max_doc
+/// ≥ thr`. Catches genuinely non-selective predicates AND many-term wildcards whose
+/// `cost()` has saturated high (the expensive-FST-walk regression family). Because
+/// `estimated_match_docs` can exceed `segment_max_doc`, the ratio is tested only in
+/// the `≥ thr` direction (clamp by comparison, not a true fraction).
+fn cost_gate_decision(cost: &PeerScorerCost, threshold: f64) -> CostGateDecision {
+    if cost.segment_max_doc <= 0 {
+        // empty/unknown segment — no basis to skip, keep default (build).
+        return CostGateDecision::ConsultLucene { reason: "EMPTY_SEGMENT" };
+    }
+    if cost.estimated_match_docs < 0 {
+        // No estimate available (e.g. upcall not yet wired) — cannot argue skip.
+        return CostGateDecision::ConsultLucene { reason: "NO_SIGNAL" };
+    }
+    let max_doc = cost.segment_max_doc as f64;
+    if (cost.estimated_match_docs as f64 / max_doc) >= threshold {
+        return CostGateDecision::SkipLuceneUseDf { reason: "ESTIMATED_NEAR_MATCH_ALL" };
+    }
+    CostGateDecision::ConsultLucene { reason: "SELECTIVE" }
+}
+
+/// Test-only convenience wrapper; the live path matches on [`cost_gate_decision`].
+#[cfg(test)]
+fn cost_says_skip_peer(cost: &PeerScorerCost, threshold: f64) -> bool {
+    matches!(cost_gate_decision(cost, threshold), CostGateDecision::SkipLuceneUseDf { .. })
 }
 
 impl SingleCollectorEvaluator {
@@ -575,6 +672,28 @@ impl RowGroupBitsetSource for SingleCollectorEvaluator {
                         create_provider(context_id, annotation_id)
                             .expect("create_provider FFM upcall failed")
                     });
+
+                    // Cost short-circuit: read the peer scorer's cost signals BEFORE
+                    // building it (no FST walk to materialize the bitmap). If the
+                    // bitmap won't earn its build (near-MatchAll, or a saturated-high
+                    // many-term wildcard — the over-delegation regression family),
+                    // SKIP it: return None, which leaves `candidates` = the page-pruned
+                    // universe and lets DataFusion's FilterExec evaluate the predicate
+                    // via the retained residual. Safe because peers always keep
+                    // `original` for DF, so skipping never drops rows; memoized
+                    // per-segment by this OnceLock. `prepare_scorer` returning None
+                    // (callback unregistered / Java error) degrades to "consult".
+                    let cost_opt = crate::indexed_table::ffm_callbacks::prepare_scorer(
+                        context_id, provider.key(), self.writer_generation,
+                    );
+                    let decision = match cost_opt {
+                        Some(ref c) => cost_gate_decision(c, self.cost_gate_threshold),
+                        None => CostGateDecision::ConsultLucene { reason: "NO_SIGNAL" },
+                    };
+                    if matches!(decision, CostGateDecision::SkipLuceneUseDf { .. }) {
+                        return None;
+                    }
+
                     let collector = match self.delegated_backend_collector_factory.create(
                         context_id, provider.key(), self.writer_generation, seg_start, seg_end,
                     ) {
@@ -763,6 +882,100 @@ impl RowGroupBitsetSource for SingleCollectorEvaluator {
     /// used in production but kept for defensive correctness).
     fn needs_row_mask(&self) -> bool {
         true
+    }
+}
+
+#[cfg(test)]
+mod cost_shortcircuit_tests {
+    use super::{
+        cost_gate_decision, cost_says_skip_peer, CostGateDecision, PeerScorerCost,
+        NEAR_MATCH_ALL_THRESHOLD,
+    };
+
+    fn cost(estimated_match_docs: i64, segment_max_doc: i64) -> PeerScorerCost {
+        PeerScorerCost { estimated_match_docs, segment_max_doc }
+    }
+
+    /// Non-selective estimate → SKIP, labelled ESTIMATED_NEAR_MATCH_ALL.
+    #[test]
+    fn decision_reason_estimated() {
+        let d = cost_gate_decision(&cost(9_600, 10_000), NEAR_MATCH_ALL_THRESHOLD);
+        assert_eq!(d, CostGateDecision::SkipLuceneUseDf { reason: "ESTIMATED_NEAR_MATCH_ALL" });
+    }
+
+    /// Selective peer → CONSULT/SELECTIVE; empty segment and no-signal have their
+    /// own distinct reasons for faithful markers.
+    #[test]
+    fn decision_reasons_consult() {
+        assert_eq!(
+            cost_gate_decision(&cost(1_300, 10_000), NEAR_MATCH_ALL_THRESHOLD),
+            CostGateDecision::ConsultLucene { reason: "SELECTIVE" }
+        );
+        assert_eq!(
+            cost_gate_decision(&cost(100, 0), NEAR_MATCH_ALL_THRESHOLD),
+            CostGateDecision::ConsultLucene { reason: "EMPTY_SEGMENT" }
+        );
+        assert_eq!(
+            cost_gate_decision(&cost(-1, 10_000), NEAR_MATCH_ALL_THRESHOLD),
+            CostGateDecision::ConsultLucene { reason: "NO_SIGNAL" }
+        );
+    }
+
+    /// Genuinely non-selective predicate: the estimate is ~= segment size → skip.
+    #[test]
+    fn estimated_near_match_all_skips() {
+        let c = cost(/*est*/ 9_600, /*max_doc*/ 10_000);
+        assert!(cost_says_skip_peer(&c, NEAR_MATCH_ALL_THRESHOLD));
+    }
+
+    /// Leading-wildcard `%google%` that matched MANY terms, so `cost()` saturated
+    /// toward total field postings and EXCEEDS segment_max_doc. The ratio is > 1.0;
+    /// we must still skip (the build is the expensive FST walk, not worth it).
+    /// Verifies the "clamp by comparison, not fraction" contract.
+    #[test]
+    fn saturated_estimate_above_max_doc_skips() {
+        // est 35_000 postings over a 10_000-doc segment (avg ~3.5 terms/doc).
+        let c = cost(/*est*/ 35_000, /*max_doc*/ 10_000);
+        assert!(cost_says_skip_peer(&c, NEAR_MATCH_ALL_THRESHOLD));
+    }
+
+    /// The case we must NOT break: a genuinely selective peer (13%) → do NOT skip
+    /// (delegation should still run; the default keeps build-and-consult). A
+    /// non-selective *field* with a selective *predicate* must not be skipped.
+    #[test]
+    fn selective_peer_does_not_skip() {
+        let c = cost(/*est*/ 1_300, /*max_doc*/ 10_000); // 13%
+        assert!(!cost_says_skip_peer(&c, NEAR_MATCH_ALL_THRESHOLD));
+    }
+
+    /// Exactly at the threshold counts as skip (>= is the contract).
+    #[test]
+    fn exactly_at_threshold_skips() {
+        let c = cost(/*est*/ 9_500, /*max_doc*/ 10_000);
+        assert!(cost_says_skip_peer(&c, NEAR_MATCH_ALL_THRESHOLD)); // 0.95 >= 0.95
+    }
+
+    /// Just under the threshold does not skip.
+    #[test]
+    fn just_under_threshold_does_not_skip() {
+        let c = cost(/*est*/ 9_499, /*max_doc*/ 10_000);
+        assert!(!cost_says_skip_peer(&c, NEAR_MATCH_ALL_THRESHOLD)); // 0.9499 < 0.95
+    }
+
+    /// Empty/unknown segment (max_doc <= 0): no basis to skip → keep default
+    /// (build), never divide by zero.
+    #[test]
+    fn empty_segment_does_not_skip() {
+        assert!(!cost_says_skip_peer(&cost(100, 0), NEAR_MATCH_ALL_THRESHOLD));
+        assert!(!cost_says_skip_peer(&cost(100, -1), NEAR_MATCH_ALL_THRESHOLD));
+    }
+
+    /// Estimate unavailable (-1) on a real segment → cannot argue for skip → keep
+    /// default (build). Guards against a "-1 sentinel read as a count" bug.
+    #[test]
+    fn unknown_signal_does_not_skip() {
+        let c = cost(/*est*/ -1, /*max_doc*/ 10_000);
+        assert!(!cost_says_skip_peer(&c, NEAR_MATCH_ALL_THRESHOLD));
     }
 }
 

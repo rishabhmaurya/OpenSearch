@@ -88,4 +88,22 @@ public interface FilterDelegationHandle extends Closeable {
     default boolean isCancelled() {
         return false;
     }
+
+    /**
+     * Cost short-circuit support: read the peer scorer's selectivity signals for a
+     * segment WITHOUT building the scorer (no term-dictionary / FST walk to
+     * materialize a bitmap). Lets the native side decide whether the Lucene bitmap
+     * is worth building or whether DataFusion's native filter should run instead.
+     *
+     * @param providerKey key returned by {@link #createProvider(int)}
+     * @param writerGeneration the segment identifier
+     * @return a 2-element array {@code [ScorerSupplier.cost(), leaf.maxDoc()]} — a
+     *         per-predicate matched-doc estimate and the segment size — or
+     *         {@code null} if unavailable (caller treats null as "no signal →
+     *         consult Lucene", the safe default). Default returns {@code null} so
+     *         backends without cost support are unaffected.
+     */
+    default long[] prepareScorer(int providerKey, long writerGeneration) {
+        return null;
+    }
 }

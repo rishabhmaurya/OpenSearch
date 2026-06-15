@@ -15,6 +15,7 @@ import org.opensearch.analytics.spi.DelegationThreadTracker;
 import org.opensearch.analytics.spi.FilterDelegationHandle;
 
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -277,6 +278,59 @@ public final class FilterTreeCallbacks {
                 new ParameterizedMessage("releaseCollector(contextId={}, collectorKey={}) failed", contextId, collectorKey),
                 throwable
             );
+        }
+    }
+
+    /**
+     * {@code prepareScorer(contextId, providerKey, writerGeneration, out, outLen) -> status}.
+     *
+     * <p>Cost short-circuit support: reads the peer scorer's match estimate WITHOUT
+     * building the scorer (no FST walk to materialize a bitmap), and writes two
+     * {@code long}s into {@code out}: {@code [0]=ScorerSupplier.cost()} (per-predicate
+     * matched-doc estimate), {@code [1]=leaf.maxDoc()}. Returns {@code 0} on success,
+     * {@code -1} on any error (Rust then treats it as "no signal → consult"). Never
+     * throws across the FFM boundary.
+     */
+    public static long prepareScorer(
+        long contextId,
+        int providerKey,
+        long writerGeneration,
+        MemorySegment out,
+        long outLen
+    ) {
+        long tid = trackStart(contextId);
+        try {
+            if (outLen < 2) {
+                return -1L;
+            }
+            QueryBinding binding = BINDINGS.get(contextId);
+            assertBindingExists(binding, "prepareScorer", contextId);
+            if (binding == null || binding.handle() == null) {
+                return -1L;
+            }
+            long[] signals = binding.handle().prepareScorer(providerKey, writerGeneration);
+            if (signals == null || signals.length < 2) {
+                return -1L;
+            }
+            MemorySegment view = out.reinterpret(2L * Long.BYTES);
+            view.setAtIndex(ValueLayout.JAVA_LONG, 0, signals[0]); // ScorerSupplier.cost()
+            view.setAtIndex(ValueLayout.JAVA_LONG, 1, signals[1]); // leaf maxDoc
+            return 0L;
+        } catch (AssertionError e) {
+            throw e;
+        } catch (Throwable throwable) {
+            LOGGER.error(
+                new ParameterizedMessage(
+                    "prepareScorer(contextId={}, providerKey={}, writerGeneration={}) failed",
+                    contextId,
+                    providerKey,
+                    writerGeneration
+                ),
+                throwable
+            );
+            return -1L;
+        } finally {
+            trackEnd(contextId, tid);
         }
     }
 }

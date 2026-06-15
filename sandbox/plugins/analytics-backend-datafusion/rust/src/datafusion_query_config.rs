@@ -79,6 +79,12 @@ pub struct DatafusionQueryConfig {
     /// `FilterExec`), so behaviour is identical to before this feature. Exposed
     /// as a toggle to A/B the performance impact.
     pub indexed_dynamic_filter_pushdown: bool,
+    /// Cost short-circuit threshold: skip building a Lucene PEER bitmap when its
+    /// `ScorerSupplier.cost()` estimate is `>=` this fraction of the segment
+    /// (near-MatchAll ⇒ the bitmap won't prune, so DataFusion's FilterExec runs
+    /// instead). `1.0` (or any value `>= 1.0`) effectively disables the gate
+    /// (nothing can reach it), so this doubles as the on/off switch. Default 0.95.
+    pub cost_gate_near_match_all_threshold: f64,
 }
 
 /// FFM wire format. Must stay in lockstep with the Java `MemoryLayout`.
@@ -114,6 +120,11 @@ pub struct WireDatafusionQueryConfig {
     pub bloom_filter_on_read: i32,
     /// 0 = false, 1 = true
     pub indexed_dynamic_filter_pushdown: i32,
+    // NOTE: appended at the END to preserve all existing field offsets. This
+    // i32 sits at byte 76 (ends 80); the f64 below lands at byte 80 (already
+    // 8-aligned, so #[repr(C)] inserts NO padding). Struct grows 80 → 88.
+    /// Cost short-circuit threshold (f64). Java writes it at offset 80.
+    pub cost_gate_near_match_all_threshold: f64,
 }
 
 impl DatafusionQueryConfig {
@@ -141,6 +152,9 @@ impl DatafusionQueryConfig {
             // On by default — matches the Java cluster-setting default
             // (`datafusion.indexed.dynamic_filter_pushdown`). Toggle to A/B perf.
             indexed_dynamic_filter_pushdown: true,
+            // Matches the Java cluster-setting default
+            // (`datafusion.indexed.cost_gate_near_match_all_threshold`).
+            cost_gate_near_match_all_threshold: 0.95,
         }
     }
 
@@ -213,6 +227,7 @@ impl DatafusionQueryConfig {
             },
             bloom_filter_on_read: w.bloom_filter_on_read != 0,
             indexed_dynamic_filter_pushdown: w.indexed_dynamic_filter_pushdown != 0,
+            cost_gate_near_match_all_threshold: w.cost_gate_near_match_all_threshold,
         }
     }
 }
@@ -285,6 +300,10 @@ impl DatafusionQueryConfigBuilder {
         self.0.indexed_dynamic_filter_pushdown = v;
         self
     }
+    pub fn cost_gate_near_match_all_threshold(mut self, v: f64) -> Self {
+        self.0.cost_gate_near_match_all_threshold = v;
+        self
+    }
     pub fn build(self) -> DatafusionQueryConfig {
         self.0
     }
@@ -308,6 +327,7 @@ mod tests {
         assert_eq!(c.cost_predicate, 1);
         assert_eq!(c.cost_collector, 10);
         assert!(c.indexed_dynamic_filter_pushdown);
+        assert!((c.cost_gate_near_match_all_threshold - 0.95).abs() < 1e-9);
     }
 
     #[test]
@@ -335,11 +355,13 @@ mod tests {
             query_strategy: 1,
             bloom_filter_on_read: 1,
             indexed_dynamic_filter_pushdown: 1,
+            cost_gate_near_match_all_threshold: 0.80,
         };
         let ptr = &wire as *const _ as i64;
         let c = unsafe { DatafusionQueryConfig::from_ffm_ptr(ptr) };
         assert_eq!(c.batch_size, 16384);
         assert!(c.indexed_dynamic_filter_pushdown);
+        assert!((c.cost_gate_near_match_all_threshold - 0.80).abs() < 1e-9);
         assert_eq!(c.target_partitions, 8);
         assert_eq!(c.min_skip_run_default, 512);
         assert!((c.min_skip_run_selectivity_threshold - 0.07).abs() < 1e-9);
@@ -371,6 +393,7 @@ mod tests {
             query_strategy: 0,
             bloom_filter_on_read: 0,
             indexed_dynamic_filter_pushdown: 0,
+            cost_gate_near_match_all_threshold: 0.95,
         };
         let ptr = &wire as *const _ as i64;
         let c = unsafe { DatafusionQueryConfig::from_ffm_ptr(ptr) };
