@@ -790,6 +790,7 @@ impl Stream for IndexedStream {
     }
 }
 
+
 impl IndexedStream {
     fn poll_inner(
         mut self: Pin<&mut Self>,
