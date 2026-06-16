@@ -117,12 +117,37 @@ public class LuceneAnalyticsBackendPlugin implements AnalyticsSearchBackendPlugi
 
     private static final Set<FieldType> KEYWORD_ONLY = Set.of(FieldType.KEYWORD);
 
+    // Range/SARG predicates additionally delegate on integral + date columns, which the Lucene
+    // secondary now indexes as a value-free ("doc-ids only") BKD (see NumericPointFieldFactory).
+    // The BKD navigable tree answers col >/</between as a doc-id super-set at sub-page granularity;
+    // DataFusion's FilterExec re-checks exactly against the parquet primary. Keyword/text stay
+    // delegable for range too (lexicographic term-range). Floating-point is intentionally excluded
+    // here — the factory only encodes integral/date as a sortable long for now.
+    private static final Set<ScalarFunction> RANGE_OPS = Set.of(
+        ScalarFunction.GREATER_THAN,
+        ScalarFunction.GREATER_THAN_OR_EQUAL,
+        ScalarFunction.LESS_THAN,
+        ScalarFunction.LESS_THAN_OR_EQUAL,
+        ScalarFunction.SARG_PREDICATE
+    );
+    private static final Set<FieldType> RANGE_TYPES = new HashSet<>();
+    static {
+        RANGE_TYPES.addAll(STANDARD_TYPES); // keyword/text/match_only_text (lexicographic range)
+        RANGE_TYPES.add(FieldType.BYTE);
+        RANGE_TYPES.add(FieldType.SHORT);
+        RANGE_TYPES.add(FieldType.INTEGER);
+        RANGE_TYPES.add(FieldType.LONG);
+        RANGE_TYPES.add(FieldType.DATE);
+    }
+
     private static final Set<FilterCapability> FILTER_CAPS;
     static {
         Set<FilterCapability> caps = new HashSet<>();
         for (ScalarFunction op : STANDARD_OPS) {
             if (op == ScalarFunction.LIKE) {
                 caps.add(new FilterCapability.Standard(op, KEYWORD_ONLY, LUCENE_FORMATS));
+            } else if (RANGE_OPS.contains(op)) {
+                caps.add(new FilterCapability.Standard(op, RANGE_TYPES, LUCENE_FORMATS));
             } else {
                 caps.add(new FilterCapability.Standard(op, STANDARD_TYPES, LUCENE_FORMATS));
             }

@@ -108,7 +108,14 @@ public class LuceneAnalyticsBackendPluginTests extends OpenSearchTestCase {
     );
 
     private static final NamedWriteableRegistry WRITEABLE_REGISTRY = new NamedWriteableRegistry(
-        List.of(new NamedWriteableRegistry.Entry(QueryBuilder.class, MatchQueryBuilder.NAME, MatchQueryBuilder::new))
+        List.of(
+            new NamedWriteableRegistry.Entry(QueryBuilder.class, MatchQueryBuilder.NAME, MatchQueryBuilder::new),
+            new NamedWriteableRegistry.Entry(
+                QueryBuilder.class,
+                org.opensearch.index.query.RangeQueryBuilder.NAME,
+                org.opensearch.index.query.RangeQueryBuilder::new
+            )
+        )
     );
 
     private RelDataTypeFactory typeFactory;
@@ -179,6 +186,62 @@ public class LuceneAnalyticsBackendPluginTests extends OpenSearchTestCase {
             MatchQueryBuilder matchQuery = (MatchQueryBuilder) deserialized;
             assertEquals("message", matchQuery.fieldName());
             assertEquals("hello world", matchQuery.value());
+        }
+    }
+
+    /**
+     * {@code EventTime > 12345} on a long column → the Lucene backend now advertises range
+     * delegation on numerics (value-free BKD), and the predicate serializes to a RangeQueryBuilder
+     * with the correct field and bound. This is the gate+serializer wiring that lets a numeric
+     * range prune via the value-free BKD.
+     */
+    public void testNumericRangeDelegationEndToEnd() throws IOException {
+        AnalyticsSearchBackendPlugin dfBackend = new StubDfBackend();
+        AnalyticsSearchBackendPlugin luceneBackend = new LuceneAnalyticsBackendPlugin(null);
+
+        Map<String, Map<String, Object>> fields = Map.of("EventTime", Map.of("type", "long", "index", true));
+        PlannerContext context = buildContext("parquet", fields, List.of(dfBackend, luceneBackend));
+
+        RexNode condition = rexBuilder.makeCall(
+            org.apache.calcite.sql.fun.SqlStdOperatorTable.GREATER_THAN,
+            rexBuilder.makeInputRef(typeFactory.createSqlType(SqlTypeName.BIGINT), 0),
+            rexBuilder.makeLiteral(
+                new java.math.BigDecimal(12345),
+                typeFactory.createSqlType(SqlTypeName.BIGINT),
+                false
+            )
+        );
+        RelOptTable table = mockTable("test_index", new String[] { "EventTime" }, new SqlTypeName[] { SqlTypeName.BIGINT });
+        LogicalFilter filter = LogicalFilter.create(new TableScan(cluster, cluster.traitSet(), List.of(), table) {
+        }, condition);
+
+        RelNode marked = PlannerImpl.runAllOptimizations(filter, context);
+        QueryDAG dag = DAGBuilder.build(marked, context.getCapabilityRegistry(), mockClusterService(), TEST_RESOLVER);
+        PlanForker.forkAll(dag, context.getCapabilityRegistry());
+        BackendPlanAdapter.adaptAll(dag, context.getCapabilityRegistry());
+        PlanAlternativeSelector.selectAll(dag, context.getCapabilityRegistry(), false);
+        FragmentConversionDriver.convertAll(dag, context.getCapabilityRegistry());
+
+        Stage leaf = dag.rootStage();
+        while (!leaf.getChildStages().isEmpty()) {
+            leaf = leaf.getChildStages().getFirst();
+        }
+        StagePlan plan = leaf.getPlanAlternatives()
+            .stream()
+            .filter(p -> "mock-parquet".equals(p.backendId()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("No mock-parquet driver alternative found"));
+
+        assertFalse("numeric range should delegate to Lucene", plan.delegatedExpressions().isEmpty());
+
+        byte[] queryBytes = plan.delegatedExpressions().getFirst().getExpressionBytes();
+        try (StreamInput input = new NamedWriteableAwareStreamInput(StreamInput.wrap(queryBytes), WRITEABLE_REGISTRY)) {
+            QueryBuilder deserialized = input.readNamedWriteable(QueryBuilder.class);
+            assertTrue("Should be RangeQueryBuilder", deserialized instanceof org.opensearch.index.query.RangeQueryBuilder);
+            org.opensearch.index.query.RangeQueryBuilder range = (org.opensearch.index.query.RangeQueryBuilder) deserialized;
+            assertEquals("EventTime", range.fieldName());
+            assertEquals(12345L, ((Number) range.from()).longValue());
+            assertFalse("gt bound is exclusive", range.includeLower());
         }
     }
 
