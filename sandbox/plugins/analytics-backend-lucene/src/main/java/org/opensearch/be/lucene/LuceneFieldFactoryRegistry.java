@@ -81,7 +81,22 @@ public final class LuceneFieldFactoryRegistry {
         register(TextFieldMapper.CONTENT_TYPE, TEXT_FACTORY);
         register(KeywordFieldMapper.CONTENT_TYPE, KEYWORD_FACTORY);
         register(MatchOnlyTextFieldMapper.CONTENT_TYPE, MATCH_ONLY_TEXT_FACTORY);
+        registerNumericFields();
         registerMetaFields();
+    }
+
+    /**
+     * Registers integral/temporal numeric types to the value-free ("doc-ids only") BKD point
+     * factory. This is what lets numeric columns participate in Lucene range-filter delegation at
+     * sub-page granularity; the parquet primary stays the authoritative value store. Floating-point
+     * types are intentionally not registered yet (the factory encodes via {@code longValue()}).
+     */
+    private void registerNumericFields() {
+        register("byte", NumericPointFieldFactory.INSTANCE);
+        register("short", NumericPointFieldFactory.INSTANCE);
+        register("integer", NumericPointFieldFactory.INSTANCE);
+        register("long", NumericPointFieldFactory.INSTANCE);
+        register("date", NumericPointFieldFactory.INSTANCE);
     }
 
     private void registerMetaFields() {
