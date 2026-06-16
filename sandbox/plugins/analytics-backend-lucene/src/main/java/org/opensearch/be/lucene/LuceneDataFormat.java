@@ -55,6 +55,17 @@ public class LuceneDataFormat extends DataFormat {
         new FieldTypeCapabilities(KeywordFieldMapper.CONTENT_TYPE, Set.of(FULL_TEXT_SEARCH, STORED_FIELDS, COLUMNAR_STORAGE)),
         new FieldTypeCapabilities(MatchOnlyTextFieldMapper.CONTENT_TYPE, Set.of(FULL_TEXT_SEARCH, STORED_FIELDS)),
 
+        // Integral + date numerics — POINT_RANGE via the value-free ("doc-ids only") BKD on the
+        // secondary (see NumericPointFieldFactory). This claim is what makes the composite engine
+        // grant the Lucene format POINT_RANGE for these fields, so LuceneDocumentInput builds the
+        // BKD at index time and the planner can delegate range predicates to it. Floating-point is
+        // intentionally excluded (the factory encodes integral/date as a sortable long).
+        new FieldTypeCapabilities("byte", Set.of(POINT_RANGE)),
+        new FieldTypeCapabilities("short", Set.of(POINT_RANGE)),
+        new FieldTypeCapabilities("integer", Set.of(POINT_RANGE)),
+        new FieldTypeCapabilities("long", Set.of(POINT_RANGE)),
+        new FieldTypeCapabilities("date", Set.of(POINT_RANGE)),
+
         // Metadata fields
         new FieldTypeCapabilities(SourceFieldMapper.CONTENT_TYPE, Set.of(STORED_FIELDS)),
         new FieldTypeCapabilities(NestedPathFieldMapper.NAME, Set.of(FULL_TEXT_SEARCH)),
