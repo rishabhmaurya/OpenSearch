@@ -87,10 +87,12 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -129,6 +131,17 @@ public class NumberFieldMapper extends ParametrizedFieldMapper {
             () -> false,
             (n, c, o) -> XContentMapValues.nodeBooleanValue(o),
             m -> toType(m).skiplist
+        );
+
+        // Opt-in: build a complementary value-free ("doc-ids only") BKD on the secondary (Lucene)
+        // for sub-page numeric range pruning, in addition to the primary's point index. Requests
+        // the SECONDARY_POINT_RANGE_PRUNE capability so the secondary (not the primary) builds it.
+        private final Parameter<Boolean> bkdSecondaryPrune = new Parameter<>(
+            "bkd_secondary_prune",
+            false,
+            () -> false,
+            (n, c, o) -> XContentMapValues.nodeBooleanValue(o),
+            m -> toType(m).bkdSecondaryPrune
         );
 
         private final Parameter<Explicit<Boolean>> ignoreMalformed;
@@ -181,7 +194,7 @@ public class NumberFieldMapper extends ParametrizedFieldMapper {
 
         @Override
         protected List<Parameter<?>> getParameters() {
-            return Arrays.asList(indexed, hasDocValues, stored, skiplist, ignoreMalformed, coerce, nullValue, meta);
+            return Arrays.asList(indexed, hasDocValues, stored, skiplist, bkdSecondaryPrune, ignoreMalformed, coerce, nullValue, meta);
         }
 
         @Override
@@ -1930,6 +1943,8 @@ public class NumberFieldMapper extends ParametrizedFieldMapper {
         private final boolean coerce;
         private final Number nullValue;
         private final boolean skiplist;
+        // Opt-in complementary value-free BKD on the secondary; see Builder#bkdSecondaryPrune.
+        private boolean bkdSecondaryPrune = false;
 
         public NumberFieldType(
             String name,
@@ -1962,6 +1977,7 @@ public class NumberFieldMapper extends ParametrizedFieldMapper {
                 builder.nullValue.getValue(),
                 builder.meta.getValue()
             );
+            this.bkdSecondaryPrune = builder.bkdSecondaryPrune.getValue();
         }
 
         public NumberFieldType(String name, NumberType type) {
@@ -1976,6 +1992,23 @@ public class NumberFieldMapper extends ParametrizedFieldMapper {
         @Override
         protected FieldTypeCapabilities.Capability searchCapability() {
             return FieldTypeCapabilities.Capability.POINT_RANGE;
+        }
+
+        /** True when this field opts into the complementary value-free BKD on the secondary. */
+        public boolean bkdSecondaryPrune() {
+            return bkdSecondaryPrune;
+        }
+
+        @Override
+        public Set<FieldTypeCapabilities.Capability> requestedCapabilities() {
+            Set<FieldTypeCapabilities.Capability> caps = new HashSet<>(super.requestedCapabilities());
+            // Opt-in: also request the secondary pruning BKD. This is a DISTINCT capability from
+            // POINT_RANGE (which the primary parquet claims), so single-claim assignment lets the
+            // secondary independently build its value-free BKD.
+            if (bkdSecondaryPrune && isSearchable()) {
+                caps.add(FieldTypeCapabilities.Capability.SECONDARY_POINT_RANGE_PRUNE);
+            }
+            return caps.isEmpty() ? Set.of() : Set.copyOf(caps);
         }
 
         public NumberType numberType() {
@@ -2121,6 +2154,7 @@ public class NumberFieldMapper extends ParametrizedFieldMapper {
     private final boolean hasDocValues;
     private final boolean stored;
     private final boolean skiplist;
+    private final boolean bkdSecondaryPrune;
     private final Explicit<Boolean> ignoreMalformed;
     private final Explicit<Boolean> coerce;
     private final Number nullValue;
@@ -2135,6 +2169,7 @@ public class NumberFieldMapper extends ParametrizedFieldMapper {
         this.hasDocValues = builder.hasDocValues.getValue();
         this.stored = builder.stored.getValue();
         this.skiplist = builder.skiplist.getValue();
+        this.bkdSecondaryPrune = builder.bkdSecondaryPrune.getValue();
         this.ignoreMalformed = builder.ignoreMalformed.getValue();
         this.coerce = builder.coerce.getValue();
         this.nullValue = builder.nullValue.getValue();

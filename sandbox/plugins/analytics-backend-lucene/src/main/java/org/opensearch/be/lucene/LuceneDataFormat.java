@@ -28,6 +28,7 @@ import java.util.Set;
 import static org.opensearch.index.engine.dataformat.FieldTypeCapabilities.Capability.COLUMNAR_STORAGE;
 import static org.opensearch.index.engine.dataformat.FieldTypeCapabilities.Capability.FULL_TEXT_SEARCH;
 import static org.opensearch.index.engine.dataformat.FieldTypeCapabilities.Capability.POINT_RANGE;
+import static org.opensearch.index.engine.dataformat.FieldTypeCapabilities.Capability.SECONDARY_POINT_RANGE_PRUNE;
 import static org.opensearch.index.engine.dataformat.FieldTypeCapabilities.Capability.STORED_FIELDS;
 
 /**
@@ -55,16 +56,17 @@ public class LuceneDataFormat extends DataFormat {
         new FieldTypeCapabilities(KeywordFieldMapper.CONTENT_TYPE, Set.of(FULL_TEXT_SEARCH, STORED_FIELDS, COLUMNAR_STORAGE)),
         new FieldTypeCapabilities(MatchOnlyTextFieldMapper.CONTENT_TYPE, Set.of(FULL_TEXT_SEARCH, STORED_FIELDS)),
 
-        // Integral + date numerics — POINT_RANGE via the value-free ("doc-ids only") BKD on the
-        // secondary (see NumericPointFieldFactory). This claim is what makes the composite engine
-        // grant the Lucene format POINT_RANGE for these fields, so LuceneDocumentInput builds the
-        // BKD at index time and the planner can delegate range predicates to it. Floating-point is
-        // intentionally excluded (the factory encodes integral/date as a sortable long).
-        new FieldTypeCapabilities("byte", Set.of(POINT_RANGE)),
-        new FieldTypeCapabilities("short", Set.of(POINT_RANGE)),
-        new FieldTypeCapabilities("integer", Set.of(POINT_RANGE)),
-        new FieldTypeCapabilities("long", Set.of(POINT_RANGE)),
-        new FieldTypeCapabilities("date", Set.of(POINT_RANGE)),
+        // Integral + date numerics — the complementary value-free ("doc-ids only") BKD on the
+        // secondary (see NumericPointFieldFactory). We claim SECONDARY_POINT_RANGE_PRUNE, NOT
+        // POINT_RANGE: the primary (parquet) keeps POINT_RANGE, and a field only requests the
+        // secondary capability when it opts in (mapping param bkd_secondary_prune), so single-claim
+        // capability assignment grants the secondary its pruning BKD without taking POINT_RANGE
+        // from the primary. Floating-point excluded (the factory encodes integral/date as a long).
+        new FieldTypeCapabilities("byte", Set.of(SECONDARY_POINT_RANGE_PRUNE)),
+        new FieldTypeCapabilities("short", Set.of(SECONDARY_POINT_RANGE_PRUNE)),
+        new FieldTypeCapabilities("integer", Set.of(SECONDARY_POINT_RANGE_PRUNE)),
+        new FieldTypeCapabilities("long", Set.of(SECONDARY_POINT_RANGE_PRUNE)),
+        new FieldTypeCapabilities("date", Set.of(SECONDARY_POINT_RANGE_PRUNE)),
 
         // Metadata fields
         new FieldTypeCapabilities(SourceFieldMapper.CONTENT_TYPE, Set.of(STORED_FIELDS)),

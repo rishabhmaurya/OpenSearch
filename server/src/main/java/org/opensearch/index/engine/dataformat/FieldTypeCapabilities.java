@@ -47,6 +47,15 @@ public record FieldTypeCapabilities(String fieldType, Set<Capability> capabiliti
         /** Probabilistic lookup for pruning*/
         BLOOM_FILTER,
 
-        FORWARD_TERMS_INDEX
+        FORWARD_TERMS_INDEX,
+
+        /**
+         * Secondary, complementary numeric/date range pruning via a value-free ("doc-ids only")
+         * BKD on a secondary format (Lucene), in ADDITION to the primary's {@link #POINT_RANGE}.
+         * Distinct from POINT_RANGE so the primary (parquet) keeps POINT_RANGE while a secondary
+         * can still build its pruning BKD — the single-claim capability assignment would otherwise
+         * give POINT_RANGE to the primary only. Opt-in per field via a mapping parameter.
+         */
+        SECONDARY_POINT_RANGE_PRUNE
     }
 }
