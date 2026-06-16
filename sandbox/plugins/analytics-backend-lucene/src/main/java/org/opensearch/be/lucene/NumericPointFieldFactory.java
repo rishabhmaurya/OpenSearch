@@ -11,6 +11,7 @@ package org.opensearch.be.lucene;
 import org.apache.lucene.codecs.lucene90.Lucene90PointsWriter;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.SortedNumericDocValuesField;
 import org.apache.lucene.index.IndexableFieldType;
 import org.apache.lucene.util.NumericUtils;
 import org.opensearch.common.annotation.ExperimentalApi;
@@ -58,6 +59,13 @@ public final class NumericPointFieldFactory {
             byte[] packed = new byte[BYTES];
             NumericUtils.longToSortableBytes(encoded, packed, 0);
             document.add(new Field(fieldType.name(), packed, (IndexableFieldType) DOC_IDS_ONLY_LONG_POINT));
+            // Co-write the raw (unflipped) value as SortedNumericDocValues under the same field.
+            // The value-free BKD leaves store no values, so they cannot be merged on their own;
+            // these doc-values merge natively and are the source from which Lucene90PointsWriter
+            // rebuilds the value-free BKD for the merged segment. The leaves stay value-free; this
+            // is merge-survival metadata, not per-leaf storage. (Interim until the BKD is rebuilt
+            // from the parquet primary post-merge.)
+            document.add(new SortedNumericDocValuesField(fieldType.name(), encoded));
         };
 
     /**
