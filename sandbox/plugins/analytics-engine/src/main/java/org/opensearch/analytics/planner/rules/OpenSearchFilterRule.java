@@ -53,6 +53,27 @@ public class OpenSearchFilterRule extends RelOptRule {
 
     private static final Logger LOGGER = LogManager.getLogger(OpenSearchFilterRule.class);
 
+    /** Lucene secondary backend id; the value-free-BKD feature flag gates delegation to it. */
+    private static final String LUCENE_BACKEND = "lucene";
+
+    /** Range/SARG ops that can ride the value-free BKD when the query-side flag is enabled. */
+    private static final Set<ScalarFunction> RANGE_OPS = Set.of(
+        ScalarFunction.GREATER_THAN,
+        ScalarFunction.GREATER_THAN_OR_EQUAL,
+        ScalarFunction.LESS_THAN,
+        ScalarFunction.LESS_THAN_OR_EQUAL,
+        ScalarFunction.SARG_PREDICATE
+    );
+
+    /** Field types whose range delegation goes through the value-free BKD (integral + date). */
+    private static final Set<FieldType> NUMERIC_OR_DATE = Set.of(
+        FieldType.BYTE,
+        FieldType.SHORT,
+        FieldType.INTEGER,
+        FieldType.LONG,
+        FieldType.DATE
+    );
+
     private final PlannerContext context;
 
     public OpenSearchFilterRule(PlannerContext context) {
@@ -262,6 +283,24 @@ public class OpenSearchFilterRule extends RelOptRule {
             boolean someBackendSurvives = viableSet.stream().anyMatch(backend -> !blockList.isBlocked(backend, function));
             if (someBackendSurvives) {
                 viableSet.removeIf(backend -> blockList.isBlocked(backend, function));
+            }
+        }
+
+        // Query-side value-free-BKD feature flag. When disabled (default), a numeric/date range
+        // predicate must NOT delegate to the Lucene secondary's value-free BKD — strip the Lucene
+        // backend so it runs natively on the primary. Keyword/text range delegation is untouched
+        // (it never depended on the BKD). Like the block-list, only strip when another backend
+        // survives, so the predicate stays executable.
+        if (!context.isValueFreeBkdRangeDelegationEnabled() && RANGE_OPS.contains(function)) {
+            boolean anyNumericOrDateField = fieldIndices.stream()
+                .map(i -> FieldStorageInfo.resolve(fieldStorageInfos, i))
+                .filter(info -> !info.isDerived())
+                .anyMatch(info -> NUMERIC_OR_DATE.contains(info.getFieldType()));
+            if (anyNumericOrDateField) {
+                boolean nonLuceneSurvives = viableSet.stream().anyMatch(backend -> !LUCENE_BACKEND.equals(backend));
+                if (nonLuceneSurvives) {
+                    viableSet.remove(LUCENE_BACKEND);
+                }
             }
         }
 

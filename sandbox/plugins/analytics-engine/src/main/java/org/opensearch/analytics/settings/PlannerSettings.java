@@ -34,10 +34,16 @@ public final class PlannerSettings {
 
     private volatile double oversamplingFactor;
     private final DelegationBlockList delegationBlockList;
+    private volatile boolean valueFreeBkdRangeDelegationEnabled;
 
-    private PlannerSettings(double oversamplingFactor, DelegationBlockList delegationBlockList) {
+    private PlannerSettings(
+        double oversamplingFactor,
+        DelegationBlockList delegationBlockList,
+        boolean valueFreeBkdRangeDelegationEnabled
+    ) {
         this.oversamplingFactor = oversamplingFactor;
         this.delegationBlockList = delegationBlockList;
+        this.valueFreeBkdRangeDelegationEnabled = valueFreeBkdRangeDelegationEnabled;
     }
 
     /**
@@ -49,23 +55,37 @@ public final class PlannerSettings {
         DelegationBlockList blockList = DelegationBlockList.create(clusterSettings, initialSettings, registry);
         PlannerSettings settings = new PlannerSettings(
             AnalyticsApproximationSettings.SHARD_BUCKET_OVERSAMPLING_FACTOR.get(initialSettings),
-            blockList
+            blockList,
+            AnalyticsQuerySettings.VALUE_FREE_BKD_RANGE_DELEGATION_ENABLED.get(initialSettings)
         );
         clusterSettings.addSettingsUpdateConsumer(
             AnalyticsApproximationSettings.SHARD_BUCKET_OVERSAMPLING_FACTOR,
             v -> settings.oversamplingFactor = v
         );
+        clusterSettings.addSettingsUpdateConsumer(
+            AnalyticsQuerySettings.VALUE_FREE_BKD_RANGE_DELEGATION_ENABLED,
+            v -> settings.valueFreeBkdRangeDelegationEnabled = v
+        );
         return settings;
     }
 
-    /** Planner defaults for unit tests: no oversampling, nothing blocked. */
+    /** Planner defaults for unit tests: no oversampling, nothing blocked, BKD range delegation off. */
     public static PlannerSettings defaults() {
-        return new PlannerSettings(0.0, DelegationBlockList.empty());
+        return new PlannerSettings(0.0, DelegationBlockList.empty(), false);
     }
 
     /** Explicit values for tests that exercise a specific setting. */
     public static PlannerSettings of(double oversamplingFactor, DelegationBlockList delegationBlockList) {
-        return new PlannerSettings(oversamplingFactor, delegationBlockList);
+        return new PlannerSettings(oversamplingFactor, delegationBlockList, false);
+    }
+
+    /** Explicit values incl. the value-free-BKD range delegation flag. */
+    public static PlannerSettings of(
+        double oversamplingFactor,
+        DelegationBlockList delegationBlockList,
+        boolean valueFreeBkdRangeDelegationEnabled
+    ) {
+        return new PlannerSettings(oversamplingFactor, delegationBlockList, valueFreeBkdRangeDelegationEnabled);
     }
 
     public double getOversamplingFactor() {
@@ -75,5 +95,10 @@ public final class PlannerSettings {
     /** Per-backend delegation block-list consulted at marking time. Never null (defaults to empty). */
     public DelegationBlockList getDelegationBlockList() {
         return delegationBlockList;
+    }
+
+    /** Whether numeric/date range predicates may delegate to the value-free BKD (query-side flag). */
+    public boolean isValueFreeBkdRangeDelegationEnabled() {
+        return valueFreeBkdRangeDelegationEnabled;
     }
 }

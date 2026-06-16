@@ -200,7 +200,8 @@ public class LuceneAnalyticsBackendPluginTests extends OpenSearchTestCase {
         AnalyticsSearchBackendPlugin luceneBackend = new LuceneAnalyticsBackendPlugin(null);
 
         Map<String, Map<String, Object>> fields = Map.of("EventTime", Map.of("type", "long", "index", true));
-        PlannerContext context = buildContext("parquet", fields, List.of(dfBackend, luceneBackend));
+        // Feature flag ON: numeric range delegation to the value-free BKD is enabled.
+        PlannerContext context = buildContext("parquet", fields, List.of(dfBackend, luceneBackend), true);
 
         RexNode condition = rexBuilder.makeCall(
             org.apache.calcite.sql.fun.SqlStdOperatorTable.GREATER_THAN,
@@ -245,13 +246,67 @@ public class LuceneAnalyticsBackendPluginTests extends OpenSearchTestCase {
         }
     }
 
+    /**
+     * Feature flag OFF (the default): {@code EventTime > 12345} on a long column must NOT delegate
+     * to the Lucene value-free BKD — the predicate stays on the DataFusion/parquet primary. This is
+     * the query-side kill-switch ({@code analytics.query.value_free_bkd_range_delegation_enabled}).
+     */
+    public void testNumericRangeDelegationSuppressedWhenFlagOff() throws IOException {
+        AnalyticsSearchBackendPlugin dfBackend = new StubDfBackend();
+        AnalyticsSearchBackendPlugin luceneBackend = new LuceneAnalyticsBackendPlugin(null);
+
+        Map<String, Map<String, Object>> fields = Map.of("EventTime", Map.of("type", "long", "index", true));
+        // Flag OFF (default) → no numeric range delegation to Lucene.
+        PlannerContext context = buildContext("parquet", fields, List.of(dfBackend, luceneBackend), false);
+
+        RexNode condition = rexBuilder.makeCall(
+            org.apache.calcite.sql.fun.SqlStdOperatorTable.GREATER_THAN,
+            rexBuilder.makeInputRef(typeFactory.createSqlType(SqlTypeName.BIGINT), 0),
+            rexBuilder.makeLiteral(new java.math.BigDecimal(12345), typeFactory.createSqlType(SqlTypeName.BIGINT), false)
+        );
+        RelOptTable table = mockTable("test_index", new String[] { "EventTime" }, new SqlTypeName[] { SqlTypeName.BIGINT });
+        LogicalFilter filter = LogicalFilter.create(new TableScan(cluster, cluster.traitSet(), List.of(), table) {
+        }, condition);
+
+        RelNode marked = PlannerImpl.runAllOptimizations(filter, context);
+        QueryDAG dag = DAGBuilder.build(marked, context.getCapabilityRegistry(), mockClusterService(), TEST_RESOLVER);
+        PlanForker.forkAll(dag, context.getCapabilityRegistry());
+        BackendPlanAdapter.adaptAll(dag, context.getCapabilityRegistry());
+        PlanAlternativeSelector.selectAll(dag, context.getCapabilityRegistry(), false);
+        FragmentConversionDriver.convertAll(dag, context.getCapabilityRegistry());
+
+        Stage leaf = dag.rootStage();
+        while (!leaf.getChildStages().isEmpty()) {
+            leaf = leaf.getChildStages().getFirst();
+        }
+        StagePlan plan = leaf.getPlanAlternatives()
+            .stream()
+            .filter(p -> "mock-parquet".equals(p.backendId()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("No mock-parquet driver alternative found"));
+
+        assertTrue(
+            "numeric range must NOT delegate when the feature flag is off",
+            plan.delegatedExpressions().isEmpty()
+        );
+    }
+
     // ---- Minimal infrastructure ----
+
+    private PlannerContext buildContext(
+        String primaryFormat,
+        Map<String, Map<String, Object>> fieldMappings,
+        List<AnalyticsSearchBackendPlugin> backends
+    ) {
+        return buildContext(primaryFormat, fieldMappings, backends, false);
+    }
 
     @SuppressWarnings("unchecked")
     private PlannerContext buildContext(
         String primaryFormat,
         Map<String, Map<String, Object>> fieldMappings,
-        List<AnalyticsSearchBackendPlugin> backends
+        List<AnalyticsSearchBackendPlugin> backends,
+        boolean valueFreeBkdRangeDelegationEnabled
     ) {
         MappingMetadata mappingMetadata = mock(MappingMetadata.class);
         when(mappingMetadata.sourceAsMap()).thenReturn(Map.of("properties", fieldMappings));
@@ -274,7 +329,15 @@ public class LuceneAnalyticsBackendPluginTests extends OpenSearchTestCase {
         when(clusterState.metadata()).thenReturn(metadata);
 
         Function<IndexMetadata, FieldStorageResolver> fieldStorageFactory = FieldStorageResolver::new;
-        return new PlannerContext(new CapabilityRegistry(backends, fieldStorageFactory), clusterState);
+        PlannerContext ctx = new PlannerContext(new CapabilityRegistry(backends, fieldStorageFactory), clusterState);
+        ctx.setPlannerSettings(
+            org.opensearch.analytics.settings.PlannerSettings.of(
+                0.0,
+                org.opensearch.analytics.settings.DelegationBlockList.empty(),
+                valueFreeBkdRangeDelegationEnabled
+            )
+        );
+        return ctx;
     }
 
     private RelOptTable mockTable(String tableName, String[] fieldNames, SqlTypeName[] fieldTypes) {

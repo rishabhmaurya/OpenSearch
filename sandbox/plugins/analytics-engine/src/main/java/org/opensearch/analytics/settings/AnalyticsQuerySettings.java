@@ -58,6 +58,25 @@ public final class AnalyticsQuerySettings {
         )
     );
 
+    /**
+     * Query-side feature flag for value-free ("doc-ids only") BKD numeric range delegation.
+     * <p>
+     * The indexing side <i>always</i> builds the complementary value-free BKD for numeric/date
+     * columns (cheap, opt-in at the Lucene field level). This flag gates only the <b>query</b> path:
+     * when {@code false} (default), {@code OpenSearchFilterRule} strips the Lucene backend from the
+     * viable set for numeric/date range predicates, so they run natively on the primary (parquet)
+     * exactly as before. Set to {@code true} to let numeric range predicates delegate to the BKD.
+     * <p>
+     * Dynamic + NodeScope, so the feature can be flipped live without reindexing. Keyword/text range
+     * delegation is unaffected (it never depended on this feature).
+     */
+    public static final Setting<Boolean> VALUE_FREE_BKD_RANGE_DELEGATION_ENABLED = Setting.boolSetting(
+        "analytics.query.value_free_bkd_range_delegation_enabled",
+        false,
+        Setting.Property.NodeScope,
+        Setting.Property.Dynamic
+    );
+
     public static final Setting<Integer> MAX_SHARDS_PER_QUERY = Setting.intSetting(
         "analytics.query.max_shards_per_query",
         50,
@@ -81,7 +100,12 @@ public final class AnalyticsQuerySettings {
     );
 
     public static List<Setting<?>> all() {
-        return List.of(DELEGATION_BLOCKED_PREDICATES, MAX_SHARDS_PER_QUERY, MAX_CONCURRENT_SHARD_REQUESTS_PER_NODE);
+        return List.of(
+            DELEGATION_BLOCKED_PREDICATES,
+            VALUE_FREE_BKD_RANGE_DELEGATION_ENABLED,
+            MAX_SHARDS_PER_QUERY,
+            MAX_CONCURRENT_SHARD_REQUESTS_PER_NODE
+        );
     }
 
     private AnalyticsQuerySettings() {}

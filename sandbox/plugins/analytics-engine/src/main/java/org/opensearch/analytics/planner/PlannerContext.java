@@ -110,6 +110,11 @@ public class PlannerContext {
         return plannerSettings.getDelegationBlockList();
     }
 
+    /** Whether numeric/date range predicates may delegate to the value-free BKD (query-side flag). */
+    public boolean isValueFreeBkdRangeDelegationEnabled() {
+        return plannerSettings.isValueFreeBkdRangeDelegationEnabled();
+    }
+
     /** Inject the live, settings-backed planner settings. Called by {@code DefaultPlanExecutor} before planning. */
     public void setPlannerSettings(PlannerSettings plannerSettings) {
         this.plannerSettings = plannerSettings;
