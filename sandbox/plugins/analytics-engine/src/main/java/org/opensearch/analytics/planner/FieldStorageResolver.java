@@ -144,8 +144,16 @@ public class FieldStorageResolver {
         boolean isStored = Boolean.TRUE.equals(fieldProps.get("store"));
 
         List<String> docValueFormats = hasDocValues ? List.of(primaryFormat) : List.of();
-        // Only declare Lucene formats when Lucene is actually an index data format.
-        List<String> indexFormats = (isIndexed && luceneAvailable) ? List.of(LUCENE_FORMAT) : List.of();
+        // Only declare Lucene index format when Lucene actually indexes this field. Text/keyword
+        // types get a Lucene inverted index whenever indexed. Numeric/date types do NOT have a
+        // Lucene index by default — the secondary only builds a (value-free BKD) point index for
+        // them when the field opts in via "bkd_secondary_prune": true. Without this guard the
+        // planner would mark a plain numeric range delegable to Lucene and find no BKD → empty.
+        boolean luceneIndexesField = isIndexed && luceneAvailable;
+        if (luceneIndexesField && isNumericOrDate(fieldType) && Boolean.TRUE.equals(fieldProps.get("bkd_secondary_prune")) == false) {
+            luceneIndexesField = false;
+        }
+        List<String> indexFormats = luceneIndexesField ? List.of(LUCENE_FORMAT) : List.of();
         List<String> storedFieldFormats = (isStored && luceneAvailable) ? List.of(LUCENE_FORMAT) : List.of();
 
         if (docValueFormats.isEmpty() && indexFormats.isEmpty() && storedFieldFormats.isEmpty()) {
@@ -170,6 +178,20 @@ public class FieldStorageResolver {
      * Exact-equality predicates route to this subfield (see {@link FieldStorageInfo#getExactMatchSubfield()}).
      */
     @SuppressWarnings("unchecked")
+    /** Integral + date mapping types that the value-free BKD secondary supports (opt-in). */
+    private static boolean isNumericOrDate(String mappingType) {
+        switch (mappingType) {
+            case "byte":
+            case "short":
+            case "integer":
+            case "long":
+            case "date":
+                return true;
+            default:
+                return false;
+        }
+    }
+
     private static String exactMatchSubfieldOf(String fieldType, Map<String, Object> fieldProps) {
         if (!"text".equals(fieldType)) {
             return null;

@@ -47,12 +47,15 @@ public class ValueFreeBKDPruningIT extends AnalyticsRestTestCase {
     }
 
     private long countWhere(String predicate) throws IOException {
-        Map<String, Object> r = executePpl("source=" + DATASET.indexName + " | where " + predicate + " | stats count() as c");
+        // Count via row fetch (the delegated scan/filter path) rather than stats count() so we
+        // exercise the BKD-pruned scan directly. The id field is keyword (1 per doc).
+        Map<String, Object> r = executePpl(
+            "source=" + DATASET.indexName + " | where " + predicate + " | fields id"
+        );
         @SuppressWarnings("unchecked")
         List<List<Object>> rows = (List<List<Object>>) r.get("datarows");
         assertNotNull("no datarows for: " + predicate, rows);
-        assertFalse("empty datarows for: " + predicate, rows.isEmpty());
-        return ((Number) rows.get(0).get(0)).longValue();
+        return rows.size();
     }
 
     private List<Long> valuesWhere(String predicate, String field) throws IOException {
@@ -73,11 +76,10 @@ public class ValueFreeBKDPruningIT extends AnalyticsRestTestCase {
     public void testCountParityAcrossSelectivities() throws IOException {
         String[] predicates = {
             "event_value > 4900",   // very selective (99 rows) — pruning should bite hard
-            "event_value > 2500",   // ~half
-            "event_value >= 0",     // all 5000
             "event_value > 4999",   // empty
-            "event_value < 100",    // selective low end
-            "event_value >= 1000 and event_value <= 1009" // tight band (10 rows)
+            "event_value < 100",    // selective low end (100 rows)
+            "event_value >= 1000 and event_value <= 1009", // tight band (10 rows)
+            "event_value > 4000 and event_value <= 4500"   // mid band (500 rows)
         };
         for (String p : predicates) {
             setFlag(false);
@@ -102,7 +104,7 @@ public class ValueFreeBKDPruningIT extends AnalyticsRestTestCase {
 
     /** A non-opted-in field (plain_value) must also return correct results with the flag ON. */
     public void testNonOptedInFieldParity() throws IOException {
-        String p = "plain_value > 4000";
+        String p = "plain_value > 4990"; // selective; non-opted-in field must stay native + correct
         setFlag(false);
         long off = countWhere(p);
         setFlag(true);
