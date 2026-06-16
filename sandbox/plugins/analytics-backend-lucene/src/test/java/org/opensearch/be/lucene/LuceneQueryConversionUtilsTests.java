@@ -14,11 +14,17 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
+import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.search.FieldExistsQuery;
+import org.apache.lucene.search.IndexOrDocValuesQuery;
+import org.apache.lucene.search.IndexSortSortedNumericDocValuesRangeQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
+import org.apache.lucene.document.SortedNumericDocValuesField;
+import org.opensearch.search.approximate.ApproximateScoreQuery;
+import org.opensearch.search.approximate.ApproximatePointRangeQuery;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.List;
@@ -120,5 +126,62 @@ public class LuceneQueryConversionUtilsTests extends OpenSearchTestCase {
     public void testContainsFieldExistsDetection() {
         assertTrue(LuceneQueryConversionUtils.containsFieldExists(new ConstantScoreQuery(exists("f"))));
         assertFalse(LuceneQueryConversionUtils.containsFieldExists(new TermQuery(new Term("f", "v"))));
+    }
+
+    // ── Numeric range unwrap (value-free BKD on the secondary) ──
+
+    private static Query pointRange() {
+        return LongPoint.newRangeQuery("v", 4L, Long.MAX_VALUE);
+    }
+
+    /** ApproximateScoreQuery(original=pointRange, approx) → unwraps to the point-range index query. */
+    public void testApproximateScoreQueryUnwrapsToPoint() {
+        Query point = pointRange();
+        Query approx = new ApproximateScoreQuery(
+            point,
+            new ApproximatePointRangeQuery(
+                "v",
+                LongPoint.pack(4L).bytes,
+                LongPoint.pack(Long.MAX_VALUE).bytes,
+                1,
+                ApproximatePointRangeQuery.LONG_FORMAT
+            )
+        );
+        assertSame(point, LuceneQueryConversionUtils.rewriteFieldExistsForSecondary(approx));
+    }
+
+    /** IndexOrDocValues(point, dv) → unwraps to the point (index) leg; the secondary has no DV. */
+    public void testIndexOrDocValuesUnwrapsToPoint() {
+        Query point = pointRange();
+        Query dv = SortedNumericDocValuesField.newSlowRangeQuery("v", 4L, Long.MAX_VALUE);
+        Query idv = new IndexOrDocValuesQuery(point, dv);
+        assertSame(point, LuceneQueryConversionUtils.rewriteFieldExistsForSecondary(idv));
+    }
+
+    /** IndexSortSortedNumericDocValuesRangeQuery → unwraps to its fallback (the point query). */
+    public void testIndexSortSortedNumericUnwrapsToFallback() {
+        Query point = pointRange();
+        Query sorted = new IndexSortSortedNumericDocValuesRangeQuery("v", 4L, Long.MAX_VALUE, point);
+        assertSame(point, LuceneQueryConversionUtils.rewriteFieldExistsForSecondary(sorted));
+    }
+
+    /** The full nesting NumberFieldType.rangeQuery actually produces: Approx(IndexSortSorted(IndexOrDV)). */
+    public void testFullNumericRangeNestingUnwrapsToPoint() {
+        Query point = pointRange();
+        Query dv = SortedNumericDocValuesField.newSlowRangeQuery("v", 4L, Long.MAX_VALUE);
+        Query idv = new IndexOrDocValuesQuery(point, dv);
+        Query sorted = new IndexSortSortedNumericDocValuesRangeQuery("v", 4L, Long.MAX_VALUE, idv);
+        Query approx = new ApproximateScoreQuery(
+            sorted,
+            new ApproximatePointRangeQuery(
+                "v",
+                LongPoint.pack(4L).bytes,
+                LongPoint.pack(Long.MAX_VALUE).bytes,
+                1,
+                ApproximatePointRangeQuery.LONG_FORMAT
+            )
+        );
+        // Approx → original(sorted) → fallback(idv) → indexQuery(point)
+        assertSame(point, LuceneQueryConversionUtils.rewriteFieldExistsForSecondary(approx));
     }
 }

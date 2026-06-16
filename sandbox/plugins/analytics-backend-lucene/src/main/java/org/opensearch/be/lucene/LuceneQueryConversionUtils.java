@@ -15,9 +15,11 @@ import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.FieldExistsQuery;
 import org.apache.lucene.search.IndexOrDocValuesQuery;
+import org.apache.lucene.search.IndexSortSortedNumericDocValuesRangeQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.TermRangeQuery;
+import org.opensearch.search.approximate.ApproximateScoreQuery;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -62,8 +64,22 @@ public final class LuceneQueryConversionUtils {
      *         when nothing changed
      */
     public static Query rewriteFieldExistsForSecondary(Query query) {
+        // Numeric/date range predicates (NumberFieldType.rangeQuery / DateFieldType.rangeQuery)
+        // arrive wrapped in an ApproximateScoreQuery whose "original" is the real query and whose
+        // approximation leans on BKD point iteration + doc-values short-circuits. The secondary has
+        // no doc-values, so unwrap to the original and let the branches below reduce it to the
+        // point-range (index) query that hits the value-free BKD.
+        if (query instanceof ApproximateScoreQuery approx) {
+            return rewriteFieldExistsForSecondary(approx.getOriginalQuery());
+        }
+        // IndexSortSortedNumericDocValuesRangeQuery optimizes range over an index-sorted doc-values
+        // field, with a fallback (the point-range query) when the optimization can't apply. The
+        // secondary isn't sorted on this field and has no doc-values, so take the fallback.
+        if (query instanceof IndexSortSortedNumericDocValuesRangeQuery sortedDv) {
+            return rewriteFieldExistsForSecondary(sortedDv.getFallbackQuery());
+        }
         // IndexOrDocValuesQuery wraps an index query + a doc-values query; the secondary has no
-        // doc-values, so unwrap to just the index query (TermRangeQuery against the term dictionary).
+        // doc-values, so unwrap to just the index query (point-range / TermRangeQuery).
         if (query instanceof IndexOrDocValuesQuery idv) {
             return rewriteFieldExistsForSecondary(idv.getIndexQuery());
         }
