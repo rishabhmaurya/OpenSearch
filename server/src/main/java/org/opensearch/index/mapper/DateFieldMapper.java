@@ -280,6 +280,17 @@ public final class DateFieldMapper extends ParametrizedFieldMapper {
             m -> toType(m).skiplist
         );
 
+        // Opt-in: build a complementary value-free ("doc-ids only") BKD on the secondary (Lucene)
+        // for sub-page date range / TopK pruning. Requests SECONDARY_POINT_RANGE_PRUNE so the
+        // secondary (not the parquet primary) builds it. Mirrors NumberFieldMapper.bkdSecondaryPrune.
+        private final Parameter<Boolean> bkdSecondaryPrune = new Parameter<>(
+            "bkd_secondary_prune",
+            false,
+            () -> false,
+            (n, c, o) -> XContentMapValues.nodeBooleanValue(o),
+            m -> toType(m).bkdSecondaryPrune
+        );
+
         private final Parameter<Float> boost = Parameter.boostParam();
         private final Parameter<Map<String, String>> meta = Parameter.metaParam();
 
@@ -347,7 +358,20 @@ public final class DateFieldMapper extends ParametrizedFieldMapper {
 
         @Override
         protected List<Parameter<?>> getParameters() {
-            return Arrays.asList(index, docValues, store, skiplist, format, printFormat, locale, nullValue, ignoreMalformed, boost, meta);
+            return Arrays.asList(
+                index,
+                docValues,
+                store,
+                skiplist,
+                bkdSecondaryPrune,
+                format,
+                printFormat,
+                locale,
+                nullValue,
+                ignoreMalformed,
+                boost,
+                meta
+            );
         }
 
         private Long parseNullValue(DateFieldType fieldType) {
@@ -382,6 +406,7 @@ public final class DateFieldMapper extends ParametrizedFieldMapper {
                 meta.getValue()
             );
             ft.setBoost(boost.getValue());
+            ft.bkdSecondaryPrune = bkdSecondaryPrune.getValue();
             Long nullTimestamp = parseNullValue(ft);
             return new DateFieldMapper(name, ft, multiFieldsBuilder.build(this, context), copyTo.build(), nullTimestamp, resolution, this);
         }
@@ -412,6 +437,8 @@ public final class DateFieldMapper extends ParametrizedFieldMapper {
         protected final DateMathParser dateMathParser;
         protected final Resolution resolution;
         protected final String nullValue;
+        // Opt-in complementary value-free BKD on the secondary; see Builder#bkdSecondaryPrune.
+        private boolean bkdSecondaryPrune = false;
 
         public DateFieldType(
             String name,
@@ -454,6 +481,22 @@ public final class DateFieldMapper extends ParametrizedFieldMapper {
         @Override
         protected FieldTypeCapabilities.Capability searchCapability() {
             return FieldTypeCapabilities.Capability.POINT_RANGE;
+        }
+
+        /** True when this date field opts into the complementary value-free BKD on the secondary. */
+        public boolean bkdSecondaryPrune() {
+            return bkdSecondaryPrune;
+        }
+
+        @Override
+        public java.util.Set<FieldTypeCapabilities.Capability> requestedCapabilities() {
+            java.util.Set<FieldTypeCapabilities.Capability> caps = new java.util.HashSet<>(super.requestedCapabilities());
+            // Opt-in: also request the secondary pruning BKD (distinct from POINT_RANGE which the
+            // parquet primary claims), so single-claim assignment lets the secondary build it.
+            if (bkdSecondaryPrune && isSearchable()) {
+                caps.add(FieldTypeCapabilities.Capability.SECONDARY_POINT_RANGE_PRUNE);
+            }
+            return caps.isEmpty() ? java.util.Set.of() : java.util.Set.copyOf(caps);
         }
 
         public DateFormatter dateTimeFormatter() {
@@ -760,6 +803,7 @@ public final class DateFieldMapper extends ParametrizedFieldMapper {
     private final boolean indexed;
     private final boolean hasDocValues;
     private final boolean skiplist;
+    private final boolean bkdSecondaryPrune;
     private final boolean isSkiplistConfigured;
     private final Locale locale;
     private final String format;
@@ -786,6 +830,7 @@ public final class DateFieldMapper extends ParametrizedFieldMapper {
         this.indexed = builder.index.getValue();
         this.hasDocValues = builder.docValues.getValue();
         this.skiplist = builder.skiplist.getValue();
+        this.bkdSecondaryPrune = builder.bkdSecondaryPrune.getValue();
         this.isSkiplistConfigured = builder.skiplist.isConfigured();
         this.locale = builder.locale.getValue();
         this.format = builder.format.getValue();
