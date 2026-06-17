@@ -186,6 +186,81 @@ impl DynamicRgPruner {
         };
         ctx.rg_provably_excluded(metadata, rg_idx)
     }
+
+    /// Extract the current scalar cutoff bound(s) from the (tightening) dynamic
+    /// filter — the literal value(s) the TopK heap has pushed so far, e.g. the
+    /// `<v>` in `EventTime > <v>`. Returns `(column_name, op, scalar)` tuples.
+    ///
+    /// This is the raw bound the BKD dynamic re-walk needs (the `PruningPredicate`
+    /// only yields a whole-RG bool, not the value). Generation-cheap: snapshots
+    /// the filter to its current concrete form and walks the expression tree.
+    /// Returns empty when no concrete bound is available yet (filter still `true`).
+    pub fn current_cutoff_bounds(&self) -> Vec<CutoffBound> {
+        let Ok(snap) = snapshot_physical_expr(Arc::clone(&self.filter)) else {
+            return Vec::new();
+        };
+        let mut out = Vec::new();
+        collect_cutoff_bounds(&snap, &mut out);
+        out
+    }
+}
+
+/// A single scalar comparison bound extracted from the dynamic filter, e.g.
+/// `EventTime > 1375..`. `op` is the comparison operator as a DataFusion `Operator`.
+#[derive(Clone, Debug)]
+pub struct CutoffBound {
+    pub column: String,
+    pub op: datafusion::logical_expr::Operator,
+    pub value: ScalarValue,
+}
+
+/// Walk a snapshotted physical expression tree collecting `Column <op> Literal`
+/// (or the flipped `Literal <op> Column`) comparison bounds. Recurses through
+/// `BinaryExpr` AND/OR nodes so a conjoined dynamic filter yields all its bounds.
+fn collect_cutoff_bounds(expr: &Arc<dyn PhysicalExpr>, out: &mut Vec<CutoffBound>) {
+    use datafusion::logical_expr::Operator;
+    use datafusion::physical_expr::expressions::{BinaryExpr, Column as ColExpr, Literal};
+    let Some(bin) = expr.as_any().downcast_ref::<BinaryExpr>() else {
+        return;
+    };
+    let op = *bin.op();
+    // Recurse through boolean connectives.
+    if matches!(op, Operator::And | Operator::Or) {
+        collect_cutoff_bounds(bin.left(), out);
+        collect_cutoff_bounds(bin.right(), out);
+        return;
+    }
+    if matches!(
+        op,
+        Operator::Gt | Operator::GtEq | Operator::Lt | Operator::LtEq
+    ) {
+        let l = bin.left().as_any();
+        let r = bin.right().as_any();
+        // Column <op> Literal
+        if let (Some(c), Some(lit)) = (l.downcast_ref::<ColExpr>(), r.downcast_ref::<Literal>()) {
+            out.push(CutoffBound {
+                column: c.name().to_string(),
+                op,
+                value: lit.value().clone(),
+            });
+        // Literal <op> Column  → flip the operator
+        } else if let (Some(lit), Some(c)) =
+            (l.downcast_ref::<Literal>(), r.downcast_ref::<ColExpr>())
+        {
+            let flipped = match op {
+                Operator::Gt => Operator::Lt,
+                Operator::GtEq => Operator::LtEq,
+                Operator::Lt => Operator::Gt,
+                Operator::LtEq => Operator::GtEq,
+                other => other,
+            };
+            out.push(CutoffBound {
+                column: c.name().to_string(),
+                op: flipped,
+                value: lit.value().clone(),
+            });
+        }
+    }
 }
 
 /// A snapshotted pruning predicate plus the schema to evaluate it. Cheaply
