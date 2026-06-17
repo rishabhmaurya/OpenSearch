@@ -220,7 +220,7 @@ pub struct CutoffBound {
 fn collect_cutoff_bounds(expr: &Arc<dyn PhysicalExpr>, out: &mut Vec<CutoffBound>) {
     use datafusion::logical_expr::Operator;
     use datafusion::physical_expr::expressions::{BinaryExpr, Column as ColExpr, Literal};
-    let Some(bin) = expr.as_ref().as_any().downcast_ref::<BinaryExpr>() else {
+    let Some(bin) = PhysicalExpr::as_any(expr.as_ref()).downcast_ref::<BinaryExpr>() else {
         return;
     };
     let op = *bin.op();
@@ -234,8 +234,8 @@ fn collect_cutoff_bounds(expr: &Arc<dyn PhysicalExpr>, out: &mut Vec<CutoffBound
         op,
         Operator::Gt | Operator::GtEq | Operator::Lt | Operator::LtEq
     ) {
-        let l = bin.left().as_ref().as_any();
-        let r = bin.right().as_ref().as_any();
+        let l = PhysicalExpr::as_any(bin.left().as_ref());
+        let r = PhysicalExpr::as_any(bin.right().as_ref());
         // Column <op> Literal
         if let (Some(c), Some(lit)) = (l.downcast_ref::<ColExpr>(), r.downcast_ref::<Literal>()) {
             out.push(CutoffBound {
