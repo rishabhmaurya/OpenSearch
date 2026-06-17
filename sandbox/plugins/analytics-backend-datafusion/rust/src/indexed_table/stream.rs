@@ -938,22 +938,22 @@ impl IndexedStream {
             // Refresh the dynamic-filter snapshot the IndexReader hands to its
             // prefetch tasks, so the next prefetch can prune (skipping the
             // Lucene eval) using the filter's tightening so far.
-            if let Some(ref mut pruner) = self.dynamic_rg_pruner {
-                self.index_reader.dynamic_prune_ctx = pruner.current_pruning_predicate();
-                // VERIFY (dynamic BKD pruning): log the current scalar cutoff so we can
-                // confirm from node logs that it tightens monotonically over execution.
-                let bounds = pruner.current_cutoff_bounds();
-                if !bounds.is_empty() {
-                    for b in &bounds {
-                        native_bridge_common::log_info!(
-                            "[bkd-dyn] cutoff next_rg={} column={} op={:?} value={:?}",
-                            self.index_reader.current_rg_idx,
-                            b.column,
-                            b.op,
-                            b.value
-                        );
-                    }
+            if self.dynamic_rg_pruner.is_some() {
+                // VERIFY (dynamic BKD pruning): snapshot the current scalar cutoff first
+                // (immutable-ish read), log it so node logs can confirm it tightens
+                // monotonically over execution, then refresh the per-RG prune context.
+                let next_rg = self.index_reader.current_rg_idx;
+                let pruner = self.dynamic_rg_pruner.as_mut().unwrap();
+                for b in pruner.current_cutoff_bounds() {
+                    native_bridge_common::log_info!(
+                        "[bkd-dyn] cutoff next_rg={} column={} op={:?} value={:?}",
+                        next_rg,
+                        b.column,
+                        b.op,
+                        b.value
+                    );
                 }
+                self.index_reader.dynamic_prune_ctx = pruner.current_pruning_predicate();
             }
 
             // Poll for next row group
