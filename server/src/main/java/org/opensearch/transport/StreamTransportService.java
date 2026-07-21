@@ -105,10 +105,12 @@ public class StreamTransportService extends TransportService {
 
     @Override
     public void connectToNode(final DiscoveryNode node, ConnectionProfile connectionProfile, ActionListener<Void> listener) {
-        if (isLocalNode(node)) {
-            listener.onResponse(null);
-            return;
-        }
+        // Note: unlike the unary TransportService, we do NOT short-circuit the local node here. A stream
+        // to the local node needs a real streaming connection (there is no streaming analogue of the
+        // unary localNodeConnection), so we establish one through the connection manager like any other
+        // node. The underlying stream transport is free to serve that self-connection in-process
+        // (e.g. FlightTransport dials its own in-process endpoint), so it stays cheap while keeping a
+        // single streaming code path for local and remote targets.
         // TODO: add logic for validation
         final ActionListener<Void> wrappedListener = ActionListener.wrap(response -> { listener.onResponse(response); }, exception -> {
             logger.warn("Failed to connect to streaming node [{}]: {}", node, exception.getMessage());

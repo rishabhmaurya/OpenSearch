@@ -25,6 +25,7 @@ public class FlightStatsCollector extends AbstractLifecycleComponent {
     private volatile ThreadPool threadPool;
     private final AtomicInteger serverChannelsActive = new AtomicInteger(0);
     private final AtomicInteger clientChannelsActive = new AtomicInteger(0);
+    private final AtomicInteger inProcessChannelsOpened = new AtomicInteger(0);
     private final FlightMetrics metrics = new FlightMetrics();
 
     /**
@@ -87,6 +88,21 @@ public class FlightStatsCollector extends AbstractLifecycleComponent {
      */
     public void incrementClientChannelsActive() {
         clientChannelsActive.incrementAndGet();
+    }
+
+    /**
+     * Increments the count of client channels opened over the local in-process (same-JVM) endpoint.
+     */
+    public void incrementInProcessChannelsOpened() {
+        inProcessChannelsOpened.incrementAndGet();
+    }
+
+    /**
+     * Total client channels opened over the local in-process endpoint since startup. Lets callers
+     * confirm the same-node optimization engaged rather than falling back to the loopback wire.
+     */
+    public int getInProcessChannelsOpened() {
+        return inProcessChannelsOpened.get();
     }
 
     /**
