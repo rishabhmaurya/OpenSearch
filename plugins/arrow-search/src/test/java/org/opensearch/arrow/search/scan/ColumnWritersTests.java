@@ -67,7 +67,7 @@ public class ColumnWritersTests extends OpenSearchTestCase {
             ColumnWriters.LeafColumnWriter writer = open(column, new KeywordFieldMapper.KeywordFieldType(column.name()), leaf, scratch);
             try (BufferAllocator allocator = new RootAllocator(); VectorSchemaRoot root = root(column, allocator)) {
                 ColumnWriters.Allowance allowance = new ColumnWriters.Allowance();
-                allowance.reset(10 * 1024);
+                allowance.reset(10 * 1024, DOCS);
                 int written = writer.write(docs(), DOCS, root.getVector(0), 0, allowance);
                 assertEquals("the doc that overdraws the allowance is the last written", 11, written);
                 ColumnWriters.setRowCount(root, written);
@@ -77,6 +77,60 @@ public class ColumnWritersTests extends OpenSearchTestCase {
                 assertThat(((VarCharVector) root.getVector(0)).getDataBuffer().capacity(), lessThan(32L * 1024));
                 assertThat("values copied to the heap follow the allowance", scratch.bytes.length, lessThan(16 * 1024));
             }
+        });
+    }
+
+    public void testEachColumnStopsAtTheRowWhoseValuesOverdrawTheAllowance() throws IOException {
+        Column column = new Column("k", ColumnType.UTF8, Set.of("keyword"));
+        MappedFieldType fieldType = new KeywordFieldMapper.KeywordFieldType(column.name());
+        // Two columns of 1KB values, then one of 16KB values.
+        withSegment(column.name(), doc -> List.of(value(doc, 1024)), small -> {
+            withSegment(column.name(), doc -> List.of(value(doc, 16 * 1024)), large -> {
+                ColumnWriters.Scratch scratch = new ColumnWriters.Scratch();
+                try (
+                    BufferAllocator allocator = new RootAllocator();
+                    VectorSchemaRoot first = root(column, allocator);
+                    VectorSchemaRoot second = root(column, allocator);
+                    VectorSchemaRoot third = root(column, allocator)
+                ) {
+                    ColumnWriters.Allowance allowance = new ColumnWriters.Allowance();
+                    allowance.reset(10 * 1024 + 512, DOCS);
+                    int written = open(column, fieldType, small, scratch).write(docs(), DOCS, first.getVector(0), 0, allowance);
+                    assertEquals(11, written);
+                    allowance.nextColumn(written);
+                    written = open(column, fieldType, small, scratch).write(docs(), written, second.getVector(0), 0, allowance);
+                    assertEquals("rows of 2KB overdraw the allowance at the sixth", 6, written);
+                    allowance.nextColumn(written);
+                    written = open(column, fieldType, large, scratch).write(docs(), written, third.getVector(0), 0, allowance);
+                    assertEquals(1, written);
+                    assertThat(((VarCharVector) third.getVector(0)).getDataBuffer().capacity(), lessThan(64L * 1024));
+                    assertThat("values copied to the heap follow the allowance", scratch.bytes.length, lessThan(32 * 1024));
+                }
+            });
+        });
+    }
+
+    public void testALargeValueCountsTowardsItsOwnRowOnly() throws IOException {
+        Column column = new Column("k", ColumnType.UTF8, Set.of("keyword"));
+        MappedFieldType fieldType = new KeywordFieldMapper.KeywordFieldType(column.name());
+        // A column of 100 byte values but one of 8KB, then one of 1KB values.
+        withSegment(column.name(), doc -> List.of(value(doc, doc == 3 ? 8192 : 100)), first -> {
+            withSegment(column.name(), doc -> List.of(value(doc, 1024)), second -> {
+                ColumnWriters.Scratch scratch = new ColumnWriters.Scratch();
+                try (
+                    BufferAllocator allocator = new RootAllocator();
+                    VectorSchemaRoot a = root(column, allocator);
+                    VectorSchemaRoot b = root(column, allocator)
+                ) {
+                    ColumnWriters.Allowance allowance = new ColumnWriters.Allowance();
+                    allowance.reset(10 * 1024, DOCS);
+                    int written = open(column, fieldType, first, scratch).write(docs(), DOCS, a.getVector(0), 0, allowance);
+                    assertEquals(22, written);
+                    allowance.nextColumn(written);
+                    written = open(column, fieldType, second, scratch).write(docs(), written, b.getVector(0), 0, allowance);
+                    assertEquals("the fourth row, with the large value, overdraws the allowance", 4, written);
+                }
+            });
         });
     }
 
@@ -94,7 +148,7 @@ public class ColumnWritersTests extends OpenSearchTestCase {
             ColumnWriters.LeafColumnWriter writer = open(column, new KeywordFieldMapper.KeywordFieldType(column.name()), leaf, scratch);
             try (BufferAllocator allocator = new RootAllocator(); VectorSchemaRoot root = root(column, allocator)) {
                 ColumnWriters.Allowance allowance = new ColumnWriters.Allowance();
-                allowance.reset(8 * 1024);
+                allowance.reset(8 * 1024, DOCS);
                 int written = writer.write(docs(), DOCS, root.getVector(0), 0, allowance);
                 assertEquals(2, written);
                 ColumnWriters.setRowCount(root, written);
@@ -118,7 +172,7 @@ public class ColumnWritersTests extends OpenSearchTestCase {
             );
             try (BufferAllocator allocator = new RootAllocator(); VectorSchemaRoot root = root(column, allocator)) {
                 ColumnWriters.Allowance allowance = new ColumnWriters.Allowance();
-                allowance.reset(1 << 20);
+                allowance.reset(1 << 20, DOCS);
                 ArrowScanDataException e = expectThrows(
                     ArrowScanDataException.class,
                     () -> writer.write(docs(), DOCS, root.getVector(0), 0, allowance)

@@ -62,9 +62,9 @@ final class CoordinatorBudget {
      * the budget only for the batches that still hold it, and returns their bytes as they let go.
      */
     final class Reservation {
-        private final long bytes;
         private final AtomicReference<Runnable> onReleased = new AtomicReference<>();
         // Guarded by this.
+        private long bytes;
         private long charged;
         private int batches;
         private long batchBytes;
@@ -75,8 +75,22 @@ final class CoordinatorBudget {
             this.charged = bytes;
         }
 
-        long bytes() {
+        synchronized long bytes() {
             return bytes;
+        }
+
+        /**
+         * Returns the bytes beyond {@code bytes} to the budget, while the search runs; has no effect once it ended.
+         */
+        synchronized void trim(long bytes) {
+            if (searchEnded || bytes >= this.bytes) {
+                return;
+            }
+            // Until the search ends, it is charged its whole reservation.
+            assert charged == this.bytes;
+            reserved.addAndGet(bytes - this.bytes);
+            this.bytes = bytes;
+            charged = bytes;
         }
 
         /**

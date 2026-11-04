@@ -33,13 +33,18 @@ import org.opensearch.test.OpenSearchTestCase;
 import org.junit.After;
 import org.junit.Before;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.IntFunction;
 
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.lessThan;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -171,6 +176,92 @@ public class ArrowScanCollectorTests extends OpenSearchTestCase {
         });
     }
 
+    /**
+     * A slice whose compute budget runs out after another slice reached the shard's row limit does not time the scan out: the
+     * shard streamed every row it may, and the rest of the slice's segment may hold matches the limit cut.
+     */
+    public void testComputeBudgetSpentAfterAnotherSliceReachedTheRowLimitIsNoTimeout() throws Exception {
+        int limit = randomIntBetween(1, BATCH_ROWS - 1);
+        long budgetNanos = TimeUnit.MILLISECONDS.toNanos(100);
+        withSegments(new int[] { limit, 100 }, leaves -> {
+            ScanState state = state(limit, budgetNanos, batch -> {
+                batch.close();
+                fail("no batch is full");
+            });
+            try (state) {
+                ArrowScanCollector a = new ArrowScanCollector(state, context());
+                ArrowScanCollector b = new ArrowScanCollector(state, context());
+                // Slice b scores its segment, without a match so far, until its compute budget is spent.
+                LeafCollector leafB = b.getLeafCollector(leaves.get(1));
+                long computing = System.nanoTime();
+                leafB.setScorer(null);
+                assertBusy(() -> assertTrue(System.nanoTime() - computing > budgetNanos));
+                // Meanwhile slice a reads the shard's last rows.
+                LeafCollector leafA = a.getLeafCollector(leaves.get(0));
+                leafA.setScorer(null);
+                for (int doc = 0; doc < limit; doc++) {
+                    leafA.collect(doc);
+                }
+                leafA.finish();
+                a.finish();
+                assertTrue(state.rowBudget.exhausted());
+
+                expectThrows(CollectionTerminatedException.class, b::checkBudgetWhileScoring);
+                assertFalse("the row limit, not the budget, ended the scan", state.timedOut);
+                assertTrue("the rest of slice b's segment may match", state.terminatedEarly);
+                leafB.finish();
+                b.finish();
+                assertRowsUnsent(state, limit);
+            }
+        });
+    }
+
+    /**
+     * Looking up the values of lists grows a slice's scratch buffers to about a few batches while it computes; a slice that
+     * sends a batch, and so may wait for its consumer as long as it does not read, keeps little of that heap.
+     */
+    public void testSliceWaitingToSendKeepsLittleScratchHeap() throws Exception {
+        Column tags = new Column(COLUMN.name(), ColumnType.UTF8, Set.of("keyword"), true);
+        int docs = 500;
+        long budget = 64 << 10;
+        // 200 distinct values of 8 bytes per doc, so a batch looks up thousands of them.
+        withSegments(new int[] { docs }, doc -> {
+            List<BytesRef> values = new ArrayList<>();
+            for (int v = 0; v < 200; v++) {
+                values.add(new BytesRef(String.format(Locale.ROOT, "%08d", doc * 200 + v)));
+            }
+            return values;
+        }, leaves -> {
+            AtomicReference<ArrowScanCollector> slice = new AtomicReference<>();
+            List<Long> scratchOnSend = new ArrayList<>();
+            ScanState state = state(List.of(tags), budget, Long.MAX_VALUE, -1, batch -> {
+                batch.close();
+                scratchOnSend.add(slice.get().scratchBytes());
+            });
+            try (state) {
+                slice.set(new ArrowScanCollector(state, context()));
+                LeafCollector leaf = slice.get().getLeafCollector(leaves.get(0));
+                leaf.setScorer(null);
+                for (int doc = 0; doc < docs; doc++) {
+                    leaf.collect(doc);
+                }
+                leaf.finish();
+                slice.get().finish();
+                assertThat(scratchOnSend.size(), greaterThan(5));
+                for (long scratch : scratchOnSend) {
+                    assertThat(scratchOnSend.toString(), scratch, lessThan(budget / 4));
+                }
+                int unsent = 0;
+                for (VectorSchemaRoot batch : state.takeRemainingRows()) {
+                    try (batch) {
+                        unsent += batch.getRowCount();
+                    }
+                }
+                assertEquals(docs, state.rowsSent.get() + unsent);
+            }
+        });
+    }
+
     private ScanState state(long rowLimit, long computeBudgetNanos, ScanState.BatchSender sender) {
         ArrowScanSpec spec = new ArrowScanSpec(
             List.of(COLUMN),
@@ -181,6 +272,16 @@ public class ArrowScanCollectorTests extends OpenSearchTestCase {
             rowLimit,
             TimeValue.timeValueMinutes(1)
         );
+        return state(spec, computeBudgetNanos, sender);
+    }
+
+    /** A scan of {@code columns} in batches of {@code batchBytes}, with Arrow search's default rows per batch. */
+    private ScanState state(List<Column> columns, long batchBytes, long rowLimit, long computeBudgetNanos, ScanState.BatchSender sender) {
+        ArrowScanSpec spec = new ArrowScanSpec(columns, batchBytes, batchBytes, 65536, 3 << 20, rowLimit, TimeValue.timeValueMinutes(1));
+        return state(spec, computeBudgetNanos, sender);
+    }
+
+    private ScanState state(ArrowScanSpec spec, long computeBudgetNanos, ScanState.BatchSender sender) {
         return new ScanState(spec, allocator, field -> true, sender, waitNanos -> {
             slotsHeld.incrementAndGet();
             return slotsHeld::decrementAndGet;
@@ -213,12 +314,19 @@ public class ArrowScanCollectorTests extends OpenSearchTestCase {
 
     /** Runs {@code test} on one segment per entry of {@code docsPerSegment}, with that many docs, each with a value of the column. */
     private static void withSegments(int[] docsPerSegment, ReaderTest test) throws Exception {
+        withSegments(docsPerSegment, doc -> List.of(new BytesRef("v" + doc)), test);
+    }
+
+    /** As above, with the values of the column of each doc of a segment. */
+    private static void withSegments(int[] docsPerSegment, IntFunction<List<BytesRef>> values, ReaderTest test) throws Exception {
         try (Directory directory = new ByteBuffersDirectory()) {
             try (IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig().setMergePolicy(NoMergePolicy.INSTANCE))) {
                 for (int docs : docsPerSegment) {
                     for (int doc = 0; doc < docs; doc++) {
                         Document document = new Document();
-                        document.add(new SortedSetDocValuesField(COLUMN.name(), new BytesRef("v" + doc)));
+                        for (BytesRef value : values.apply(doc)) {
+                            document.add(new SortedSetDocValuesField(COLUMN.name(), value));
+                        }
                         writer.addDocument(document);
                     }
                     writer.commit();

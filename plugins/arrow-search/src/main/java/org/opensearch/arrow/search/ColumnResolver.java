@@ -29,11 +29,16 @@ import java.util.TreeSet;
  * it is mapped; indices without the field produce nulls. A wildcard pattern expands, in name order, to the matching fields
  * that meet these conditions and skips the others. Since every shard produces every column, the columns are bounded like the
  * doc value fields a search of one index may read.
+ * <p>
+ * A field inside a nested field does not qualify: its values are indexed on hidden child documents, while a scan reads the
+ * top-level documents, so the column would only hold nulls.
  */
 public final class ColumnResolver {
 
     /** Field capabilities type reported for indices that do not map a field. */
     private static final String UNMAPPED = "unmapped";
+    /** Field capabilities type reported for the path of a nested field. */
+    private static final String NESTED = "nested";
 
     private ColumnResolver() {}
 
@@ -60,7 +65,9 @@ public final class ColumnResolver {
             final String pattern = request.pattern();
             if (Regex.isSimpleMatchPattern(pattern)) {
                 for (String field : new TreeSet<>(capabilities.keySet())) {
-                    if (columns.containsKey(field) == false && Regex.simpleMatch(pattern, field)) {
+                    if (columns.containsKey(field) == false
+                        && Regex.simpleMatch(pattern, field)
+                        && nestedParent(field, capabilities) == null) {
                         final Column column = toColumn(field, capabilities.get(field), request.list(), false);
                         if (column != null) {
                             columns.put(field, column);
@@ -71,6 +78,12 @@ public final class ColumnResolver {
                 final Map<String, FieldCapabilities> byType = capabilities.get(pattern);
                 if (byType == null || byType.keySet().stream().allMatch(UNMAPPED::equals)) {
                     throw new IllegalArgumentException("field [" + pattern + "] is not mapped in any target index");
+                }
+                final String nested = nestedParent(pattern, capabilities);
+                if (nested != null) {
+                    throw new IllegalArgumentException(
+                        "field [" + pattern + "] is inside the nested field [" + nested + "], which Arrow search does not support"
+                    );
                 }
                 columns.put(pattern, toColumn(pattern, byType, request.list(), true));
             }
@@ -92,6 +105,21 @@ public final class ColumnResolver {
             );
         }
         return new ArrayList<>(columns.values());
+    }
+
+    /**
+     * @return the closest enclosing path of {@code field} that some target index maps as a nested field, or {@code null};
+     *         field capabilities report the enclosing paths of every field they return
+     */
+    private static String nestedParent(String field, Map<String, Map<String, FieldCapabilities>> capabilities) {
+        for (int dot = field.lastIndexOf('.'); dot > 0; dot = field.lastIndexOf('.', dot - 1)) {
+            final String parent = field.substring(0, dot);
+            final Map<String, FieldCapabilities> byType = capabilities.get(parent);
+            if (byType != null && byType.containsKey(NESTED)) {
+                return parent;
+            }
+        }
+        return null;
     }
 
     private static Column toColumn(String field, Map<String, FieldCapabilities> byType, boolean list, boolean strict) {

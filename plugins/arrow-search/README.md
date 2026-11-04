@@ -96,12 +96,15 @@ Field metadata `opensearch.type` lists the mapping types behind each column. A d
 
 A scalar column fails the search on a document with several values. A list column (`format: "list"`) is
 `List<item: T>` and holds every value, in doc-values order: numbers sorted, keyword and ip values sorted and deduplicated,
-as `docvalue_fields` returns them in `_search`. Nested and object fields are not supported.
+as `docvalue_fields` returns them in `_search`. Nested and object fields are not supported, and neither are the fields
+inside a field that some target index maps as `nested`, even with `include_in_root` or `include_in_parent`: their values
+belong to hidden nested documents, not to the matching documents a scan reads.
 
 An explicitly named field must be mapped in some target index, with doc values and compatible types everywhere it is
-mapped; a pattern skips fields that do not qualify. Columns resolve with the caller's permissions, so a field hidden by
-field-level security counts as not mapped, as in field capabilities, and a pattern skips it; a masked field returns its
-masked values, except an `ip` field, whose masked values are not addresses and fail the search with `INVALID_ARGUMENT`.
+mapped, and not inside a nested field; a pattern skips fields that do not qualify. Columns resolve with the caller's
+permissions, so a field hidden by field-level security counts as not mapped, as in field capabilities, and a pattern
+skips it; a masked field returns its masked values, except an `ip` field, whose masked values are not addresses and fail
+the search with `INVALID_ARGUMENT`.
 
 ## Response
 
@@ -140,11 +143,12 @@ stopped reading, which can happen after the search ended (see Backpressure).
   `DEADLINE_EXCEEDED`; everything the search holds on every node is released at once, except the batches gRPC already
   queued for the call, which the client receives first if it reads again. Those batches, like the last batches of a
   search that succeeded, stay charged to the coordinator's memory until the client has read them, each as a batch of the
-  larger of `batch_size` and `max_row_size`; the rest of the search's reservation returns when the search ends. A client
-  that has not read them within another `client_idle_timeout` has its call reset (`CANCELLED`), which releases them; only
-  a batch the transport already began writing to the connection stays, still charged, until the client reads it or the
-  connection closes. A reset needs the call as gRPC created it: if a gRPC interceptor of another plugin wraps calls, the
-  node logs a warning once, and unread batches stay, still charged, until the client reads them or its connection closes.
+  larger of `batch_size` and `max_row_size`, rounded up as Arrow allocates it (see Settings); the rest of the search's
+  reservation returns when the search ends. A client that has not read them within another `client_idle_timeout` has its
+  call reset (`CANCELLED`), which releases them; only a batch the transport already began writing to the connection
+  stays, still charged, until the client reads it or the connection closes. A reset needs the call as gRPC created it:
+  if a gRPC interceptor of another plugin wraps calls, the node logs a warning once, and unread batches stay, still
+  charged, until the client reads them or its connection closes.
 
 ## Settings
 
@@ -154,14 +158,14 @@ stopped reading, which can happen after the search ended (see Backpressure).
 | `search.arrow.first_batch_size` | `64kb` | First batch of each shard; doubles with each batch. |
 | `search.arrow.batch_rows` | `65536` | Maximum rows per batch. |
 | `search.arrow.max_row_size` | `1mb` | Larger rows fail the search. A row larger than `batch_size` is sent as a batch of its own, so the coordinator sizes each shard stream for batches of this size; raising it lowers how many shard streams a search opens at once. Keep it below gRPC's 4MB default client message limit. |
-| `search.arrow.max_buffered_bytes_per_request` | `64mb` | Batch memory one search buffers on its coordinator; bounds its open shard streams, each counted as six batches of the larger of `batch_size` and `max_row_size` (6mb by default, so ten streams). A search reserves no more than its target shards need. |
+| `search.arrow.max_buffered_bytes_per_request` | `64mb` | Batch memory one search buffers on its coordinator; bounds its open shard streams, each counted as six batches (five the transport prefetches, one waiting to be sent), plus one batch per search that gRPC holds while the client reads it. A batch counts as the larger of `batch_size` and `max_row_size`, rounded up to the next power of two below 16mb as Arrow allocates it: 1mb by default, so ten streams, and 4mb with `batch_size: 3mb`. A search reserves no more than the streams it can open at once need: one per shard its routing and preference target, and at most `max_concurrent_shard_requests` per node holding a copy of them. |
 | `search.arrow.coordinator.max_buffered_bytes` | `512mb` | Batch memory of all searches on a coordinator, including batches their clients have not read yet; beyond it searches are rejected. |
-| `search.arrow.client_idle_timeout` | `60s` | How long a client may stop reading, while the search runs and again once it ended. |
+| `search.arrow.client_idle_timeout` | `60s` | How long a client may stop reading, while the search runs and again once it ended. At least `1s`. |
 | `search.arrow.cancel_after_time_interval` | `-1` | Cancels searches running longer, unless the request sets its own interval. |
 | `search.arrow.shard.max_open_scans` | 4 × processors | Shard scans open on a data node; more wait, then are rejected and retried elsewhere. |
 | `search.arrow.shard.admission_wait` | `5s` | How long a scan waits for an open slot. |
 | `search.arrow.shard.max_concurrent_batches` | half the search pool | Scan slices computing at once on a data node. |
-| `search.arrow.shard.max_buffered_bytes` | `512mb` | Batch memory of all scans on a data node (static). |
+| `search.arrow.shard.max_buffered_bytes` | `512mb` | Batch memory of all scans on a data node (static); a scan whose batch does not fit is rejected and retried elsewhere. |
 
 How many slices a scan collects in parallel follows the concurrent segment search settings of the index:
 `search.concurrent_segment_search.mode` and `search.concurrent.max_slice_count` (default: half the processors, at most 4).
@@ -176,9 +180,21 @@ How many slices a scan collects in parallel follows the concurrent segment searc
   large segment is collected at about one thread's speed. Letting scans opt in is a follow-up.
 - Each slice holds up to one batch being filled and one being sent, so a scan's data-node memory grows with its slice
   count; `search.arrow.shard.max_buffered_bytes` bounds the total. Rows much larger than the rows before them still cost
-  about one batch: reading stops at the doc whose values overdraw the batch's budget.
+  at most about one batch per keyword or list column: each such column stops reading at the row whose values, with those
+  of the columns before it, overdraw the batch's budget.
+- A slice that computes also keeps heap buffers for the keyword and ip values it looks up, up to a few times
+  `batch_size` for lists of many short values, which no memory limit or circuit breaker counts. It frees them whenever it
+  stops computing, e.g. to send a batch, so `search.arrow.shard.max_concurrent_batches` bounds the slices that hold them.
+- A shard stream can only be cancelled directly once its first batch arrived. Before that, a search that stops, for
+  example because it reached its row limit, cancels its tasks on the data nodes, and since a stream's request may reach
+  its node after that cancel, cancels them again every second on the nodes of the streams still opening; such a scan may
+  run up to about a second past the stop.
 - A paused scan keeps its shard's reader open, like a scroll; a closing shard aborts it once it resumes or its wait for
   the coordinator times out.
+- A coordinator that vanishes without closing its connections (a host failure, a network partition) cannot release its
+  scans. A paused scan keeps its slot, its reader and its batches until the data node's Flight keepalive finds the
+  connection dead, at most `flight.keepalive.time` plus `flight.keepalive.timeout` (50s by default) after the
+  coordinator's last frame.
 - Arrow search tasks are not tracked for resource use, since their lifetime follows the client and their CPU runs on
   virtual threads, which per-thread accounting does not measure. Search backpressure does not cancel them, workload
   management neither counts their CPU and heap toward their workload group's usage, on which its rejections are based,

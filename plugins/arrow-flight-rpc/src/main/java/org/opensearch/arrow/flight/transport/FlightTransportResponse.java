@@ -188,6 +188,12 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
                 } catch (Exception e) {
                     future.completeExceptionally(new StreamException(StreamErrorCode.INTERNAL, "Stream open/prefetch failed", e));
                 } finally {
+                    // The header context lives as long as the connection, so remove the header of a stream that failed or
+                    // closed before reaching a consumer: the server sends one with an error too, and the middleware stores
+                    // it before next() fails or close() returns.
+                    if (initialHeader == null) {
+                        headerContext.getHeader(correlationId);
+                    }
                     // Lets a racing close() distinguish "prefetch still running, it will handle
                     // the closed re-check" from "prefetch finished without publishing a stream
                     // (getStream failed), close() owns notification".

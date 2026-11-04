@@ -129,8 +129,9 @@ final class ZeroCopyBufferChain {
         private volatile Runnable onDeallocate;
 
         ReleasingCompositeByteBuf(List<ByteBuffer> segments) {
-            // One component per segment: a smaller limit would make Netty consolidate, which copies.
-            super(UnpooledByteBufAllocator.DEFAULT, true, Math.max(1, segments.size()));
+            // No component limit: Netty appends the writes queued behind this buffer to it when it coalesces them, and it
+            // consolidates a composite over its limit, which copies.
+            super(UnpooledByteBufAllocator.DEFAULT, true, Integer.MAX_VALUE);
             int i = 0;
             while (i < segments.size()) {
                 final ByteBuffer segment = segments.get(i);

@@ -47,7 +47,8 @@ import java.util.Set;
  * Writers are created and used by one thread, as Lucene requires of doc-values iterators.
  * <p>
  * Values whose size varies (keyword values and list values) take their bytes from the {@link Allowance} of the pass, which
- * ends after the doc that overdraws it, so docs far larger than the pass was sized for cost about one batch of memory.
+ * ends after the doc whose row overdraws it, so docs far larger than the pass was sized for cost at most about one batch of
+ * memory per column of such values.
  */
 final class ColumnWriters {
 
@@ -56,8 +57,8 @@ final class ColumnWriters {
         /**
          * Writes the values of {@code docs[0..count)}, which are increasing, into rows {@code [offset, offset + count)} of
          * {@code vector}; documents without a value become nulls. Values of varying size take their bytes from
-         * {@code allowance}, and the writer stops after the doc that overdraws it, having possibly read the doc values of
-         * later docs.
+         * {@code allowance}, and the writer stops after the doc whose row overdraws it, having possibly read the doc values
+         * of later docs.
          *
          * @return how many docs, from the first, were written: {@code count}, or fewer, but at least one, if the allowance ran out
          */
@@ -65,26 +66,59 @@ final class ColumnWriters {
     }
 
     /**
-     * The bytes the values of a pass over buffered docs may still take, shared by the pass's columns. Only values whose size
-     * varies take from it: the size of the other values is known when the pass is sized.
+     * The bytes the values of a pass over buffered docs may take, shared by the pass's columns row by row. The columns are
+     * written one after the other, and each stops after the first doc whose row, with the values of the columns written
+     * before it, takes more than the allowance: so the pass ends at the row that overdraws the batch, and each column's values
+     * take about the allowance at most. Only values whose size varies take from it: the size of the other values is known
+     * when the pass is sized.
      */
     static final class Allowance {
-        private long remaining;
+        private long bytes;
+        /** Per doc of the pass, the bytes the columns written before the current one took for the docs up to it. */
+        private long[] before = new long[0];
+        /** Per doc of the pass, the bytes the current column took for it. */
+        private long[] current = new long[0];
+        /** The bytes the current column took. */
+        private long taken;
 
-        /** Starts a pass that may take {@code bytes}. */
-        void reset(long bytes) {
-            remaining = bytes;
+        /** Starts a pass over {@code docs} docs whose values may take {@code bytes}. */
+        void reset(long bytes, int docs) {
+            this.bytes = bytes;
+            before = ArrayUtil.grow(before, Math.max(1, docs));
+            current = ArrayUtil.grow(current, before.length);
+            Arrays.fill(before, 0, docs, 0);
+            Arrays.fill(current, 0, docs, 0);
+            taken = 0;
         }
 
-        /** @return the bytes left, negative once overdrawn */
-        long remaining() {
-            return remaining;
+        /** @return the bytes the current column may still take for the docs up to {@code doc}, negative once overdrawn */
+        long remaining(int doc) {
+            return bytes - before[doc] - taken;
         }
 
-        /** @return whether taking {@code bytes} overdrew the allowance, which ends the pass after the current doc */
-        boolean take(long bytes) {
-            remaining -= bytes;
-            return remaining < 0;
+        /**
+         * Takes the bytes of the current column's values of {@code doc}, after those of the docs before it.
+         *
+         * @return whether the rows up to {@code doc} overdrew the allowance, which ends the pass after it
+         */
+        boolean take(int doc, long bytes) {
+            current[doc] += bytes;
+            taken += bytes;
+            return remaining(doc) < 0;
+        }
+
+        /** Ends the current column, which wrote the first {@code docs} docs of the pass; the next one takes what their rows left. */
+        void nextColumn(int docs) {
+            if (taken == 0) {
+                return;
+            }
+            long sum = 0;
+            for (int i = 0; i < docs; i++) {
+                sum += current[i];
+                before[i] += sum;
+                current[i] = 0;
+            }
+            taken = 0;
         }
     }
 
@@ -196,11 +230,14 @@ final class ColumnWriters {
     }
 
     /**
-     * Reusable buffers of a scan, so writing a chunk allocates nothing on the heap in the steady state. Batches of a scan
-     * run one at a time, so the buffers are never used concurrently. Since passes stop at their allowance, the buffers stay
-     * about as large as a batch.
+     * Reusable buffers of a slice, so writing a chunk of small values allocates nothing on the heap. A slice writes its
+     * batches one at a time, so the buffers are never used concurrently. Since passes stop at their allowance, the buffers
+     * take up to a few times a batch's budget, for lists of many short values; {@link #trim} drops the large ones.
      */
     static final class Scratch {
+        /** The largest array, in bytes, that {@link #trim} keeps. */
+        static final int KEPT_BYTES = 16 * 1024;
+
         long[] values = new long[0];
         int[] ords = new int[0];
         int[] valueCounts = new int[0];
@@ -208,6 +245,36 @@ final class ColumnWriters {
         int[] valueOffsets = new int[0];
         int[] valueLengths = new int[0];
         byte[] bytes = new byte[0];
+
+        /** Drops the arrays larger than {@link #KEPT_BYTES}, so a slice that does not compute keeps little heap. */
+        void trim() {
+            if ((long) values.length * Long.BYTES > KEPT_BYTES) {
+                values = new long[0];
+            }
+            if ((long) ords.length * Integer.BYTES > KEPT_BYTES) {
+                ords = new int[0];
+            }
+            if ((long) valueCounts.length * Integer.BYTES > KEPT_BYTES) {
+                valueCounts = new int[0];
+            }
+            if ((long) sortedOrds.length * Integer.BYTES > KEPT_BYTES) {
+                sortedOrds = new int[0];
+            }
+            if ((long) valueOffsets.length * Integer.BYTES > KEPT_BYTES) {
+                // Sized together.
+                valueOffsets = new int[0];
+                valueLengths = new int[0];
+            }
+            if (bytes.length > KEPT_BYTES) {
+                bytes = new byte[0];
+            }
+        }
+
+        /** @return the heap the arrays take */
+        long heapBytes() {
+            return (long) values.length * Long.BYTES + (long) Integer.BYTES * (ords.length + valueCounts.length + sortedOrds.length
+                + valueOffsets.length + valueLengths.length) + bytes.length;
+        }
 
         // Grown by copying, since callers keep filling arrays they asked for earlier.
         long[] values(int count) {
@@ -317,7 +384,7 @@ final class ColumnWriters {
                     put(items, start + v, decoder.decode(values.nextValue()));
                 }
                 list.endValue(row, valueCount);
-                if (allowance.take((long) valueCount * width)) {
+                if (allowance.take(i, (long) valueCount * width)) {
                     return i + 1;
                 }
             }
@@ -379,7 +446,7 @@ final class ColumnWriters {
                         putDouble(items, start + v, values.nextValue());
                     }
                     list.endValue(row, valueCount);
-                    if (allowance.take((long) valueCount * Double.BYTES)) {
+                    if (allowance.take(i, (long) valueCount * Double.BYTES)) {
                         return i + 1;
                     }
                 }
@@ -465,7 +532,7 @@ final class ColumnWriters {
                     counts[gathered] = -1;
                 }
                 gathered++;
-                if (column.list() && (long) total * minItemBytes > allowance.remaining()) {
+                if (column.list() && (long) total * minItemBytes > allowance.remaining(gathered - 1)) {
                     break;
                 }
             }
@@ -478,7 +545,7 @@ final class ColumnWriters {
                     sorted[distinct++] = sorted[i];
                 }
             }
-            final int copied = lookUp(sorted, distinct, allowance.remaining());
+            final int copied = lookUp(sorted, distinct, allowance.remaining(0));
 
             int next = 0;
             if (column.list()) {
@@ -499,7 +566,7 @@ final class ColumnWriters {
                         bytes += itemOverhead + writeValue(items, start + v, ords[next++], sorted, distinct, copied);
                     }
                     list.endValue(row, counts[i]);
-                    if (allowance.take(bytes)) {
+                    if (allowance.take(i, bytes)) {
                         return i + 1;
                     }
                 }
@@ -511,7 +578,7 @@ final class ColumnWriters {
                 } else {
                     final int bytes = writeValue(vector, offset + i, ords[next++], sorted, distinct, copied);
                     // An ip value has a fixed size.
-                    if (ip == false && allowance.take(bytes)) {
+                    if (ip == false && allowance.take(i, bytes)) {
                         return i + 1;
                     }
                 }

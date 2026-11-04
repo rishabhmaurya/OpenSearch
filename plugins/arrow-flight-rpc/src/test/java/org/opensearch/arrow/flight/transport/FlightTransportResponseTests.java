@@ -226,6 +226,58 @@ public class FlightTransportResponseTests extends OpenSearchTestCase {
         verify(stream, timeout(5_000)).close();
     }
 
+    /**
+     * A server that fails a stream before its first batch still sends its header, which the middleware stores in the
+     * connection's context before next() fails. The prefetch must remove it, since no consumer will.
+     */
+    public void testStreamFailedBeforeFirstBatchLeavesNoHeader() throws Exception {
+        HeaderContext headerContext = new HeaderContext();
+        FlightClient client = mock(FlightClient.class);
+        FlightStream stream = mock(FlightStream.class);
+        when(client.getStream(any(Ticket.class), any())).thenReturn(stream);
+        when(stream.next()).thenAnswer(inv -> {
+            headerContext.setHeader(1L, mock(Header.class));
+            throw CallStatus.CANCELLED.withDescription("scan cancelled").toRuntimeException();
+        });
+
+        FlightTransportResponse<TestArrowResponse> response = newResponse(client, headerContext);
+        CompletableFuture<Header> future = new CompletableFuture<>();
+        response.openAndPrefetchAsync(future);
+        ExecutionException e = expectThrows(ExecutionException.class, () -> future.get(5, TimeUnit.SECONDS));
+        assertEquals(StreamErrorCode.CANCELLED, ((StreamException) e.getCause()).getErrorCode());
+        assertBusy(() -> assertEquals(0, headerContext.size()));
+        response.close();
+    }
+
+    /** The same holds for a stream closed while it opened: closing drains it, which stores a header the server sent. */
+    public void testStreamClosedWhileOpeningLeavesNoHeader() throws Exception {
+        HeaderContext headerContext = new HeaderContext();
+        FlightStream stream = mock(FlightStream.class);
+        doAnswer(inv -> {
+            headerContext.setHeader(1L, mock(Header.class));
+            return null;
+        }).when(stream).close();
+        CountDownLatch enteredGetStream = new CountDownLatch(1);
+        CountDownLatch proceed = new CountDownLatch(1);
+        FlightClient client = mock(FlightClient.class);
+        when(client.getStream(any(Ticket.class), any())).thenAnswer(inv -> {
+            enteredGetStream.countDown();
+            assertTrue("test must release getStream", proceed.await(5, TimeUnit.SECONDS));
+            return stream;
+        });
+
+        FlightTransportResponse<TestArrowResponse> response = newResponse(client, headerContext);
+        CompletableFuture<Header> future = new CompletableFuture<>();
+        response.openAndPrefetchAsync(future);
+        assertTrue(enteredGetStream.await(5, TimeUnit.SECONDS));
+        response.close();
+        proceed.countDown();
+
+        expectThrows(ExecutionException.class, () -> future.get(5, TimeUnit.SECONDS));
+        verify(stream).close();
+        assertBusy(() -> assertEquals(0, headerContext.size()));
+    }
+
     /** close() before any prefetch has a null stream — must be a no-op, no NPE. */
     public void testCloseBeforePrefetchIsNoOp() {
         FlightClient client = mock(FlightClient.class);

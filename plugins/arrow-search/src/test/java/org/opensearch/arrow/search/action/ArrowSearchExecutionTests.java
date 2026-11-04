@@ -61,6 +61,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -70,6 +71,8 @@ public class ArrowSearchExecutionTests extends OpenSearchTestCase {
     private static final List<Column> COLUMNS = List.of(new Column("l", Column.ColumnType.INT64, Set.of("long")));
     private static final Schema SCHEMA = Column.toSchema(COLUMNS);
     private static final Object END = new Object();
+    /** The memory a relayed batch may take: a row of max_row_size, 3MB, rounded up as Arrow allocates it. */
+    private static final long BATCH_MEMORY = 4 << 20;
 
     private BufferAllocator root;
     private BufferAllocator dataNode;
@@ -79,6 +82,8 @@ public class ArrowSearchExecutionTests extends OpenSearchTestCase {
     private final FakeSink sink = new FakeSink();
     private final BlockingQueue<Opened> opened = new LinkedBlockingQueue<>();
     private final List<String> cancelledChildren = new CopyOnWriteArrayList<>();
+    /** The nodes of the streams still opening, as the last cancel of the search's tasks sees them. */
+    private volatile Supplier<Set<String>> openingNodes;
     private final List<Thread> relays = new CopyOnWriteArrayList<>();
     private SearchTask task;
 
@@ -145,7 +150,7 @@ public class ArrowSearchExecutionTests extends OpenSearchTestCase {
     }
 
     /** A shard stream whose batches the test scripts. */
-    private final class FakeStream implements StreamTransportResponse<ArrowScanBatchResponse> {
+    private class FakeStream implements StreamTransportResponse<ArrowScanBatchResponse> {
         final BlockingQueue<Object> items = new LinkedBlockingQueue<>();
         volatile boolean cancelled;
         volatile boolean closed;
@@ -274,10 +279,14 @@ public class ArrowSearchExecutionTests extends OpenSearchTestCase {
             Runnable::run,
             relay,
             reservation,
+            BATCH_MEMORY,
             maxOpenStreams,
             rowLimit,
             allowPartial,
-            cancelledChildren::add
+            (reason, opening) -> {
+                cancelledChildren.add(reason);
+                openingNodes = opening;
+            }
         );
     }
 
@@ -340,10 +349,10 @@ public class ArrowSearchExecutionTests extends OpenSearchTestCase {
         assertEquals(2, unread.size());
 
         assertTrue("the search ended, but its client has not read every batch", reservation.endSearch());
-        // Each unread batch counts as large as the spec lets a batch be: a row of max_row_size.
-        assertEquals(2 * (3 << 20), budget.reserved());
+        // Each unread batch counts as the memory a batch may take.
+        assertEquals(2 * BATCH_MEMORY, budget.reserved());
         unread.get(0).close();
-        assertEquals(3 << 20, budget.reserved());
+        assertEquals(BATCH_MEMORY, budget.reserved());
         unread.get(1).close();
         assertEquals(0, budget.reserved());
     }
@@ -569,12 +578,66 @@ public class ArrowSearchExecutionTests extends OpenSearchTestCase {
         assertEquals(List.of(), sink.rows);
     }
 
+    public void testStreamStillOpeningWhenTheSearchStopsIsCancelledUntilItArrives() throws Exception {
+        ArrowSearchExecution execution = execution(2, 1, true);
+        ShardListener first = start(execution, 0, node("n1", true));
+        ShardListener opening = start(execution, 1, node("n2", true));
+        Opened a = nextOpened();
+        Opened b = nextOpened();
+        a.deliver(new FakeStream().batch(1), relays);
+        first.await();
+        assertEquals(ArrowSearchExecution.Stop.ROW_LIMIT, execution.stopReason());
+        assertEquals(1, cancelledChildren.size());
+        assertEquals("the stream on n2 sent no batch yet, so only its task can be cancelled", Set.of("n2"), openingNodes.get());
+
+        FakeStream late = new FakeStream().batch(2).last(3);
+        b.deliver(late, relays).join();
+        opening.await();
+        assertTrue(late.cancelled);
+        assertEquals(Set.of(), openingNodes.get());
+        assertEquals(List.of(1L), sink.rows);
+    }
+
+    public void testStreamArrivingAfterTheStopCompletesThoughItsCancelFails() throws Exception {
+        ArrowSearchExecution execution = execution(1, Long.MAX_VALUE, true);
+        ShardListener listener = start(execution, 0, node("n1", true));
+        ShardListener queued = start(execution, 1, node("n1", true));
+        Opened pending = nextOpened();
+        execution.stop(ArrowSearchExecution.Stop.CANCELLED, null);
+        FakeStream late = new FakeStream() {
+            @Override
+            public void cancel(String reason, Throwable cause) {
+                // As the stream transport closes the stream when cancelled, which can fail.
+                super.cancel(reason, cause);
+                close();
+                throw new StreamException(StreamErrorCode.INTERNAL, "failed to close the flight stream");
+            }
+        }.batch(1).last(2);
+        pending.deliver(late, relays).join();
+        listener.await();
+        queued.await();
+        assertTrue(late.cancelled);
+        assertNotNull(listener.failure);
+        assertEquals(Set.of(), openingNodes.get());
+        assertEquals(List.of(), sink.rows);
+    }
+
     public void testNodeWithoutShardStreamsFailsOverBeforeOpening() throws Exception {
         ArrowSearchExecution execution = execution(1, Long.MAX_VALUE, true);
-        ShardListener listener = start(execution, 0, node("old", false));
+        DiscoveryNode old = new DiscoveryNode(
+            "old-name",
+            "old",
+            buildNewFakeTransportAddress(),
+            Map.of("zone", "z1"),
+            Set.of(DiscoveryNodeRole.DATA_ROLE),
+            Version.CURRENT
+        );
+        ShardListener listener = start(execution, 0, old);
         listener.await();
         StreamException failure = (StreamException) listener.failure;
         assertEquals(StreamErrorCode.UNAVAILABLE, failure.getErrorCode());
+        // The failure reaches the client, which must not learn the node's addresses and attributes.
+        assertEquals("node [old-name][old] does not serve Arrow search shard streams", failure.getMessage());
         assertTrue(execution.shouldTryNextCopy(target(0, "old"), failure));
         assertNull(opened.poll(100, TimeUnit.MILLISECONDS));
     }

@@ -73,8 +73,8 @@ public final class ArrowSearchSettings {
 
     /**
      * The batch memory one search may hold on its coordinating node, which bounds how many shards it streams at once:
-     * each open shard stream holds up to six batches in flight, each as large as the batch size or the maximum row size,
-     * whichever is larger.
+     * each open shard stream holds up to six batches in flight, and the search one more that gRPC holds for the client,
+     * each as large as the batch size or the maximum row size, whichever is larger, rounded up as Arrow allocates it.
      */
     public static final Setting<ByteSizeValue> MAX_BUFFERED_BYTES_PER_REQUEST = Setting.byteSizeSetting(
         "search.arrow.max_buffered_bytes_per_request",
@@ -97,11 +97,13 @@ public final class ArrowSearchSettings {
 
     /**
      * How long a client may stop reading before its search fails, releasing everything the search holds, and, once the
-     * search ended, before its call is reset, releasing the batches the client has not read.
+     * search ended, before its call is reset, releasing the batches the client has not read. At least a second, since a
+     * call is briefly not ready after every batch it queues.
      */
-    public static final Setting<TimeValue> CLIENT_IDLE_TIMEOUT = Setting.positiveTimeSetting(
+    public static final Setting<TimeValue> CLIENT_IDLE_TIMEOUT = Setting.timeSetting(
         "search.arrow.client_idle_timeout",
         TimeValue.timeValueSeconds(60),
+        TimeValue.timeValueSeconds(1),
         Property.NodeScope,
         Property.Dynamic
     );

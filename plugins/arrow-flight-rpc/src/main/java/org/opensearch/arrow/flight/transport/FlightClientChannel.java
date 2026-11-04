@@ -313,6 +313,11 @@ class FlightClientChannel implements TcpChannel {
         return stats;
     }
 
+    /** The headers the middleware stored for this channel's streams. Package-private for tests. */
+    HeaderContext getHeaderContext() {
+        return headerContext;
+    }
+
     @Override
     public boolean isOpen() {
         return !isClosed;

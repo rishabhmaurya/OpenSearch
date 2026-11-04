@@ -10,9 +10,13 @@ package org.opensearch.transport.stream;
 
 import org.opensearch.OpenSearchStatusException;
 import org.opensearch.ResourceNotFoundException;
+import org.opensearch.action.OriginalIndices;
 import org.opensearch.core.concurrency.OpenSearchRejectedExecutionException;
+import org.opensearch.core.index.shard.ShardId;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.tasks.TaskCancelledException;
+import org.opensearch.search.SearchShardTarget;
+import org.opensearch.search.query.QueryPhaseExecutionException;
 import org.opensearch.test.OpenSearchTestCase;
 
 public class StreamErrorCodeTests extends OpenSearchTestCase {
@@ -49,5 +53,30 @@ public class StreamErrorCodeTests extends OpenSearchTestCase {
         for (StreamErrorCode code : StreamErrorCode.values()) {
             assertEquals(code, StreamErrorCode.forFailure(new StreamException(code, "x")));
         }
+    }
+
+    /** The query phase wraps a collector's failure, e.g. a send the consumer cancelled, which must stay a cancellation. */
+    public void testWrappedStreamExceptionKeepsItsCode() {
+        SearchShardTarget target = new SearchShardTarget("node", new ShardId("index", "_na_", 0), null, OriginalIndices.NONE);
+        assertEquals(
+            StreamErrorCode.CANCELLED,
+            StreamErrorCode.forFailure(new QueryPhaseExecutionException(target, "x", StreamException.cancelled("x")))
+        );
+        assertEquals(
+            StreamErrorCode.TIMED_OUT,
+            StreamErrorCode.forFailure(new RuntimeException(new StreamException(StreamErrorCode.TIMED_OUT, "x")))
+        );
+        for (StreamErrorCode code : StreamErrorCode.values()) {
+            assertEquals(code, StreamErrorCode.forFailure(new QueryPhaseExecutionException(target, "x", new StreamException(code, "x"))));
+        }
+    }
+
+    /** Of a stream failure and a task cancellation in the same chain, the outer one decides. */
+    public void testOuterStreamFailureOrCancellationDecides() {
+        StreamException unavailable = new StreamException(StreamErrorCode.UNAVAILABLE, "x", new TaskCancelledException("x"));
+        assertEquals(StreamErrorCode.UNAVAILABLE, StreamErrorCode.forFailure(new RuntimeException(unavailable)));
+        TaskCancelledException cancelled = new TaskCancelledException("x");
+        cancelled.initCause(new StreamException(StreamErrorCode.UNAVAILABLE, "x"));
+        assertEquals(StreamErrorCode.CANCELLED, StreamErrorCode.forFailure(new RuntimeException(cancelled)));
     }
 }

@@ -30,9 +30,22 @@ queue grow.
 |---|---|---|
 | `arrow.flight.channel.ready_timeout` | `60s` | node-scope |
 | `arrow.flight.channel.outbound_buffer_threshold` | `64mb` | node-scope |
+| `flight.keepalive.time` | `30s` | node-scope |
+| `flight.keepalive.timeout` | `20s` | node-scope |
 
 - `ready_timeout` caps how long the producer thread parks before failing the
-  batch with `StreamErrorCode.TIMED_OUT`. `100ms` minimum.
+  batch with `StreamErrorCode.TIMED_OUT`. `100ms` minimum. A stream may set its
+  own, longer or unbounded, through `setBatchReadyTimeout`.
+- `keepalive.time` is how long the server waits without hearing from a
+  connection before it pings it; a ping not acknowledged within
+  `keepalive.timeout` closes the connection (see Cancellation). It must be
+  longer than `keepalive.timeout`. Unset, it is `30s`, or `keepalive.timeout`
+  plus `10s` if that is longer, so a node that sets only the timeout still
+  starts. Before 3.10 it defaulted to gRPC's own `2h`. Now every node
+  connection silent for `30s` is pinged, and is closed if its peer cannot
+  acknowledge within `20s`, e.g. in a long GC pause. Setting it to `2h` restores
+  the old behaviour, and with it the long wait on a vanished peer described
+  under Cancellation.
 - `outbound_buffer_threshold` is the per-stream gRPC buffered-bytes watermark.
   `isReady()` flips false once the per-stream outbound queue crosses this size.
   **Must be strictly smaller than `native.allocator.pool.flight.max`** so the
@@ -63,6 +76,13 @@ and failed the stream, is never ready again, and gRPC fires neither handler for
 it. Closing the channel wakes every parked producer, which fails with
 `StreamErrorCode.UNAVAILABLE`, even with an unbounded ready timeout; a later wait
 on the closed channel fails at once.
+
+A consumer that vanishes without closing its connection, e.g. on a host failure
+or a network partition, cancels nothing. The server's keepalive finds the
+connection dead within `flight.keepalive.time` plus `flight.keepalive.timeout`
+(50s by default) of the last frame it received, and closing it cancels its
+streams, so their parked producers wake with `StreamErrorCode.CANCELLED` instead
+of waiting out their ready timeout.
 
 ## Tuning and operational concerns
 

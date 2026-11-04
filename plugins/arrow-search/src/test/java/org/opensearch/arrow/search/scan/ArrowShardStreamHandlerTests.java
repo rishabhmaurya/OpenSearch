@@ -375,6 +375,37 @@ public class ArrowShardStreamHandlerTests extends OpenSearchSingleNodeTestCase {
         assertReleased();
     }
 
+    public void testBatchMemoryLimitFailsTheShardAsARejection() throws Exception {
+        createIndex(SLICES, 25);
+        // Below the memory each slice's first batch is presized with.
+        limitBatchMemory(4 << 10);
+        assertRejected();
+    }
+
+    public void testBatchMemoryLimitBelowAnEmptyBatchFailsTheShardAsARejection() throws Exception {
+        createIndex(0, 0);
+        limitBatchMemory(1);
+        assertRejected();
+    }
+
+    /** Limits the memory of the scans' batches, as {@code search.arrow.shard.max_buffered_bytes} does on a data node. */
+    private void limitBatchMemory(long limit) {
+        batchAllocator.close();
+        batchAllocator = allocator.newChildAllocator("batches", 0, limit);
+    }
+
+    /** The shard fails as a rejection, which the coordinator retries on another copy, and releases what it holds. */
+    private void assertRejected() throws Exception {
+        RecordingChannel channel = serve(request(shardId(), QueryBuilders.matchAllQuery(), spec(1 << 20), true), new RecordingChannel());
+
+        assertFalse(channel.completed);
+        assertEquals(List.of(), channel.batchRows);
+        StreamException failure = (StreamException) channel.failure;
+        assertEquals(String.valueOf(failure), StreamErrorCode.RESOURCE_EXHAUSTED, failure.getErrorCode());
+        assertThat(failure.getMessage(), containsString("native memory allocation rejected at [arrow-search-batches]"));
+        assertReleased();
+    }
+
     public void testMissingIndexFailsTheShard() throws Exception {
         ShardId missing = new ShardId(new Index("missing", "_na_"), 0);
         RecordingChannel channel = serve(request(missing, QueryBuilders.matchAllQuery(), spec(1 << 20), true), new RecordingChannel());

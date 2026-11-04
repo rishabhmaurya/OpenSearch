@@ -15,6 +15,11 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.grpc.netty.shaded.io.netty.buffer.ByteBuf;
+import io.grpc.netty.shaded.io.netty.buffer.Unpooled;
+import io.grpc.netty.shaded.io.netty.channel.CoalescingBufferQueue;
+import io.grpc.netty.shaded.io.netty.channel.embedded.EmbeddedChannel;
+
 public class ZeroCopyBufferChainTests extends OpenSearchTestCase {
 
     /**
@@ -48,6 +53,50 @@ public class ZeroCopyBufferChainTests extends OpenSearchTestCase {
             buffer.release();
             assertTrue(released.get());
         }
+    }
+
+    /**
+     * HTTP/2 flow control queues the writes of a stream and coalesces them into the first one, appending the later buffers
+     * to it when it is composite. That must not make it consolidate, which copies the message into a new buffer.
+     */
+    public void testNettyCoalescesWritesBehindTheBufferWithoutCopyingIt() {
+        ByteBuffer body = ByteBuffer.allocateDirect(4).put(new byte[] { 5, 6, 7, 8 }).flip();
+        ZeroCopyBufferChain.ReleasingCompositeByteBuf first = new ZeroCopyBufferChain.ReleasingCompositeByteBuf(
+            List.of(ByteBuffer.wrap(new byte[] { 1, 2 }), ByteBuffer.wrap(new byte[] { 3, 4 }), body)
+        );
+        AtomicBoolean firstReleased = new AtomicBoolean();
+        first.arm(() -> firstReleased.set(true));
+        ZeroCopyBufferChain.ReleasingCompositeByteBuf next = new ZeroCopyBufferChain.ReleasingCompositeByteBuf(
+            List.of(ByteBuffer.wrap(new byte[] { 10 }), ByteBuffer.allocateDirect(2).put(new byte[] { 11, 12 }).flip())
+        );
+        AtomicBoolean nextReleased = new AtomicBoolean();
+        next.arm(() -> nextReleased.set(true));
+
+        EmbeddedChannel channel = new EmbeddedChannel();
+        try {
+            CoalescingBufferQueue queue = new CoalescingBufferQueue(channel);
+            // Partly written, so it stays first in the queue while the next message's header and payload queue behind it.
+            first.skipBytes(1);
+            queue.add(first);
+            queue.add(Unpooled.wrappedBuffer(new byte[] { 0, 0, 0, 0, 3 }));
+            queue.add(next);
+            ByteBuf coalesced = queue.remove(queue.readableBytes(), channel.newPromise());
+            try {
+                // Still the caller's memory: a copy would not see this write.
+                body.put(0, (byte) 50);
+                byte[] bytes = new byte[coalesced.readableBytes()];
+                coalesced.getBytes(coalesced.readerIndex(), bytes);
+                assertArrayEquals(new byte[] { 2, 3, 4, 50, 6, 7, 8, 0, 0, 0, 0, 3, 10, 11, 12 }, bytes);
+                assertFalse(firstReleased.get());
+                assertFalse(nextReleased.get());
+            } finally {
+                coalesced.release();
+            }
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+        assertTrue(firstReleased.get());
+        assertTrue(nextReleased.get());
     }
 
     public void testDeclinesStreamsOtherThanTheGrpcBufferChain() {

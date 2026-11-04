@@ -285,9 +285,9 @@ final class ArrowScanCollector implements Collector {
     /**
      * Reads the doc values of the buffered docs into the batch, sending the batch each time it is full.
      * <p>
-     * Each pass reads only as many docs as the rows read last are estimated to fit, and ends early once the values of its
-     * docs take more than the bytes the batch has left, so rows that suddenly grow cost at most about one batch of overshoot
-     * before the estimate follows them.
+     * Each pass reads only as many docs as the rows read last are estimated to fit, and ends early at the row whose values
+     * take more than the bytes the batch has left, so rows that suddenly grow cost at most about one batch of overshoot per
+     * column of variable-size values before the estimate follows them.
      */
     private void flush() throws IOException {
         flushing = true;
@@ -302,14 +302,12 @@ final class ArrowScanCollector implements Collector {
                 int written = count;
                 try {
                     final List<FieldVector> vectors = root.getFieldVectors();
-                    allowance.reset(budget - bytes);
+                    allowance.reset(budget - bytes, count);
                     for (int c = 0; c < writers.length; c++) {
+                        // Each column stops after the doc whose row, with the columns before, overdraws the allowance, which
+                        // ends the pass there; rowsThatFit then cuts the batch to the rows that fit.
                         written = writers[c].write(chunk, written, vectors.get(c), offset, allowance);
-                        if (allowance.remaining() < 0) {
-                            // The pass ends at the doc that overdrew the allowance: the columns after it write exactly as
-                            // many docs, and rowsThatFit cuts the batch to the rows that fit.
-                            allowance.reset(Long.MAX_VALUE);
-                        }
+                        allowance.nextColumn(written);
                     }
                     ColumnWriters.setRowCount(root, offset + written);
                 } catch (OutOfMemoryException e) {
@@ -458,6 +456,9 @@ final class ArrowScanCollector implements Collector {
             computeNanos += System.nanoTime() - resumedAt;
             state.releaseComputeSlot(slot);
         }
+        // The values looked up for a batch may have grown the scratch buffers to a few batches, which no memory limit counts:
+        // only the slices that compute keep them, so a slice paused for its consumer or waiting for a slot holds little heap.
+        scratch.trim();
     }
 
     /**
@@ -467,12 +468,7 @@ final class ArrowScanCollector implements Collector {
      */
     void checkBudgetWhileScoring() {
         if (scoring && flushing == false) {
-            if (done == false) {
-                if (budgetSpent()) {
-                    state.timedOut = true;
-                }
-                done = state.stopped();
-            }
+            checkStopped();
             // A slice awaiting a match past the row limit kept every row it may: a spent budget ends the wait, without a timeout.
             if (done && (awaitsMatchPastLimit() == false || budgetSpent())) {
                 throw stopCollecting();
@@ -493,11 +489,20 @@ final class ArrowScanCollector implements Collector {
         if (state.consumerGone.getAsBoolean()) {
             throw new TaskCancelledException("the consumer of the stream went away");
         }
+        checkStopped();
+    }
+
+    /**
+     * Ends the slice once the shard stopped, or once its compute budget is spent, which times the scan out. A scan another
+     * slice already stopped, e.g. at the row limit, does not time out, whatever this slice's budget.
+     */
+    private void checkStopped() {
         if (done == false) {
-            if (budgetSpent()) {
-                state.timedOut = true;
-            }
             done = state.stopped();
+            if (done == false && budgetSpent()) {
+                state.timedOut = true;
+                done = true;
+            }
         }
     }
 
@@ -524,7 +529,9 @@ final class ArrowScanCollector implements Collector {
         final double rowsInBudget = bytesPerRow > 0
             ? budget / bytesPerRow
             : Math.min(MAX_CHUNK, Math.max(0, budget - emptyBatchBytes()) / schemaRowBytes);
-        final int initialRows = (int) Math.max(MIN_INITIAL_ROWS, Math.min(Math.min(remaining, state.spec.maxBatchRows()), rowsInBudget));
+        // Measured rows near or above the budget presize a single row, not many times the budget: vectors grow as rows are written.
+        final int minRows = bytesPerRow > 0 ? 1 : MIN_INITIAL_ROWS;
+        final int initialRows = (int) Math.max(minRows, Math.min(Math.min(remaining, state.spec.maxBatchRows()), rowsInBudget));
         final VectorSchemaRoot created = VectorSchemaRoot.create(state.schema, state.allocator);
         state.building(created);
         final List<FieldVector> vectors = created.getFieldVectors();
@@ -607,7 +614,9 @@ final class ArrowScanCollector implements Collector {
         final OpenSearchRejectedExecutionException rejection = new OpenSearchRejectedExecutionException(
             "native memory allocation rejected at [arrow-search-batches]: " + e.getMessage()
         );
-        rejection.initCause(e);
+        // Suppressed rather than the cause: concurrent segment search replaces a slice's failure with its cause, unless it is
+        // an OpenSearchException, which would turn the rejection into an internal error.
+        rejection.addSuppressed(e);
         return rejection;
     }
 
@@ -623,5 +632,10 @@ final class ArrowScanCollector implements Collector {
     /** @return the rows of the slice not sent yet */
     int rowsUnsent() {
         return rows;
+    }
+
+    /** @return the heap the slice's scratch buffers take */
+    long scratchBytes() {
+        return scratch.heapBytes();
     }
 }

@@ -34,9 +34,9 @@ final class ShardStreamScheduler {
         void abandon();
     }
 
-    private final int maxOpen;
     private final Executor executor;
     private final ReentrantLock lock = new ReentrantLock();
+    private int maxOpen;
     private final Map<String, ArrayDeque<Launch>> queued = new LinkedHashMap<>();
     private final Map<String, Integer> openPerNode = new LinkedHashMap<>();
     private int open;
@@ -72,6 +72,18 @@ final class ShardStreamScheduler {
             executor.execute(launch::abandon);
         } else {
             drain();
+        }
+    }
+
+    /**
+     * Lowers how many streams may be open at once to {@code maxOpen}, and at least one; a higher limit has no effect.
+     */
+    void limit(int maxOpen) {
+        lock.lock();
+        try {
+            this.maxOpen = Math.max(1, Math.min(this.maxOpen, maxOpen));
+        } finally {
+            lock.unlock();
         }
     }
 

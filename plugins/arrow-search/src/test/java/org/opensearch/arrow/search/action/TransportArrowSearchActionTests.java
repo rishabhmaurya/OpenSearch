@@ -8,20 +8,30 @@
 
 package org.opensearch.arrow.search.action;
 
+import org.apache.arrow.memory.rounding.DefaultRoundingPolicy;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
+import org.opensearch.action.support.replication.ClusterStateCreationUtils;
 import org.opensearch.arrow.search.ArrowSearchSettings;
+import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.coordination.DeterministicTaskQueue;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.routing.OperationRouting;
 import org.opensearch.common.lease.Releasable;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
+import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.common.unit.ByteSizeUnit;
 import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.threadpool.Scheduler;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -78,25 +88,48 @@ public class TransportArrowSearchActionTests extends OpenSearchTestCase {
         }
     }
 
+    private static TransportArrowSearchAction.BatchSizes batchSizes(Settings settings) {
+        return TransportArrowSearchAction.BatchSizes.of(settings(settings), DefaultRoundingPolicy.DEFAULT_ROUNDING_POLICY);
+    }
+
     public void testStreamsAreSizedForRowsLargerThanBatches() {
-        TransportArrowSearchAction.BatchSizes sizes = TransportArrowSearchAction.BatchSizes.of(
-            settings(Settings.builder().put(ArrowSearchSettings.MAX_ROW_SIZE.getKey(), "3mb").build())
+        TransportArrowSearchAction.BatchSizes sizes = batchSizes(
+            Settings.builder().put(ArrowSearchSettings.MAX_ROW_SIZE.getKey(), "2mb").build()
         );
         assertEquals(new ByteSizeValue(1, ByteSizeUnit.MB).getBytes(), sizes.batchBytes());
         // A row larger than the batch size goes out as a batch of its own, so a stream may hold only such batches.
-        assertEquals(new ByteSizeValue(3, ByteSizeUnit.MB).getBytes(), sizes.maxBatchBytes());
+        assertEquals(new ByteSizeValue(2, ByteSizeUnit.MB).getBytes(), sizes.maxBatchBytes());
+        assertEquals(sizes.maxBatchBytes(), sizes.batchMemory());
         assertEquals(TransportArrowSearchAction.BATCHES_IN_FLIGHT_PER_STREAM * sizes.maxBatchBytes(), sizes.perStream());
+        assertEquals("the batch gRPC holds for the client", sizes.maxBatchBytes(), sizes.perSearch());
+    }
+
+    public void testBatchesCountAsTheMemoryArrowAllocatesForThem() {
+        // A received batch's body is one buffer, which Arrow rounds up to the next power of two below its 16MB chunk size.
+        long mb = new ByteSizeValue(1, ByteSizeUnit.MB).getBytes();
+        TransportArrowSearchAction.BatchSizes largest = batchSizes(
+            Settings.builder().put(ArrowSearchSettings.BATCH_SIZE.getKey(), "3mb").build()
+        );
+        assertEquals(3 * mb, largest.maxBatchBytes());
+        assertEquals(4 * mb, largest.batchMemory());
+        assertEquals(TransportArrowSearchAction.BATCHES_IN_FLIGHT_PER_STREAM * 4 * mb, largest.perStream());
+        assertEquals(4 * mb, largest.perSearch());
+
+        assertEquals(2 * mb, batchSizes(Settings.builder().put(ArrowSearchSettings.BATCH_SIZE.getKey(), "1100kb").build()).batchMemory());
+        assertEquals(
+            "allocations of a chunk or more are not rounded",
+            20 * mb,
+            batchSizes(Settings.builder().put(ArrowSearchSettings.MAX_ROW_SIZE.getKey(), "20mb").build()).batchMemory()
+        );
     }
 
     public void testRowsSmallerThanBatchesDoNotShrinkThem() {
-        TransportArrowSearchAction.BatchSizes sizes = TransportArrowSearchAction.BatchSizes.of(
-            settings(
-                Settings.builder()
-                    .put(ArrowSearchSettings.BATCH_SIZE.getKey(), "256kb")
-                    .put(ArrowSearchSettings.FIRST_BATCH_SIZE.getKey(), "1mb")
-                    .put(ArrowSearchSettings.MAX_ROW_SIZE.getKey(), "16kb")
-                    .build()
-            )
+        TransportArrowSearchAction.BatchSizes sizes = batchSizes(
+            Settings.builder()
+                .put(ArrowSearchSettings.BATCH_SIZE.getKey(), "256kb")
+                .put(ArrowSearchSettings.FIRST_BATCH_SIZE.getKey(), "1mb")
+                .put(ArrowSearchSettings.MAX_ROW_SIZE.getKey(), "16kb")
+                .build()
         );
         long batchBytes = new ByteSizeValue(256, ByteSizeUnit.KB).getBytes();
         assertEquals(batchBytes, sizes.maxBatchBytes());
@@ -149,11 +182,96 @@ public class TransportArrowSearchActionTests extends OpenSearchTestCase {
         assertEquals(0, budget.reserved());
     }
 
-    public void testSearchReservesOnlyWhatItsShardsNeed() {
-        assertEquals("one stream per shard", 42, TransportArrowSearchAction.reservationBytes(21, 64, 2));
-        assertEquals(21, TransportArrowSearchAction.reservationBytes(21, 64, 1));
-        assertEquals("within the per-request limit", 64, TransportArrowSearchAction.reservationBytes(21, 64, 100));
-        assertEquals(64, TransportArrowSearchAction.reservationBytes(21, 64, Long.MAX_VALUE));
-        assertEquals("at least one stream", 21, TransportArrowSearchAction.reservationBytes(21, 10, 5));
+    public void testSearchReservesOnlyWhatItsStreamsNeed() {
+        assertEquals("one stream per open stream, and the batch gRPC holds", 45, TransportArrowSearchAction.reservationBytes(21, 3, 64, 2));
+        assertEquals(24, TransportArrowSearchAction.reservationBytes(21, 3, 64, 1));
+        assertEquals("within the per-request limit", 45, TransportArrowSearchAction.reservationBytes(21, 3, 64, 100));
+        assertEquals(45, TransportArrowSearchAction.reservationBytes(21, 3, 64, Long.MAX_VALUE));
+        assertEquals("at least one stream", 24, TransportArrowSearchAction.reservationBytes(21, 3, 10, 5));
+        assertEquals(
+            "an unlimited request does not overflow",
+            (Long.MAX_VALUE - 3) / 21 * 21 + 3,
+            TransportArrowSearchAction.reservationBytes(21, 3, Long.MAX_VALUE, Long.MAX_VALUE)
+        );
+    }
+
+    public void testDefaultsReserveTenStreamsAndTheBatchGrpcHolds() {
+        TransportArrowSearchAction.BatchSizes sizes = batchSizes(Settings.EMPTY);
+        long mb = new ByteSizeValue(1, ByteSizeUnit.MB).getBytes();
+        long perRequest = ArrowSearchSettings.MAX_BUFFERED_BYTES_PER_REQUEST.get(Settings.EMPTY).getBytes();
+        long reserved = TransportArrowSearchAction.reservationBytes(sizes.perStream(), sizes.perSearch(), perRequest, 100);
+        assertEquals(10 * 6 * mb + mb, reserved);
+        assertEquals(
+            "one stream needs seven batches",
+            7 * mb,
+            TransportArrowSearchAction.reservationBytes(sizes.perStream(), sizes.perSearch(), perRequest, 1)
+        );
+    }
+
+    public void testSearchOpensAtMostOneStreamPerRoutedShardAndConcurrentShardRequest() {
+        // Twenty shards over three nodes.
+        ClusterState state = ClusterStateCreationUtils.state(3, new String[] { "idx" }, 20);
+        IndexNameExpressionResolver resolver = new IndexNameExpressionResolver(new ThreadContext(Settings.EMPTY));
+        OperationRouting routing = new OperationRouting(
+            Settings.EMPTY,
+            new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS)
+        );
+        assertEquals(
+            "five shard requests at once on each node",
+            15,
+            TransportArrowSearchAction.maxOpenStreams(state, resolver, routing, new SearchRequest("idx"))
+        );
+        assertEquals(1, TransportArrowSearchAction.maxOpenStreams(state, resolver, routing, new SearchRequest("idx").routing("tenant")));
+        assertEquals(
+            2,
+            TransportArrowSearchAction.maxOpenStreams(state, resolver, routing, new SearchRequest("idx").preference("_shards:0,1"))
+        );
+        SearchRequest throttled = new SearchRequest("idx");
+        throttled.setMaxConcurrentShardRequests(1);
+        assertEquals(3, TransportArrowSearchAction.maxOpenStreams(state, resolver, routing, throttled));
+        assertEquals(
+            "a search that cannot resolve its shards fails",
+            1,
+            TransportArrowSearchAction.maxOpenStreams(state, resolver, routing, new SearchRequest("missing"))
+        );
+
+        assertEquals(2, TransportArrowSearchAction.maxOpenStreams(2, 5, 2));
+        assertEquals(1, TransportArrowSearchAction.maxOpenStreams(0, 5, 0));
+    }
+
+    public void testStoppedSearchCancelsAgainWhileStreamsAreOpening() {
+        List<List<String>> cancels = new ArrayList<>();
+        Set<String> opening = new HashSet<>(Set.of("n1", "n2"));
+        TransportArrowSearchAction.cancelChildren(new String[0], (nodes, done) -> {
+            cancels.add(List.of(nodes));
+            done.run();
+        }, () -> Set.copyOf(opening), scheduler.getThreadPool(), TransportArrowSearchAction.CANCEL_RETRY_INTERVAL);
+        assertEquals("first every node", List.of(List.of()), cancels);
+
+        scheduler.advanceTime();
+        scheduler.runAllRunnableTasks();
+        assertEquals(TransportArrowSearchAction.CANCEL_RETRY_INTERVAL.millis(), scheduler.getCurrentTimeMillis());
+        assertEquals(2, cancels.size());
+        assertEquals("then the nodes of the streams still opening", Set.of("n1", "n2"), Set.copyOf(cancels.get(1)));
+
+        // One stream's first batch arrived, and it is cancelled directly.
+        opening.remove("n1");
+        scheduler.advanceTime();
+        scheduler.runAllRunnableTasks();
+        assertEquals(List.of("n2"), cancels.get(2));
+
+        opening.clear();
+        runScheduledTasks();
+        assertEquals("no stream is opening anymore", 3, cancels.size());
+    }
+
+    public void testSearchWithoutOpeningStreamsCancelsOnce() {
+        AtomicInteger cancels = new AtomicInteger();
+        TransportArrowSearchAction.cancelChildren(new String[0], (nodes, done) -> {
+            cancels.incrementAndGet();
+            done.run();
+        }, Set::of, scheduler.getThreadPool(), TransportArrowSearchAction.CANCEL_RETRY_INTERVAL);
+        assertFalse(scheduler.hasDeferredTasks());
+        assertEquals(1, cancels.get());
     }
 }

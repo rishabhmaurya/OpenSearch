@@ -25,6 +25,7 @@ import org.opensearch.arrow.allocator.ArrowBasePlugin;
 import org.opensearch.arrow.allocator.ArrowNativeAllocator;
 import org.opensearch.arrow.flight.transport.FlightStreamPlugin;
 import org.opensearch.arrow.search.action.ArrowSearchAction;
+import org.opensearch.arrow.search.action.TransportArrowSearchAction;
 import org.opensearch.arrow.spi.NativeAllocatorPoolConfig;
 import org.opensearch.common.network.InetAddresses;
 import org.opensearch.common.settings.Settings;
@@ -162,6 +163,12 @@ public class ArrowSearchIT extends OpenSearchIntegTestCase {
                 for (ArrowSearchPlugin plugin : plugins.filterPlugins(ArrowSearchPlugin.class)) {
                     assertEquals("open shard scans", 0, plugin.components().registry().runningScans());
                 }
+            }
+        });
+        // Every search returned its coordinator reservation, however it ended.
+        assertBusy(() -> {
+            for (TransportArrowSearchAction action : internalCluster().getInstances(TransportArrowSearchAction.class)) {
+                assertEquals("reserved coordinator bytes", 0, action.reservedBytes());
             }
         });
     }
@@ -540,6 +547,32 @@ public class ArrowSearchIT extends OpenSearchIntegTestCase {
         );
         assertEquals(Status.Code.INVALID_ARGUMENT, e.getStatus().getCode());
         assertThat(e.getStatus().getDescription(), containsString("incompatible types"));
+    }
+
+    @LockFeatureFlag(STREAM_TRANSPORT)
+    public void testFieldsInsideNestedFieldsAreRejected() throws Exception {
+        assertAcked(prepareCreate("orders").setMapping("""
+            {"properties": {"order": {"type": "long"}, "items": {"type": "nested", "properties": {"sku": {"type": "keyword"}}}}}"""));
+        ensureGreen("orders");
+        client().prepareIndex("orders")
+            .setId("1")
+            .setSource(Map.of("order", 1, "items", List.of(Map.of("sku", "a"), Map.of("sku", "b"))))
+            .get();
+        refresh("orders");
+
+        // The scan reads top-level documents, which hold no value of a nested field.
+        final StatusRuntimeException e = expectThrows(
+            StatusRuntimeException.class,
+            () -> client.search(request("orders", List.of("order", "items.sku")).build(), allocator)
+        );
+        assertEquals(Status.Code.INVALID_ARGUMENT, e.getStatus().getCode());
+        assertThat(e.getStatus().getDescription(), containsString("inside the nested field [items]"));
+
+        final ArrowStreamClient.Result result = client.search(request("orders", List.of("*")).build(), allocator);
+        final List<String> names = result.schema().getFields().stream().map(Field::getName).toList();
+        assertTrue(names.toString(), names.contains("order"));
+        assertFalse("a pattern skips the fields of nested documents", names.contains("items.sku"));
+        assertEquals(1, result.rows().size());
     }
 
     @LockFeatureFlag(STREAM_TRANSPORT)

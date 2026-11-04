@@ -9,6 +9,7 @@
 package org.opensearch.arrow.search.action;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.rounding.RoundingPolicy;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -18,6 +19,7 @@ import org.opensearch.action.admin.cluster.node.tasks.cancel.CancelTasksRequest;
 import org.opensearch.action.admin.cluster.node.tasks.get.GetTaskAction;
 import org.opensearch.action.fieldcaps.FieldCapabilitiesRequest;
 import org.opensearch.action.fieldcaps.FieldCapabilitiesResponse;
+import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.search.TransportSearchAction;
 import org.opensearch.action.support.ActionFilters;
@@ -34,6 +36,10 @@ import org.opensearch.arrow.spi.NativeAllocatorPoolConfig;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.routing.GroupShardsIterator;
+import org.opensearch.cluster.routing.OperationRouting;
+import org.opensearch.cluster.routing.ShardIterator;
+import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.inject.Inject;
@@ -68,9 +74,13 @@ import org.opensearch.transport.TransportService;
 import org.opensearch.transport.client.OriginSettingClient;
 import org.opensearch.transport.client.node.NodeClient;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 /**
  * Coordinates Arrow searches, and serves the shard streams of this node.
@@ -83,9 +93,12 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
 
     /**
      * Batches a shard stream may hold in flight on the coordinating node: the stream transport prefetches up to five, and the
-     * relay holds one while the client reads it.
+     * relay holds one while it waits to send it. Besides, gRPC holds the batch last sent while the client reads it, one per
+     * search, as the call is not ready for the next once it queued a batch.
      */
     static final int BATCHES_IN_FLIGHT_PER_STREAM = 6;
+    /** How often a stopped search cancels its tasks again while some of its shard streams are still opening. */
+    static final TimeValue CANCEL_RETRY_INTERVAL = TimeValue.timeValueSeconds(1);
     private static final String PHASE_NAME = "arrow_scan";
     private static final Logger logger = LogManager.getLogger(TransportArrowSearchAction.class);
 
@@ -188,17 +201,20 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
         rejectRemoteIndices(request);
         rejectSearchPipelines(request);
 
-        final BatchSizes sizes = BatchSizes.of(settings);
-        final long perStream = sizes.perStream();
+        final BatchSizes sizes = BatchSizes.of(settings, relayAllocator.getRoundingPolicy());
+        final long minimum = sizes.perSearch() + sizes.perStream();
+        final ShardTargets targets = ShardTargets.of(clusterService.state(), resolver, clusterService.operationRouting(), request);
+        // Request listeners, such as workload management, may still set max_concurrent_shard_requests once the search
+        // started, so it reserves for one stream per shard, and trims the reservation when its first shard starts.
         final CoordinatorBudget.Reservation reservation = budget.reserve(
-            reservationBytes(perStream, settings.maxBufferedBytesPerRequest(), targetShards(request)),
-            perStream
+            reservationBytes(sizes.perStream(), sizes.perSearch(), settings.maxBufferedBytesPerRequest(), targets.shards()),
+            minimum
         );
         if (reservation == null) {
-            if (perStream > settings.coordinatorMaxBufferedBytes()) {
+            if (minimum > settings.coordinatorMaxBufferedBytes()) {
                 throw new IllegalStateException(
                     "an arrow search needs ["
-                        + new ByteSizeValue(perStream)
+                        + new ByteSizeValue(minimum)
                         + "] for one shard stream, more than [search.arrow.coordinator.max_buffered_bytes] allows: raise it, or lower"
                         + " [search.arrow.max_row_size] and [search.arrow.batch_size]"
                 );
@@ -230,7 +246,7 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
             fieldCaps.setParentTask(clusterService.localNode().getId(), task.getId());
             client.fieldCaps(fieldCaps, ActionListener.wrap(response -> executor.execute(() -> {
                 try {
-                    run(task, request, response, requestedFields, rowLimit, shardRowLimit, sizes, reservation, released);
+                    run(task, request, response, requestedFields, rowLimit, shardRowLimit, sizes, targets, reservation, released);
                 } catch (Exception e) {
                     released.onFailure(e);
                 }
@@ -248,12 +264,13 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
         long rowLimit,
         long shardRowLimit,
         BatchSizes sizes,
+        ShardTargets targets,
         CoordinatorBudget.Reservation reservation,
         ActionListener<SearchResponse> listener
     ) throws Exception {
         final List<Column> columns = ColumnResolver.resolve(requestedFields, fieldCaps, maxColumns(request));
         final Schema schema = Column.toSchema(columns);
-        final int streams = (int) Math.max(1, Math.min(Integer.MAX_VALUE, reservation.bytes() / sizes.perStream()));
+        final int streams = (int) Math.max(1, Math.min(Integer.MAX_VALUE, (reservation.bytes() - sizes.perSearch()) / sizes.perStream()));
         // Each relay waits for its turn at the client, so a data node may wait for one client timeout per open stream.
         final TimeValue producerReadyTimeout = TimeValue.timeValueMillis(
             Math.multiplyExact(settings.clientIdleTimeout().millis(), (long) streams + 1)
@@ -277,10 +294,12 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
             executor,
             relayAllocator,
             reservation,
+            sizes.batchMemory(),
             streams,
+            () -> limitStreams(reservation, sizes, streams, targets.maxOpenStreams(request.getMaxConcurrentShardRequests())),
             rowLimit,
             request.allowPartialSearchResults(),
-            reason -> cancelChildren(task, reason)
+            (reason, opening) -> cancelChildren(task, reason, opening)
         );
         sink.setOnCancel(() -> execution.stop(ArrowSearchExecution.Stop.CANCELLED, null));
         task.setOnCancel(() -> executor.execute(() -> execution.stop(ArrowSearchExecution.Stop.CANCELLED, null)));
@@ -332,16 +351,21 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
      * @param maxBatchBytes   the largest batch a scan sends, and so the largest row: a row larger than the batch size goes
      *                        out on its own, and a row the scan must reject always exceeds the batch budget, so it is
      *                        rejected in whichever batch it falls
+     * @param batchMemory     the memory the coordinator holds for a received batch of {@code maxBatchBytes}: the stream
+     *                        transport reads its body into one buffer, which Arrow rounds up as it does every allocation, to
+     *                        the next power of two below its 16MB chunk size
      */
-    record BatchSizes(long batchBytes, long firstBatchBytes, int batchRows, long maxBatchBytes) {
+    record BatchSizes(long batchBytes, long firstBatchBytes, int batchRows, long maxBatchBytes, long batchMemory) {
 
-        static BatchSizes of(ArrowSearchSettings settings) {
+        static BatchSizes of(ArrowSearchSettings settings, RoundingPolicy rounding) {
             final long batchBytes = settings.batchBytes();
+            final long maxBatchBytes = Math.max(settings.maxRowBytes(), batchBytes);
             return new BatchSizes(
                 batchBytes,
                 Math.min(settings.firstBatchBytes(), batchBytes),
                 settings.batchRows(),
-                Math.max(settings.maxRowBytes(), batchBytes)
+                maxBatchBytes,
+                rounding.getRoundedSize(maxBatchBytes)
             );
         }
 
@@ -350,7 +374,15 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
          *         as large as a batch can be
          */
         long perStream() {
-            return BATCHES_IN_FLIGHT_PER_STREAM * maxBatchBytes;
+            return BATCHES_IN_FLIGHT_PER_STREAM * batchMemory;
+        }
+
+        /**
+         * @return the bytes a search buffers on the coordinating node besides its streams: the batch gRPC holds while the
+         *         client reads it
+         */
+        long perSearch() {
+            return batchMemory;
         }
     }
 
@@ -382,31 +414,64 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
     }
 
     /**
-     * @return the bytes a search reserves: one stream's worth per target shard, as it opens at most one stream per shard,
-     *         within the per-request limit, and at least one stream's worth whatever the limit
+     * @return the bytes a search reserves: its own, and one stream's worth for each of the {@code streams} it may open at
+     *         once, within the per-request limit, and at least one stream's worth whatever the limit
      */
-    static long reservationBytes(long perStream, long perRequest, long shards) {
-        final long needed = perStream * Math.min(shards, perRequest / perStream + 1);
-        return Math.max(Math.min(perRequest, needed), perStream);
+    static long reservationBytes(long perStream, long perSearch, long perRequest, long streams) {
+        final long reserved = Math.max(1, Math.min(streams, Math.max(0, perRequest - perSearch) / perStream));
+        return perSearch + reserved * perStream;
     }
 
     /**
-     * @return the number of shards of the search's target indices, an upper bound on the streams it opens; at least one
+     * Trims a search's reservation, made for {@code streams} streams, to the streams it may open at once.
+     *
+     * @return how many streams the search may open at once
      */
-    private long targetShards(ArrowSearchRequest request) {
-        final ClusterState state = clusterService.state();
-        long shards = 0;
-        try {
-            for (Index index : resolver.concreteIndices(state, request)) {
-                final IndexMetadata metadata = state.metadata().index(index);
-                if (metadata != null) {
-                    shards += metadata.getNumberOfShards();
+    static int limitStreams(CoordinatorBudget.Reservation reservation, BatchSizes sizes, int streams, long maxOpenStreams) {
+        final int limit = (int) Math.max(1, Math.min(streams, maxOpenStreams));
+        reservation.trim(sizes.perSearch() + limit * sizes.perStream());
+        return limit;
+    }
+
+    /**
+     * The shards a search's routing and preference target, and the nodes holding a copy of them, which bound the shard
+     * streams it opens at once.
+     */
+    record ShardTargets(int shards, int nodes) {
+
+        /**
+         * @return the targets of the search, or a single shard if they do not resolve, as the search then fails the same way
+         */
+        static ShardTargets of(
+            ClusterState state,
+            IndexNameExpressionResolver resolver,
+            OperationRouting operationRouting,
+            SearchRequest request
+        ) {
+            final GroupShardsIterator<ShardIterator> shards;
+            try {
+                final Map<String, Set<String>> routing = resolver.resolveSearchRouting(state, request.routing(), request.indices());
+                shards = operationRouting.searchShards(state, resolver.concreteIndexNames(state, request), routing, request.preference());
+            } catch (RuntimeException e) {
+                logger.debug("failed to resolve the shards of an arrow search: {}", e.getMessage());
+                return new ShardTargets(1, 1);
+            }
+            final Set<String> nodes = new HashSet<>();
+            for (ShardIterator shard : shards) {
+                for (ShardRouting copy : shard.getShardRoutings()) {
+                    nodes.add(copy.currentNodeId());
                 }
             }
-        } catch (IndexNotFoundException e) {
-            // The search itself reports the missing index.
+            return new ShardTargets(shards.size(), nodes.size());
         }
-        return Math.max(1, shards);
+
+        /**
+         * @return the most shard streams the search opens at once, at least one: one per shard, and no more than
+         *         {@code maxConcurrentShardRequests} per node, which is how many shard requests a search runs at once on a node
+         */
+        long maxOpenStreams(int maxConcurrentShardRequests) {
+            return Math.max(1, Math.min(shards, (long) maxConcurrentShardRequests * nodes));
+        }
     }
 
     /**
@@ -461,19 +526,64 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
     }
 
     /**
+     * @return the bytes the Arrow searches coordinated by this node reserve
+     */
+    public long reservedBytes() {
+        return budget.reserved();
+    }
+
+    /**
      * Cancels the search's tasks on every node, such as shard streams still opening, but not the search task itself, whose
      * response still has to be sent.
      */
-    private void cancelChildren(ArrowSearchTask task, String reason) {
-        final CancelTasksRequest request = new CancelTasksRequest();
-        request.setParentTaskId(new TaskId(clusterService.localNode().getId(), task.getId()));
-        request.setReason(reason);
-        request.setWaitForCompletion(false);
-        // As the tasks origin, like the cancel-after timeout, since the caller may not hold the privilege to cancel tasks.
-        new OriginSettingClient(client, GetTaskAction.TASKS_ORIGIN).admin()
-            .cluster()
-            .cancelTasks(request, ActionListener.wrap(response -> {}, e -> {
-                logger.debug("failed to cancel the shard tasks of arrow search [{}]: {}", task.getId(), e.getMessage());
-            }));
+    private void cancelChildren(ArrowSearchTask task, String reason, Supplier<Set<String>> opening) {
+        final TaskId parent = new TaskId(clusterService.localNode().getId(), task.getId());
+        cancelChildren(CancelTasksRequest.ALL_NODES, (nodes, done) -> {
+            final CancelTasksRequest request = new CancelTasksRequest();
+            request.setParentTaskId(parent);
+            request.setNodes(nodes);
+            request.setReason(reason);
+            request.setWaitForCompletion(false);
+            // As the tasks origin, like the cancel-after timeout, since the caller may not hold the privilege to cancel tasks.
+            new OriginSettingClient(client, GetTaskAction.TASKS_ORIGIN).admin()
+                .cluster()
+                .cancelTasks(request, ActionListener.runAfter(ActionListener.wrap(response -> {}, e -> {
+                    logger.debug("failed to cancel the shard tasks of arrow search [{}]: {}", task.getId(), e.getMessage());
+                }), done));
+        }, opening, threadPool, CANCEL_RETRY_INTERVAL);
+    }
+
+    /**
+     * Cancels a stopped search's tasks on {@code nodes}, every node if none is given, and then again on the nodes of the shard
+     * streams still opening, until none is. A cancel only reaches the tasks already registered, and a stream's request may
+     * reach its node after the cancel did, while the stream itself can only be cancelled once its first batch arrived.
+     *
+     * @param cancel   sends one cancel to the given nodes, and runs the given callback once it completed
+     * @param opening  the nodes of the shard streams still opening
+     * @param interval how long to wait before cancelling again
+     */
+    static void cancelChildren(
+        String[] nodes,
+        BiConsumer<String[], Runnable> cancel,
+        Supplier<Set<String>> opening,
+        Scheduler scheduler,
+        TimeValue interval
+    ) {
+        cancel.accept(nodes, () -> {
+            if (opening.get().isEmpty()) {
+                return;
+            }
+            try {
+                scheduler.schedule(() -> {
+                    final Set<String> stillOpening = opening.get();
+                    if (stillOpening.isEmpty() == false) {
+                        cancelChildren(stillOpening.toArray(String[]::new), cancel, opening, scheduler, interval);
+                    }
+                }, interval, ThreadPool.Names.GENERIC);
+            } catch (OpenSearchRejectedExecutionException e) {
+                // The node is closing, and with it the shard streams.
+                logger.debug("failed to schedule cancelling the shard tasks of an arrow search again: {}", e.getMessage());
+            }
+        });
     }
 }

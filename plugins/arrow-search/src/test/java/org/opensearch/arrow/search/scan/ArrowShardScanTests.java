@@ -9,6 +9,7 @@
 package org.opensearch.arrow.search.scan;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -38,11 +39,13 @@ import org.opensearch.arrow.search.ArrowSearchPlugin;
 import org.opensearch.arrow.search.Column;
 import org.opensearch.arrow.search.Column.ColumnType;
 import org.opensearch.common.lease.Releasable;
+import org.opensearch.common.lease.Releasables;
 import org.opensearch.common.network.InetAddresses;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.core.common.Strings;
+import org.opensearch.core.concurrency.OpenSearchRejectedExecutionException;
 import org.opensearch.core.index.shard.ShardId;
 import org.opensearch.core.tasks.TaskId;
 import org.opensearch.core.xcontent.XContentBuilder;
@@ -93,6 +96,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.lessThan;
 
@@ -833,6 +837,205 @@ public class ArrowShardScanTests extends OpenSearchSingleNodeTestCase {
         assertRows(expected.keySet(), result.rows());
         // The rows before the large one go out together, then the large row on its own; not one batch per row.
         assertThat(result.batchRows().toString(), result.batchRows().size(), lessThan(10));
+        // The batch after the large row is presized for one row of its size, not 16, which would take 2MB.
+        assertThat(batchAllocator.getPeakMemoryAllocation(), lessThan(1L << 20));
+    }
+
+    public void testALaterColumnGrowingMoreThanTheOneThatOverdrawsTakesAboutOneBatchOfMemory() throws Exception {
+        XContentBuilder mapping = XContentFactory.jsonBuilder().startObject().startObject("properties");
+        for (String field : List.of("id", "a", "b")) {
+            mapping.startObject(field).field("type", "keyword").endObject();
+        }
+        mapping.endObject().endObject();
+        index = createIndex("idx", Settings.builder().put("index.number_of_shards", 1).put("index.number_of_replicas", 0).build(), mapping);
+        BulkRequestBuilder bulk = client().prepareBulk();
+        for (int n = 0; n < 2280; n++) {
+            String id = "d" + n;
+            // Tiny rows teach the scan a small row size, then rows follow whose last column grows far more than the one before.
+            boolean large = n >= 2080;
+            String a = large ? randomAlphaOfLength(256) : "a";
+            String b = large ? randomAlphaOfLength(30 * 1024) : "b";
+            expected.put(id, Map.of("id", id, "a", a, "b", b));
+            bulk.add(client().prepareIndex("idx").setId(id).setSource("id", id, "a", a, "b", b));
+        }
+        assertFalse(bulk.get().hasFailures());
+        client().admin().indices().prepareForceMerge("idx").setMaxNumSegments(1).get();
+        client().admin().indices().prepareRefresh("idx").get();
+        long budget = 64 << 10;
+        List<Column> columns = List.of(
+            column("id", ColumnType.UTF8, "keyword"),
+            column("a", ColumnType.UTF8, "keyword"),
+            column("b", ColumnType.UTF8, "keyword")
+        );
+        ScanResult result = scan(
+            QueryBuilders.matchAllQuery(),
+            new ArrowScanSpec(columns, budget, budget, 65536, 3 << 20, Long.MAX_VALUE, TimeValue.timeValueMinutes(1))
+        );
+        assertRows(expected.keySet(), result.rows());
+        // Column a overdraws a pass of tiny rows after about 90 rows; column b reading all of them would take 2.7MB.
+        assertThat(batchAllocator.getPeakMemoryAllocation(), lessThan(1L << 20));
+    }
+
+    public void testColumnsThatGrowTogetherFillTheirBatches() throws Exception {
+        XContentBuilder mapping = XContentFactory.jsonBuilder().startObject().startObject("properties");
+        for (String field : List.of("id", "a", "b")) {
+            mapping.startObject(field).field("type", "keyword").endObject();
+        }
+        mapping.endObject().endObject();
+        index = createIndex("idx", Settings.builder().put("index.number_of_shards", 1).put("index.number_of_replicas", 0).build(), mapping);
+        BulkRequestBuilder bulk = client().prepareBulk();
+        for (int n = 0; n < 2380; n++) {
+            String id = "d" + n;
+            // Tiny rows teach the scan a small row size, then rows follow whose columns a and b grow alike, by varying sizes.
+            int length = n < 2080 ? 1 : randomIntBetween(256, 2048);
+            String a = randomAlphaOfLength(length);
+            String b = randomAlphaOfLength(length);
+            expected.put(id, Map.of("id", id, "a", a, "b", b));
+            bulk.add(client().prepareIndex("idx").setId(id).setSource("id", id, "a", a, "b", b));
+        }
+        assertFalse(bulk.get().hasFailures());
+        client().admin().indices().prepareForceMerge("idx").setMaxNumSegments(1).get();
+        client().admin().indices().prepareRefresh("idx").get();
+        long budget = 64 << 10;
+        List<Column> columns = List.of(
+            column("id", ColumnType.UTF8, "keyword"),
+            column("a", ColumnType.UTF8, "keyword"),
+            column("b", ColumnType.UTF8, "keyword")
+        );
+        ScanResult result = scan(
+            QueryBuilders.matchAllQuery(),
+            new ArrowScanSpec(columns, budget, budget, 65536, 3 << 20, Long.MAX_VALUE, TimeValue.timeValueMinutes(1))
+        );
+        assertRows(expected.keySet(), result.rows());
+        // A pass ends at the row that overdraws the batch, in whichever column: every batch sent holds the rows that fit, not
+        // only the first row of a pass whose column a overdrew the batch.
+        for (int b = 0; b < batchBytes.size(); b++) {
+            assertThat(result.batchRows().toString(), batchBytes.get(b), greaterThan(budget / 2));
+        }
+    }
+
+    public void testRowsNearTheBatchBudgetPresizeAboutOneBatch() throws Exception {
+        XContentBuilder mapping = XContentFactory.jsonBuilder().startObject().startObject("properties");
+        mapping.startObject("id").field("type", "keyword").endObject();
+        mapping.startObject("tags").field("type", "keyword").endObject();
+        mapping.endObject().endObject();
+        index = createIndex("idx", Settings.builder().put("index.number_of_shards", 1).put("index.number_of_replicas", 0).build(), mapping);
+        BulkRequestBuilder bulk = client().prepareBulk();
+        for (int n = 0; n < 30; n++) {
+            String id = "d" + n;
+            // Rows of 48KB, three quarters of a batch.
+            TreeSet<String> tags = new TreeSet<>();
+            while (tags.size() < 6) {
+                tags.add(randomAlphaOfLength(8 * 1024));
+            }
+            expected.put(id, Map.of("id", id, "tags", new ArrayList<Object>(tags)));
+            bulk.add(client().prepareIndex("idx").setId(id).setSource("id", id, "tags", new ArrayList<>(tags)));
+        }
+        assertFalse(bulk.get().hasFailures());
+        client().admin().indices().prepareForceMerge("idx").setMaxNumSegments(1).get();
+        client().admin().indices().prepareRefresh("idx").get();
+        long budget = 64 << 10;
+        List<Column> columns = List.of(
+            column("id", ColumnType.UTF8, "keyword"),
+            new Column("tags", ColumnType.UTF8, Set.of("keyword"), true)
+        );
+        ScanResult result = scan(
+            QueryBuilders.matchAllQuery(),
+            new ArrowScanSpec(columns, budget, budget, 65536, 3 << 20, Long.MAX_VALUE, TimeValue.timeValueMinutes(1))
+        );
+        assertRows(expected.keySet(), result.rows());
+        // A batch presized for 16 of the rows measured last would take 768KB.
+        assertThat(batchAllocator.getPeakMemoryAllocation(), lessThan(512L << 10));
+    }
+
+    public void testBatchMemoryLimitRejectsTheFirstBatchAndReleasesTheScan() throws Exception {
+        createIndex();
+        indexDocs(200, 1);
+        // Below the memory the first batch is presized with.
+        limitBatchMemory(16 << 10);
+        assertRejectedAndReleased(spec(64 << 10, 64 << 10, Long.MAX_VALUE));
+    }
+
+    public void testBatchMemoryLimitRejectsTheValuesOfABatchAndReleasesTheScan() throws Exception {
+        createIndex();
+        BulkRequestBuilder bulk = client().prepareBulk();
+        for (int n = 0; n < 100; n++) {
+            bulk.add(client().prepareIndex("idx").setId("d" + n).setSource("id", "d" + n, "k", randomAlphaOfLength(8 * 1024)));
+        }
+        assertFalse(bulk.get().hasFailures());
+        client().admin().indices().prepareRefresh("idx").get();
+        // The first batch is presized within the limit, but the values of its first rows exceed it.
+        limitBatchMemory(256 << 10);
+        List<Column> columns = List.of(column("id", ColumnType.UTF8, "keyword"), column("k", ColumnType.UTF8, "keyword"));
+        assertRejectedAndReleased(
+            new ArrowScanSpec(columns, 1 << 20, 1 << 20, 65536, 3 << 20, Long.MAX_VALUE, TimeValue.timeValueMinutes(1))
+        );
+    }
+
+    /** Limits the memory of the scans' batches, as {@code search.arrow.shard.max_buffered_bytes} does on a data node. */
+    private void limitBatchMemory(long limit) {
+        batchAllocator.close();
+        batchAllocator = allocator.newChildAllocator("batches", 0, limit);
+    }
+
+    /**
+     * The scan fails as a rejection, which the coordinator retries on another copy, and releases its batches and compute slots.
+     */
+    private void assertRejectedAndReleased(ArrowScanSpec spec) throws Exception {
+        Exception e = expectThrows(Exception.class, () -> scan(QueryBuilders.matchAllQuery(), spec));
+        OpenSearchRejectedExecutionException rejection = (OpenSearchRejectedExecutionException) ExceptionsHelper.unwrap(
+            e,
+            OpenSearchRejectedExecutionException.class
+        );
+        assertNotNull(ExceptionsHelper.stackTrace(e), rejection);
+        assertThat(List.of(rejection.getSuppressed()).toString(), rejection.getSuppressed()[0], instanceOf(OutOfMemoryException.class));
+        assertEquals("batches are released", 0, batchAllocator.getAllocatedMemory());
+        List<Releasable> slots = new ArrayList<>();
+        try {
+            for (int s = 0; s < computeSlots(); s++) {
+                Releasable slot = registry.acquireBatchSlot(0);
+                assertNotNull("compute slot " + s + " is free", slot);
+                slots.add(slot);
+            }
+        } finally {
+            Releasables.close(slots);
+        }
+    }
+
+    public void testColumnsThatGrowTogetherKeepFullBatches() throws Exception {
+        XContentBuilder mapping = XContentFactory.jsonBuilder().startObject().startObject("properties");
+        mapping.startObject("id").field("type", "keyword").endObject();
+        mapping.startObject("a").field("type", "keyword").endObject();
+        mapping.startObject("b").field("type", "keyword").endObject();
+        mapping.endObject().endObject();
+        index = createIndex("idx", Settings.builder().put("index.number_of_shards", 1).put("index.number_of_replicas", 0).build(), mapping);
+        BulkRequestBuilder bulk = client().prepareBulk();
+        for (int n = 0; n < 4000; n++) {
+            String id = "d" + n;
+            // Tiny rows teach the scan a small row size, then both value columns grow to 1KB together.
+            String a = n < 2000 ? "a" : randomAlphaOfLength(1024);
+            String b = n < 2000 ? "b" : randomAlphaOfLength(1024);
+            expected.put(id, Map.of("id", id, "a", a, "b", b));
+            bulk.add(client().prepareIndex("idx").setId(id).setSource("id", id, "a", a, "b", b));
+        }
+        assertFalse(bulk.get().hasFailures());
+        client().admin().indices().prepareForceMerge("idx").setMaxNumSegments(1).get();
+        client().admin().indices().prepareRefresh("idx").get();
+        long budget = 64 << 10;
+        List<Column> columns = List.of(
+            column("id", ColumnType.UTF8, "keyword"),
+            column("a", ColumnType.UTF8, "keyword"),
+            column("b", ColumnType.UTF8, "keyword")
+        );
+        ScanResult result = scan(
+            QueryBuilders.matchAllQuery(),
+            new ArrowScanSpec(columns, budget, budget, 65536, 3 << 20, Long.MAX_VALUE, TimeValue.timeValueMinutes(1))
+        );
+        assertRows(expected.keySet(), result.rows());
+        // About 30 rows of 2KB fit a 64KB batch; a pass that misjudges the row size cuts its batch to the rows that fit,
+        // not to a single row.
+        long small = result.batchRows().stream().filter(rows -> rows < 8).count();
+        assertThat(result.batchRows().toString(), small, lessThan(4L));
     }
 
     public void testRowsThatShrinkSuddenlyKeepTheMemoryOfTheirBatch() throws Exception {

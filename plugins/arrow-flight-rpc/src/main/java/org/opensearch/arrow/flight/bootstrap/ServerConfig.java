@@ -188,12 +188,18 @@ public class ServerConfig {
         Setting.Property.NodeScope
     );
 
-    // gRPC server keepalive. Defaults match gRPC's own server defaults (time 2h, timeout 20s) so
-    // behaviour is unchanged from before this setting existed; lower the time for faster
-    // dead-connection detection (releases resources held by a stalled stream on a half-open connection).
+    // Declared before FLIGHT_KEEPALIVE_TIME, whose default reads them.
+    private static final String FLIGHT_KEEPALIVE_TIMEOUT_KEY = "flight.keepalive.timeout";
+    private static final TimeValue DEFAULT_KEEPALIVE_TIMEOUT = TimeValue.timeValueSeconds(20);
+
+    // gRPC server keepalive. The server pings a connection it has heard nothing from for this long and closes it if
+    // the ping is not acknowledged within the timeout, which cancels its streams and wakes their paused producers.
+    // Otherwise a peer that vanished without closing its connection (a host failure, a network partition) leaves them
+    // paused until their ready timeout, which a stream may raise far above the node's, as Arrow search does to wait as
+    // long as its client may. A ping is one small frame per idle connection. Before 3.10 the default was gRPC's own, 2h.
     static final Setting<TimeValue> FLIGHT_KEEPALIVE_TIME = Setting.timeSetting(
         "flight.keepalive.time",
-        TimeValue.timeValueHours(2),
+        ServerConfig::defaultKeepAliveTime,
         TimeValue.timeValueSeconds(1),
         Setting.Property.NodeScope
     );
@@ -201,12 +207,25 @@ public class ServerConfig {
     // Must be strictly less than FLIGHT_KEEPALIVE_TIME (else a slow-but-alive peer is
     // false-disconnected); enforced by the validator below.
     static final Setting<TimeValue> FLIGHT_KEEPALIVE_TIMEOUT = new Setting<>(
-        "flight.keepalive.timeout",
-        TimeValue.timeValueSeconds(20).getStringRep(),
-        s -> TimeValue.parseTimeValue(s, "flight.keepalive.timeout"),
+        FLIGHT_KEEPALIVE_TIMEOUT_KEY,
+        DEFAULT_KEEPALIVE_TIMEOUT.getStringRep(),
+        s -> TimeValue.parseTimeValue(s, FLIGHT_KEEPALIVE_TIMEOUT_KEY),
         new KeepAliveTimeoutValidator(),
         Setting.Property.NodeScope
     );
+
+    /**
+     * 30s, or the timeout plus 10s if that is longer. A node that sets only the timeout, to 30s or more, was valid against
+     * the 2h default before 3.10 and must still start.
+     */
+    private static TimeValue defaultKeepAliveTime(final Settings settings) {
+        // Parse the raw value: reading FLIGHT_KEEPALIVE_TIMEOUT would validate it against this default, which calls back here.
+        final TimeValue timeout = TimeValue.parseTimeValue(
+            settings.get(FLIGHT_KEEPALIVE_TIMEOUT_KEY, DEFAULT_KEEPALIVE_TIMEOUT.getStringRep()),
+            FLIGHT_KEEPALIVE_TIMEOUT_KEY
+        );
+        return TimeValue.timeValueMillis(Math.max(TimeValue.timeValueSeconds(30).millis(), timeout.millis() + 10_000));
+    }
 
     /** Enforces {@code flight.keepalive.timeout < flight.keepalive.time}. */
     static final class KeepAliveTimeoutValidator implements Setting.Validator<TimeValue> {

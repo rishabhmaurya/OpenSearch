@@ -31,6 +31,8 @@ import org.opensearch.test.junit.annotations.TestLogging;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.Header;
 import org.opensearch.transport.StreamTransportResponseHandler;
+import org.opensearch.transport.TcpChannel;
+import org.opensearch.transport.TcpTransport;
 import org.opensearch.transport.Transport;
 import org.opensearch.transport.TransportException;
 import org.opensearch.transport.TransportMessageListener;
@@ -834,6 +836,83 @@ public class FlightClientChannelTests extends FlightTransportTestBase {
         assertTrue(handlerLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
         assertNotNull(handlerException.get());
         assertEquals("Simulated handler exception", handlerException.get().getMessage());
+    }
+
+    /**
+     * A server that fails a stream before its first batch sends its header with the error, and the client's middleware
+     * stores it in the header context of the connection, which lives as long as the connection. No consumer takes it, so
+     * the stream must remove it.
+     */
+    public void testStreamFailedBeforeFirstBatchLeavesNoHeaderOnTheConnection() throws Exception {
+        String action = "internal:test/stream/fail-before-first-batch";
+        streamTransportService.registerRequestHandler(
+            action,
+            ThreadPool.Names.SAME,
+            in -> new TestRequest(in),
+            (request, channel, task) -> {
+                try {
+                    channel.sendResponse(new StreamException(StreamErrorCode.CANCELLED, "scan cancelled"));
+                } catch (IOException ignored) {}
+            }
+        );
+        TransportRequestOptions options = TransportRequestOptions.builder().withType(TransportRequestOptions.Type.STREAM).build();
+
+        int streams = randomIntBetween(1, 5);
+        for (int i = 0; i < streams; i++) {
+            AtomicReference<Exception> failure = new AtomicReference<>();
+            CountDownLatch failed = new CountDownLatch(1);
+            streamTransportService.sendRequest(
+                remoteNode,
+                action,
+                new TestRequest(),
+                options,
+                new TransportResponseHandler<TestResponse>() {
+                    @Override
+                    public void handleStreamResponse(StreamTransportResponse<TestResponse> streamResponse) {
+                        try {
+                            while (streamResponse.nextResponse() != null) {
+                            }
+                        } catch (Exception e) {
+                            failure.set(e);
+                        } finally {
+                            try {
+                                streamResponse.close();
+                            } catch (IOException ignored) {}
+                            failed.countDown();
+                        }
+                    }
+
+                    @Override
+                    public void handleResponse(TestResponse response) {
+                        failed.countDown();
+                    }
+
+                    @Override
+                    public void handleException(TransportException exp) {
+                        failure.set(exp);
+                        failed.countDown();
+                    }
+
+                    @Override
+                    public String executor() {
+                        return ThreadPool.Names.SAME;
+                    }
+
+                    @Override
+                    public TestResponse read(StreamInput in) throws IOException {
+                        return new TestResponse(in);
+                    }
+                }
+            );
+            assertTrue(failed.await(TIMEOUT_SEC, TimeUnit.SECONDS));
+            assertNotNull("the stream must fail", failure.get());
+        }
+
+        TcpTransport.NodeChannels connection = (TcpTransport.NodeChannels) streamTransportService.getConnection(remoteNode);
+        for (TcpChannel channel : connection.getChannels()) {
+            HeaderContext context = ((FlightClientChannel) channel).getHeaderContext();
+            assertBusy(() -> assertEquals("headers left on the connection", 0, context.size()));
+        }
     }
 
     /**

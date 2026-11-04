@@ -146,16 +146,18 @@ public enum StreamErrorCode {
 
     /**
      * Picks the code that carries the meaning of {@code failure} across a stream, so the consumer can map it back to the
-     * same {@link RestStatus}.
+     * same {@link RestStatus}. The first {@link StreamException} or {@link TaskCancelledException} in the cause chain
+     * decides, since a wrapper such as the query phase's says nothing about the failure.
      *
      * @param failure the failure of a stream producer
      * @return the code for the failure
      */
     public static StreamErrorCode forFailure(Throwable failure) {
-        if (failure instanceof StreamException streamException) {
+        final Throwable cause = ExceptionsHelper.unwrap(failure, StreamException.class, TaskCancelledException.class);
+        if (cause instanceof StreamException streamException) {
             return streamException.getErrorCode();
         }
-        if (ExceptionsHelper.unwrap(failure, TaskCancelledException.class) != null) {
+        if (cause != null) {
             return CANCELLED;
         }
         final RestStatus status = ExceptionsHelper.status(failure);

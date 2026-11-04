@@ -137,6 +137,27 @@ public class ColumnResolverTests extends OpenSearchTestCase {
         assertTrue(e.getMessage(), e.getMessage().contains("no doc values"));
     }
 
+    public void testFieldsInsideNestedFieldsAreRejectedOrSkipped() {
+        // Field capabilities report the enclosing paths of the fields they return, as nested in the indices that nest them.
+        field("order", "long", true);
+        field("items", "nested", false);
+        field("items", "object", false);
+        field("items.sku", "keyword", true);
+        field("items.part", "object", false);
+        field("items.part.id", "long", true);
+        field("meta", "object", false);
+        field("meta.source", "keyword", true);
+        for (String name : new String[] { "items.sku", "items.part.id" }) {
+            IllegalArgumentException e = expectThrows(IllegalArgumentException.class, () -> resolve(name));
+            assertTrue(e.getMessage(), e.getMessage().contains("inside the nested field [items]"));
+        }
+        assertEquals(
+            "fields of plain objects stay columns",
+            List.of(column("meta.source", ColumnType.UTF8, "keyword"), column("order", ColumnType.INT64, "long")),
+            resolve("*")
+        );
+    }
+
     public void testNoColumnIsRejected() {
         field("t", "text", false);
         IllegalArgumentException e = expectThrows(IllegalArgumentException.class, () -> resolve("t*"));
