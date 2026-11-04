@@ -153,8 +153,8 @@ stopped reading, which can happen after the search ended (see Backpressure).
 | `search.arrow.batch_size` | `1mb` | Size batches grow to (at most `3mb`, below gRPC's default 4MB message limit). |
 | `search.arrow.first_batch_size` | `64kb` | First batch of each shard; doubles with each batch. |
 | `search.arrow.batch_rows` | `65536` | Maximum rows per batch. |
-| `search.arrow.max_row_size` | `3.5mb` | Larger rows fail the search. A row larger than `batch_size` is sent as a batch of its own, so the coordinator sizes each shard stream for batches of this size. |
-| `search.arrow.max_buffered_bytes_per_request` | `64mb` | Batch memory one search buffers on its coordinator; bounds its open shard streams, each counted as six batches of the larger of `batch_size` and `max_row_size` (21mb by default, so three streams). |
+| `search.arrow.max_row_size` | `1mb` | Larger rows fail the search. A row larger than `batch_size` is sent as a batch of its own, so the coordinator sizes each shard stream for batches of this size; raising it lowers how many shard streams a search opens at once. Keep it below gRPC's 4MB default client message limit. |
+| `search.arrow.max_buffered_bytes_per_request` | `64mb` | Batch memory one search buffers on its coordinator; bounds its open shard streams, each counted as six batches of the larger of `batch_size` and `max_row_size` (6mb by default, so ten streams). A search reserves no more than its target shards need. |
 | `search.arrow.coordinator.max_buffered_bytes` | `512mb` | Batch memory of all searches on a coordinator, including batches their clients have not read yet; beyond it searches are rejected. |
 | `search.arrow.client_idle_timeout` | `60s` | How long a client may stop reading, while the search runs and again once it ended. |
 | `search.arrow.cancel_after_time_interval` | `-1` | Cancels searches running longer, unless the request sets its own interval. |
@@ -169,6 +169,8 @@ How many slices a scan collects in parallel follows the concurrent segment searc
 ## Limitations
 
 - No scoring, sorting or aggregations; system and search-throttled indices are rejected.
+- A shard's last batch waits while the slice that filled the row limit scores on for a match past it, as `_search`
+  does for `terminate_after`; with a selective, costly query this delays the end of the stream, up to the `timeout`.
 - A segment is never split across slices: intra-segment partitioning (`partition_strategy: balanced`) only applies when
   the query opts in, which scan queries such as `match_all`, `term` and `range` do not, so a shard dominated by one
   large segment is collected at about one thread's speed. Letting scans opt in is a follow-up.

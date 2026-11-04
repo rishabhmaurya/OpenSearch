@@ -798,6 +798,43 @@ public class ArrowShardScanTests extends OpenSearchSingleNodeTestCase {
         assertThat(batchAllocator.getPeakMemoryAllocation(), lessThan(1L << 20));
     }
 
+    public void testARowLargerThanTheBatchBeforeAnotherVariableColumnCutsOnlyItsOwnBatch() throws Exception {
+        XContentBuilder mapping = XContentFactory.jsonBuilder().startObject().startObject("properties");
+        mapping.startObject("mk").field("type", "keyword").endObject();
+        mapping.startObject("id").field("type", "keyword").endObject();
+        mapping.endObject().endObject();
+        index = createIndex("idx", Settings.builder().put("index.number_of_shards", 1).put("index.number_of_replicas", 0).build(), mapping);
+        BulkRequestBuilder bulk = client().prepareBulk();
+        for (int n = 0; n < 600; n++) {
+            String id = "d" + n;
+            // One row in the middle is larger than a batch; its large values are in the first column.
+            TreeSet<String> mk = new TreeSet<>();
+            mk.add("k");
+            if (n == 300) {
+                while (mk.size() < 17) {
+                    mk.add(randomAlphaOfLength(8 * 1024));
+                }
+            }
+            expected.put(id, Map.of("id", id, "mk", new ArrayList<Object>(mk)));
+            bulk.add(client().prepareIndex("idx").setId(id).setSource("id", id, "mk", new ArrayList<>(mk)));
+        }
+        assertFalse(bulk.get().hasFailures());
+        client().admin().indices().prepareForceMerge("idx").setMaxNumSegments(1).get();
+        client().admin().indices().prepareRefresh("idx").get();
+        long budget = 64 << 10;
+        List<Column> columns = List.of(
+            new Column("mk", ColumnType.UTF8, Set.of("keyword"), true),
+            column("id", ColumnType.UTF8, "keyword")
+        );
+        ScanResult result = scan(
+            QueryBuilders.matchAllQuery(),
+            new ArrowScanSpec(columns, budget, budget, 65536, 3 << 20, Long.MAX_VALUE, TimeValue.timeValueMinutes(1))
+        );
+        assertRows(expected.keySet(), result.rows());
+        // The rows before the large one go out together, then the large row on its own; not one batch per row.
+        assertThat(result.batchRows().toString(), result.batchRows().size(), lessThan(10));
+    }
+
     public void testRowsThatShrinkSuddenlyKeepTheMemoryOfTheirBatch() throws Exception {
         createIndex();
         BulkRequestBuilder bulk = client().prepareBulk();

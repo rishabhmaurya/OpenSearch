@@ -553,6 +553,8 @@ public class ArrowSearchIT extends OpenSearchIntegTestCase {
             prepareCreate("metrics-b").setSettings(limit).setMapping("m.b1", "type=long", "m.b2", "type=long", "m.b3", "type=long")
         );
         ensureGreen("metrics-a", "metrics-b");
+        // The test engine sets itself up on an index's first searcher, which must not be acquired on a virtual thread.
+        refresh("metrics-a", "metrics-b");
 
         final ArrowStreamClient.Result one = client.search(request("metrics-a", List.of("m.*")).build(), allocator);
         assertEquals(3, one.schema().getFields().size());

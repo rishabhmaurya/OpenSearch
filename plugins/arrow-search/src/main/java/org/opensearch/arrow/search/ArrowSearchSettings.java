@@ -58,10 +58,13 @@ public final class ArrowSearchSettings {
         Property.Dynamic
     );
 
-    /** The largest row a batch may hold, below gRPC's default 4MB client message limit; a larger row fails the search. */
+    /**
+     * The largest row a batch may hold; a larger row fails the search. The coordinator sizes each shard stream for batches
+     * of this size, so raising it above the batch size lowers how many shard streams a search opens at once.
+     */
     public static final Setting<ByteSizeValue> MAX_ROW_SIZE = Setting.byteSizeSetting(
         "search.arrow.max_row_size",
-        new ByteSizeValue(3584, ByteSizeUnit.KB),
+        new ByteSizeValue(1, ByteSizeUnit.MB),
         new ByteSizeValue(16, ByteSizeUnit.KB),
         new ByteSizeValue(64, ByteSizeUnit.MB),
         Property.NodeScope,

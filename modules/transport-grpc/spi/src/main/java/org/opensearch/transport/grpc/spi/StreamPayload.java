@@ -31,6 +31,8 @@ public final class StreamPayload {
     private final AtomicBoolean released = new AtomicBoolean();
 
     /**
+     * Creates a payload of {@code segments}, whose memory {@code owner} holds.
+     *
      * @param segments the segments, in wire order
      * @param owner    released exactly once when the payload memory is no longer needed
      */
@@ -45,14 +47,14 @@ public final class StreamPayload {
     }
 
     /**
-     * @return the segments, in wire order; callers must not modify their position or limit
+     * Returns the segments, in wire order; callers must not modify their position or limit.
      */
     public List<ByteBuffer> segments() {
         return segments;
     }
 
     /**
-     * @return the total number of bytes across all segments
+     * Returns the total number of bytes across all segments.
      */
     public long length() {
         return length;
@@ -68,7 +70,7 @@ public final class StreamPayload {
     }
 
     /**
-     * @return whether {@link #release()} has run
+     * Returns whether {@link #release()} has run.
      */
     public boolean isReleased() {
         return released.get();

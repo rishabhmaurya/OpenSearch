@@ -24,7 +24,7 @@ public interface StreamSearchFormatHandler {
     String FORMAT_HEADER = "x-opensearch-format";
 
     /**
-     * @return the format this handler serves, compared case-sensitively with the {@value #FORMAT_HEADER} header
+     * Returns the format this handler serves, compared case-sensitively with the {@value #FORMAT_HEADER} header.
      */
     String format();
 

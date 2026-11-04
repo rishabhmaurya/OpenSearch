@@ -25,7 +25,7 @@ public interface StreamSearchResponseChannel {
     int PAYLOAD_FIELD_NUMBER = 100;
 
     /**
-     * @return whether the transport can accept another payload without buffering beyond its flow-control window
+     * Returns whether the transport can accept another payload without buffering beyond its flow-control window.
      */
     boolean isReady();
 
@@ -46,7 +46,7 @@ public interface StreamSearchResponseChannel {
     void setOnCancelHandler(Runnable onCancel);
 
     /**
-     * @return whether the client has cancelled the call
+     * Returns whether the client has cancelled the call.
      */
     boolean isCancelled();
 

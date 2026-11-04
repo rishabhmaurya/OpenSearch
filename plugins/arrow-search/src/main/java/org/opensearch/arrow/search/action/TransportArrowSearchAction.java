@@ -41,6 +41,7 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.FeatureFlags;
 import org.opensearch.core.action.ActionListener;
+import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.core.concurrency.OpenSearchRejectedExecutionException;
 import org.opensearch.core.index.Index;
 import org.opensearch.core.rest.RestStatus;
@@ -189,12 +190,19 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
 
         final BatchSizes sizes = BatchSizes.of(settings);
         final long perStream = sizes.perStream();
-        // A search buffers at least one stream's worth, whatever the per-request limit, so it reserves at least that.
         final CoordinatorBudget.Reservation reservation = budget.reserve(
-            Math.max(settings.maxBufferedBytesPerRequest(), perStream),
+            reservationBytes(perStream, settings.maxBufferedBytesPerRequest(), targetShards(request)),
             perStream
         );
         if (reservation == null) {
+            if (perStream > settings.coordinatorMaxBufferedBytes()) {
+                throw new IllegalStateException(
+                    "an arrow search needs ["
+                        + new ByteSizeValue(perStream)
+                        + "] for one shard stream, more than [search.arrow.coordinator.max_buffered_bytes] allows: raise it, or lower"
+                        + " [search.arrow.max_row_size] and [search.arrow.batch_size]"
+                );
+            }
             throw new OpenSearchRejectedExecutionException(
                 "rejected arrow search: the searches on this node already buffer the maximum of ["
                     + settings.coordinatorMaxBufferedBytes()
@@ -371,6 +379,34 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
         if (groups.keySet().stream().anyMatch(alias -> RemoteClusterAware.LOCAL_CLUSTER_GROUP_KEY.equals(alias) == false)) {
             throw new IllegalArgumentException("Arrow search does not support remote cluster indices");
         }
+    }
+
+    /**
+     * @return the bytes a search reserves: one stream's worth per target shard, as it opens at most one stream per shard,
+     *         within the per-request limit, and at least one stream's worth whatever the limit
+     */
+    static long reservationBytes(long perStream, long perRequest, long shards) {
+        final long needed = perStream * Math.min(shards, perRequest / perStream + 1);
+        return Math.max(Math.min(perRequest, needed), perStream);
+    }
+
+    /**
+     * @return the number of shards of the search's target indices, an upper bound on the streams it opens; at least one
+     */
+    private long targetShards(ArrowSearchRequest request) {
+        final ClusterState state = clusterService.state();
+        long shards = 0;
+        try {
+            for (Index index : resolver.concreteIndices(state, request)) {
+                final IndexMetadata metadata = state.metadata().index(index);
+                if (metadata != null) {
+                    shards += metadata.getNumberOfShards();
+                }
+            }
+        } catch (IndexNotFoundException e) {
+            // The search itself reports the missing index.
+        }
+        return Math.max(1, shards);
     }
 
     /**

@@ -79,10 +79,12 @@ public class TransportArrowSearchActionTests extends OpenSearchTestCase {
     }
 
     public void testStreamsAreSizedForRowsLargerThanBatches() {
-        TransportArrowSearchAction.BatchSizes sizes = TransportArrowSearchAction.BatchSizes.of(settings(Settings.EMPTY));
+        TransportArrowSearchAction.BatchSizes sizes = TransportArrowSearchAction.BatchSizes.of(
+            settings(Settings.builder().put(ArrowSearchSettings.MAX_ROW_SIZE.getKey(), "3mb").build())
+        );
         assertEquals(new ByteSizeValue(1, ByteSizeUnit.MB).getBytes(), sizes.batchBytes());
         // A row larger than the batch size goes out as a batch of its own, so a stream may hold only such batches.
-        assertEquals(new ByteSizeValue(3584, ByteSizeUnit.KB).getBytes(), sizes.maxBatchBytes());
+        assertEquals(new ByteSizeValue(3, ByteSizeUnit.MB).getBytes(), sizes.maxBatchBytes());
         assertEquals(TransportArrowSearchAction.BATCHES_IN_FLIGHT_PER_STREAM * sizes.maxBatchBytes(), sizes.perStream());
     }
 
@@ -145,5 +147,13 @@ public class TransportArrowSearchActionTests extends OpenSearchTestCase {
         runScheduledTasks();
         assertEquals("the call is reset once", 1, resets.get());
         assertEquals(0, budget.reserved());
+    }
+
+    public void testSearchReservesOnlyWhatItsShardsNeed() {
+        assertEquals("one stream per shard", 42, TransportArrowSearchAction.reservationBytes(21, 64, 2));
+        assertEquals(21, TransportArrowSearchAction.reservationBytes(21, 64, 1));
+        assertEquals("within the per-request limit", 64, TransportArrowSearchAction.reservationBytes(21, 64, 100));
+        assertEquals(64, TransportArrowSearchAction.reservationBytes(21, 64, Long.MAX_VALUE));
+        assertEquals("at least one stream", 21, TransportArrowSearchAction.reservationBytes(21, 10, 5));
     }
 }

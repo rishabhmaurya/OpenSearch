@@ -304,8 +304,12 @@ final class ArrowScanCollector implements Collector {
                     final List<FieldVector> vectors = root.getFieldVectors();
                     allowance.reset(budget - bytes);
                     for (int c = 0; c < writers.length; c++) {
-                        // A column that overdraws the allowance ends the pass at that doc, for the columns after it too.
                         written = writers[c].write(chunk, written, vectors.get(c), offset, allowance);
+                        if (allowance.remaining() < 0) {
+                            // The pass ends at the doc that overdrew the allowance: the columns after it write exactly as
+                            // many docs, and rowsThatFit cuts the batch to the rows that fit.
+                            allowance.reset(Long.MAX_VALUE);
+                        }
                     }
                     ColumnWriters.setRowCount(root, offset + written);
                 } catch (OutOfMemoryException e) {
