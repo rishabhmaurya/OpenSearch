@@ -58,6 +58,12 @@ Client-cancel propagates via gRPC's `OnCancelHandler` into the strategy's cancel
 callback. Any thread parked on `waitForListener` wakes promptly with
 `StreamErrorCode.CANCELLED`.
 
+A call the server ended itself, e.g. because a batch failed on the send executor
+and failed the stream, is never ready again, and gRPC fires neither handler for
+it. Closing the channel wakes every parked producer, which fails with
+`StreamErrorCode.UNAVAILABLE`, even with an unbounded ready timeout; a later wait
+on the closed channel fails at once.
+
 ## Tuning and operational concerns
 
 ### Sizing the flight pool
@@ -129,7 +135,9 @@ async path uses), but the calling thread **blocks until the batch has been
 pushed to gRPC's per-stream outbound buffer**, so it cannot queue the next batch
 ahead of this one — outstanding batches are bounded to one, with no eventloop
 queue to grow. When that outbound buffer is full, the `isReady()` back-pressure
-gate (above) throttles the producer.
+gate (above) throttles the producer. A send that fails on the executor fails the
+stream, and the caller's `sendResponseBatch` throws that failure, so the producer
+stops instead of computing batches nobody can receive.
 
 A caller that opts in **must drive a single stream from a single thread** and must
 not call from the send-executor thread itself. The default

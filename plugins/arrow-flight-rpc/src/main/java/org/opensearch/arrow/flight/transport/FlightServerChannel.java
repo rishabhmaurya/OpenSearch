@@ -9,7 +9,6 @@
 package org.opensearch.arrow.flight.transport;
 
 import org.apache.arrow.flight.BackpressureStrategy;
-import org.apache.arrow.flight.CallStatus;
 import org.apache.arrow.flight.FlightProducer.ServerStreamListener;
 import org.apache.arrow.flight.FlightRuntimeException;
 import org.apache.arrow.memory.ArrowBuf;
@@ -19,11 +18,11 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
-import org.opensearch.OpenSearchException;
 import org.opensearch.arrow.flight.stats.FlightCallTracker;
 import org.opensearch.arrow.transport.ArrowBatchResponse;
 import org.opensearch.arrow.transport.VectorTransfer;
 import org.opensearch.common.CheckedSupplier;
+import org.opensearch.common.unit.TimeValue;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.bytes.BytesReference;
 import org.opensearch.core.transport.TransportResponse;
@@ -87,6 +86,9 @@ import static org.opensearch.arrow.flight.transport.FlightErrorMapper.mapFromCal
  * (success) or {@link #sendError} (failure).
  */
 class FlightServerChannel implements TcpChannel, ArrowFlightChannel {
+
+    /** Ready timeout meaning "wait until the stream is cancelled or closed". */
+    static final long UNBOUNDED_READY_WAIT = Long.MAX_VALUE;
     private static final String PROFILE_NAME = "flight";
 
     private final Logger logger = LogManager.getLogger(FlightServerChannel.class);
@@ -102,7 +104,8 @@ class FlightServerChannel implements TcpChannel, ArrowFlightChannel {
     private final long correlationId;
     private final AtomicInteger batchNumber = new AtomicInteger(0);
     private final CompositeBackpressureStrategy bp;
-    private final long readyTimeoutMillis;
+    /** Maximum wait in {@link #awaitReadyOrThrow()}; {@link #UNBOUNDED_READY_WAIT} waits until cancelled or closed. */
+    private volatile long readyTimeoutMillis;
 
     /**
      * The reused stream root (native or byte-serialized). Confined to the flight-executor thread:
@@ -140,9 +143,19 @@ class FlightServerChannel implements TcpChannel, ArrowFlightChannel {
         this.remoteAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         // CompositeBackpressureStrategy.register installs both setOnReadyHandler and
         // setOnCancelHandler; the cancel callback runs onChannelCancelled before
-        // notifying parked threads so the cancelled state is visible on wake.
-        this.bp = new CompositeBackpressureStrategy(this::onChannelCancelled);
+        // notifying parked threads so the cancelled state is visible on wake. close()
+        // wakes them too, since a call this side ended fires neither callback.
+        this.bp = new CompositeBackpressureStrategy(this::onChannelCancelled, () -> open.get() == false);
         this.bp.register(serverStreamListener);
+    }
+
+    /**
+     * Overrides the ready timeout of this stream.
+     *
+     * @param timeout the maximum wait, or {@code null} to wait until the stream is cancelled or closed
+     */
+    public void setReadyTimeout(TimeValue timeout) {
+        this.readyTimeoutMillis = timeout == null ? UNBOUNDED_READY_WAIT : Math.max(1, timeout.millis());
     }
 
     /**
@@ -156,12 +169,16 @@ class FlightServerChannel implements TcpChannel, ArrowFlightChannel {
      * pool — or limit concurrent streams via admission control — accordingly.
      *
      * @throws StreamException with {@link StreamErrorCode#TIMED_OUT} if the consumer
-     *         remains not-ready longer than {@code readyTimeoutMillis}, or
-     *         {@link StreamErrorCode#CANCELLED} if the client cancelled.
+     *         remains not-ready longer than {@code readyTimeoutMillis},
+     *         {@link StreamErrorCode#CANCELLED} if the client cancelled, or
+     *         {@link StreamErrorCode#UNAVAILABLE} if the channel is closed, e.g. after a failed send ended the call.
      */
     public void awaitReadyOrThrow() {
         if (cancelled) {
             throw StreamException.cancelled("stream cancelled before back-pressure wait");
+        }
+        if (open.get() == false) {
+            throw StreamException.unavailable("stream closed before back-pressure wait");
         }
         BackpressureStrategy.WaitResult result = bp.waitForListener(readyTimeoutMillis);
         switch (result) {
@@ -172,6 +189,9 @@ class FlightServerChannel implements TcpChannel, ArrowFlightChannel {
             case TIMEOUT:
                 throw new StreamException(StreamErrorCode.TIMED_OUT, "consumer not ready after " + readyTimeoutMillis + "ms");
             default:
+                if (open.get() == false) {
+                    throw StreamException.unavailable("stream closed while waiting for consumer");
+                }
                 logger.warn("unexpected back-pressure wait result: {}", result);
                 throw new StreamException(StreamErrorCode.INTERNAL, "unexpected back-pressure wait result: " + result);
         }
@@ -431,19 +451,28 @@ class FlightServerChannel implements TcpChannel, ArrowFlightChannel {
             );
             return;
         }
-        FlightRuntimeException flightExc;
+        final FlightRuntimeException flightExc;
+        final StreamErrorCode code;
         if (error instanceof FlightRuntimeException fre) {
             flightExc = fre;
+            code = mapFromCallStatus(fre);
         } else {
-            flightExc = CallStatus.INTERNAL.withCause(error)
-                .withDescription(error.getMessage() != null ? error.getMessage() : "Stream error")
-                .toRuntimeException();
+            // Carry the failure's status as the call status, so the consumer sees a 400 or 429 rather than a 500.
+            final StreamException wire = error instanceof StreamException se
+                ? se
+                : new StreamException(
+                    StreamErrorCode.forFailure(error),
+                    error.getMessage() != null ? error.getMessage() : "Stream error",
+                    error
+                );
+            flightExc = FlightErrorMapper.toFlightException(wire);
+            code = wire.getErrorCode();
         }
         middleware.setHeader(header);
-        if (error instanceof OpenSearchException) {
-            logger.debug("Error in Flight stream: {}", error.getMessage());
-        } else {
+        if (code != StreamErrorCode.CANCELLED && code.restStatus().getStatus() >= 500) {
             logger.error("Unexpected error in Flight stream", error);
+        } else {
+            logger.debug("Error in Flight stream: {}", error.getMessage());
         }
         logger.debug("Sending error for correlation ID: {} after {} batches: {}", correlationId, batchNumber, error.getMessage());
         serverStreamListener.error(flightExc);
@@ -494,6 +523,9 @@ class FlightServerChannel implements TcpChannel, ArrowFlightChannel {
         if (!open.compareAndSet(true, false)) {
             return;
         }
+        // A call ended on this side is never ready again and gRPC reports no cancel for it, so wake the producers parked in
+        // awaitReadyOrThrow; they see the channel closed.
+        bp.signal();
         // The stream root is owned exclusively by the flight-executor thread (created, filled, and
         // freed there). Post the free onto that executor so it is serialized behind any in-flight send
         // by the executor's own FIFO ordering; we never touch Arrow buffers from this (possibly gRPC)

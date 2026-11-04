@@ -547,8 +547,14 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
         // we do make sure to clean it on a successful response from a shard
         setPhaseResourceUsages();
         onShardFailure(shardIndex, shard, e);
-        SearchShardTarget nextShard = FailAwareWeightedRouting.getInstance()
-            .findNext(shardIt, clusterState, e, () -> totalOps.incrementAndGet());
+        final SearchShardTarget nextShard;
+        if (shard != null && shouldTryNextCopy(shard, e) == false) {
+            // The copies that will not be tried still count as done, as when a shard succeeds.
+            totalOps.addAndGet(shardIt.remaining());
+            nextShard = null;
+        } else {
+            nextShard = FailAwareWeightedRouting.getInstance().findNext(shardIt, clusterState, e, () -> totalOps.incrementAndGet());
+        }
 
         final boolean lastShard = nextShard == null;
         if (logger.isTraceEnabled()) {
@@ -592,6 +598,18 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
                 performPhaseOnShard(shardIndex, shardIt, nextShard);
             }
         }
+    }
+
+    /**
+     * Whether the next copy of a shard is tried after {@code shard} failed. Phases whose shard results already left the node
+     * return {@code false}, so they are not produced twice.
+     *
+     * @param shard the failed copy
+     * @param e     the failure
+     * @return {@code true} to fail over to the next copy
+     */
+    protected boolean shouldTryNextCopy(SearchShardTarget shard, Exception e) {
+        return true;
     }
 
     /**
