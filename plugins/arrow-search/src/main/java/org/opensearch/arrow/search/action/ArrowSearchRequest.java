@@ -36,8 +36,8 @@ import static org.opensearch.action.ValidateActions.addValidationError;
  * <p>
  * It is a regular {@link SearchRequest}, so security and other action filters treat it as a search. Phase one supports
  * filtering only: matches are unscored and unordered. {@code size}, when set, caps the total number of rows,
- * {@code terminate_after} caps the rows per shard, {@code timeout} bounds the time each shard spends searching, and
- * {@code post_filter} filters like the query. Options that need scores, ordering, paging, fetching or aggregations are
+ * {@code terminate_after} caps the rows per shard, {@code timeout} bounds the time each slice of a shard spends computing,
+ * and {@code post_filter} filters like the query. Options that need scores, ordering, paging, fetching or aggregations are
  * rejected rather than ignored. The request holds a local sink, so it is never serialized.
  */
 public final class ArrowSearchRequest extends SearchRequest {
@@ -46,27 +46,29 @@ public final class ArrowSearchRequest extends SearchRequest {
     private final TimeValue defaultCancelAfterTimeInterval;
 
     /**
-     * @param searchRequest                  the search, which this request takes over
+     * Creates an Arrow search that runs {@code searchRequest} and streams its results into {@code sink}.
+     *
+     * @param searchRequest                  the search to run; this request takes it over
      * @param sink                           receives the results
      * @param defaultCancelAfterTimeInterval the cancellation timeout when the search does not set one
      */
     public ArrowSearchRequest(SearchRequest searchRequest, ArrowBatchSink sink, TimeValue defaultCancelAfterTimeInterval) {
         super(searchRequest);
-        // The copy constructor leaves the pipeline out, and a pipeline must not be dropped silently.
+        // The copy constructor drops the pipeline. Keep it so that validation rejects it instead of silently ignoring it.
         pipeline(searchRequest.pipeline());
         this.sink = Objects.requireNonNull(sink, "sink");
         this.defaultCancelAfterTimeInterval = defaultCancelAfterTimeInterval;
     }
 
     /**
-     * @return the sink receiving the results
+     * Returns the sink that receives the results.
      */
     public ArrowBatchSink sink() {
         return sink;
     }
 
     /**
-     * @return the requested field names and patterns, in output order
+     * Returns the requested field names and patterns, in output column order.
      */
     public List<ColumnResolver.RequestedField> requestedFields() {
         return source().docValueFields()
@@ -76,7 +78,7 @@ public final class ArrowSearchRequest extends SearchRequest {
     }
 
     /**
-     * @return the maximum number of rows to return, or {@link Long#MAX_VALUE} if unlimited
+     * Returns the row limit of the search, set by {@code size}, or {@link Long#MAX_VALUE} if unlimited.
      */
     public long rowLimit() {
         final int size = source().size();
@@ -84,7 +86,8 @@ public final class ArrowSearchRequest extends SearchRequest {
     }
 
     /**
-     * @return the maximum number of rows per shard, or {@link Long#MAX_VALUE} if unlimited
+     * Returns the row limit of each shard, the smaller of {@code terminate_after} and {@link #rowLimit}, or
+     * {@link Long#MAX_VALUE} if unlimited.
      */
     public long shardRowLimit() {
         final int terminateAfter = source().terminateAfter();
@@ -132,7 +135,7 @@ public final class ArrowSearchRequest extends SearchRequest {
         e = reject(e, source.scriptFields() != null && source.scriptFields().isEmpty() == false, "script_fields");
         e = reject(e, source.fetchFields() != null && source.fetchFields().isEmpty() == false, "fields");
         e = reject(e, source.storedFields() != null, "stored_fields");
-        // _source: false asks for nothing, which is what an Arrow search fetches.
+        // An Arrow search fetches no source, so it accepts _source: false.
         final FetchSourceContext fetchSource = source.fetchSource();
         e = reject(
             e,
@@ -164,7 +167,7 @@ public final class ArrowSearchRequest extends SearchRequest {
         try {
             InnerHitContextBuilder.extractInnerHits(query, innerHits);
         } catch (IllegalArgumentException e) {
-            // Two inner hits of the query share a name.
+            // Thrown when two inner hits of the query share a name, so the query has inner hits.
             return true;
         }
         return innerHits.isEmpty() == false;
@@ -186,7 +189,7 @@ public final class ArrowSearchRequest extends SearchRequest {
 
     @Override
     public String getDescription() {
-        // The source, which the description includes, lists the requested fields.
+        // The description includes the source, which lists the requested fields.
         return "arrow " + buildDescription();
     }
 

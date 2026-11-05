@@ -12,9 +12,9 @@ import org.opensearch.action.ActionType;
 import org.opensearch.action.search.SearchResponse;
 
 /**
- * Searches and streams the doc values of the matches as Arrow record batches into the {@link ArrowBatchSink} of the
- * request; the response is the search summary. It runs on the local node only, because results flow into a local sink.
- * The name sits under {@code indices:data/read/search}, so search privileges apply.
+ * Streams the doc values of a search's matches as Arrow record batches into the request's {@link ArrowBatchSink}; the
+ * response is the search summary. The action runs on the local node only, because the sink is local. Its name sits under
+ * {@code indices:data/read/search}, so search privileges apply.
  */
 public final class ArrowSearchAction extends ActionType<SearchResponse> {
 

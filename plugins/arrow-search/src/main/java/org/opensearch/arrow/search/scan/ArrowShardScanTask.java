@@ -15,12 +15,12 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * The task of a shard scan, which runs as one query phase that pauses while its consumer is not ready.
+ * The task of a shard scan, which runs as one query phase that pauses while the coordinator is not ready.
  * <p>
- * Its lifetime follows the client's pace, and its CPU runs on virtual threads, which per-thread CPU and allocation
- * accounting does not see, so it is not tracked for resource use: search backpressure would otherwise cancel exports for
- * their duration, and neither it nor workload management sees the scan's CPU or heap. The node bounds scans instead, by
- * how many may be open and how many may compute at once.
+ * The task is not tracked for resource use. Its lifetime follows the client's pace, so search backpressure would cancel
+ * long scans for their duration alone. Its CPU runs on virtual threads, which per-thread CPU and allocation accounting does
+ * not measure, so neither search backpressure nor workload management would see the scan's CPU or heap. The data node
+ * bounds scans instead, by how many may be open and how many slices may compute at once.
  */
 public final class ArrowShardScanTask extends SearchShardTask {
 

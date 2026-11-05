@@ -62,10 +62,10 @@ abstract class VectorStreamInput extends StreamInput {
     }
 
     /**
-     * Transfers the stream root's vectors into a consumer root on {@code allocator}, so the
-     * returned response outlives the next Flight batch and, given an allocator that outlives
-     * the stream's, the stream itself. Released by {@link NativeArrow#close()} unless the
-     * response takes ownership via {@link NativeArrow#claimOwnership()}.
+     * Transfers the stream root's vectors into a consumer root on {@code allocator}. The
+     * returned response outlives the next Flight batch, and also the stream when
+     * {@code allocator} outlives the stream's allocator. Released by {@link NativeArrow#close()}
+     * unless the response takes ownership via {@link NativeArrow#claimOwnership()}.
      */
     static VectorStreamInput forNativeArrow(
         VectorSchemaRoot streamRoot,

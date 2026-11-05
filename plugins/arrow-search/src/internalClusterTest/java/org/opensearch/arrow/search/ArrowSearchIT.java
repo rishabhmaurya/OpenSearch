@@ -157,7 +157,7 @@ public class ArrowSearchIT extends OpenSearchIntegTestCase {
         assertBusy(() -> assertEquals(List.of(), arrowTasks()));
         // Every batch is released on every node: relayed, sent, cancelled or failed.
         assertBusy(this::assertBatchesReleased);
-        // Every shard scan ended on every node, freeing its open scan slot for the next.
+        // Every shard scan ended on every node and freed its open-scan slot for the next scan.
         assertBusy(() -> {
             for (PluginsService plugins : internalCluster().getInstances(PluginsService.class)) {
                 for (ArrowSearchPlugin plugin : plugins.filterPlugins(ArrowSearchPlugin.class)) {
@@ -265,7 +265,7 @@ public class ArrowSearchIT extends OpenSearchIntegTestCase {
         return expected;
     }
 
-    /** @return the indexed value and the value an Arrow reader returns for it, normalized by {@link #normalize} */
+    /** Returns a random value to index in {@code field}, and the value an Arrow reader returns for it after {@link #normalize}. */
     private Object[] randomValue(String field) {
         return switch (field) {
             case "b" -> {
@@ -721,8 +721,8 @@ public class ArrowSearchIT extends OpenSearchIntegTestCase {
     }
 
     /**
-     * A client that stops reading pauses the search on every node, which resumes where it stopped once the client reads
-     * again, without losing or repeating a row.
+     * A client that stops reading pauses the search on every node. Once the client reads again, each shard resumes its one
+     * query phase and the search completes OK.
      */
     @LockFeatureFlag(STREAM_TRANSPORT)
     public void testStuckClientPausesTheSearch() throws Exception {
@@ -781,14 +781,14 @@ public class ArrowSearchIT extends OpenSearchIntegTestCase {
         } finally {
             stuckClient.close();
         }
-        // The resumed search returns every row once.
+        // A new search on the same index returns every row.
         final ArrowStreamClient.Result result = client.search(request(INDEX, List.of("id")).build(), allocator);
         assertEquals(docs, result.rows().stream().map(row -> row.get("id")).distinct().count());
     }
 
     /**
-     * A client that stops reading for longer than the idle timeout fails the search, which releases it on every node, and
-     * gets the status once it reads again, within the idle timeout after the failure.
+     * A client that stops reading for longer than the idle timeout fails the search, which releases what it holds on every
+     * node. The client gets the status when it reads again within the idle timeout after the failure.
      */
     @LockFeatureFlag(STREAM_TRANSPORT)
     public void testIdleClientFailsTheSearch() throws Exception {
@@ -801,7 +801,7 @@ public class ArrowSearchIT extends OpenSearchIntegTestCase {
         assertFalse(bulk.get().hasFailures());
         refresh(INDEX);
         setBatchRows(10);
-        // Leaves the test time to unstick the client after the failure, before its call would be reset.
+        // Gives the test time to unstick the client after the failure, before its call is reset.
         client().admin()
             .cluster()
             .prepareUpdateSettings()
@@ -838,8 +838,8 @@ public class ArrowSearchIT extends OpenSearchIntegTestCase {
             );
             call.request(Integer.MAX_VALUE);
             assertTrue(stuck.await(30, java.util.concurrent.TimeUnit.SECONDS));
-            // The search gives up on the stuck client and releases its shard streams and buffers. Polled at a short, fixed
-            // interval, so the client reads again well within the idle timeout after the failure, before its call is reset.
+            // The search gives up on the stuck client and releases its shard streams and buffers. Poll at a short, fixed
+            // interval so the client reads again well within the idle timeout after the failure, before its call is reset.
             assertBusyWithFixedSleepTime(
                 () -> assertEquals(List.of(), arrowTasks()),
                 TimeValue.timeValueSeconds(30),
@@ -860,8 +860,8 @@ public class ArrowSearchIT extends OpenSearchIntegTestCase {
     }
 
     /**
-     * A client that stops reading and never reads again, while keeping its connection open, has its call reset once it
-     * stayed idle for the timeout after the search failed, which releases the batches gRPC still held for it.
+     * A client that stops reading for good but keeps its connection open has its call reset once it stays idle for the
+     * timeout after the search fails. The reset releases the batches gRPC still holds for it.
      */
     @LockFeatureFlag(STREAM_TRANSPORT)
     public void testClientThatNeverReadsAgainIsReset() throws Exception {

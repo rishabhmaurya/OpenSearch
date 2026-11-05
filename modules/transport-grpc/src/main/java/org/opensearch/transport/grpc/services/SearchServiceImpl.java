@@ -140,9 +140,9 @@ public class SearchServiceImpl extends SearchServiceGrpc.SearchServiceImplBase {
     }
 
     /**
-     * Returns this service with {@code ServerStreamSearch} bound to a pass-through response marshaller, so format handlers
-     * write the wire bytes of each message themselves, and with the {@value StreamSearchFormatHandler#FORMAT_HEADER}
-     * request header exposed to it. Register the result instead of this instance.
+     * Returns this service with {@code ServerStreamSearch} bound to a pass-through response marshaller, so that format
+     * handlers write the wire bytes of each message. The bound method also receives the
+     * {@value StreamSearchFormatHandler#FORMAT_HEADER} request header. Register the result instead of this instance.
      *
      * @return the service to register with the gRPC server
      */
@@ -174,8 +174,8 @@ public class SearchServiceImpl extends SearchServiceGrpc.SearchServiceImplBase {
         final ServerCallHandler<org.opensearch.protobufs.SearchRequest, InputStream> streamHandler = ServerCalls.asyncServerStreamingCall(
             this::serverStreamSearchRaw
         );
-        // The handler of the method receives the call as gRPC created it, whose stream a reset needs, unless an interceptor
-        // wrapped it.
+        // The method's handler receives the call that gRPC created, unless an interceptor wrapped it. A stream reset needs
+        // that call.
         definition.addMethod(
             streamMethod,
             (call, headers) -> Contexts.interceptCall(
@@ -190,12 +190,13 @@ public class SearchServiceImpl extends SearchServiceGrpc.SearchServiceImplBase {
     }
 
     /**
-     * @return resets the call's stream, see {@link StreamReset}; {@code null}, reported once, if it cannot
+     * Returns a task that resets the stream of {@code call}, see {@link StreamReset}, or {@code null} if the stream cannot
+     * be reset. Warns once about calls that an interceptor wrapped.
      */
     @Nullable
     private Runnable streamReset(ServerCall<?, ?> call) {
         final Runnable reset = StreamReset.of(call);
-        // Unavailable internals are reported on their lookup; a call that is not gRPC's own was wrapped by an interceptor.
+        // StreamReset logs missing internals when it looks them up. Otherwise a null reset means an interceptor wrapped the call.
         if (reset == null && StreamReset.isAvailable() && reportedUnresettableCalls.compareAndSet(false, true)) {
             logger.warn(
                 "cannot reset the streams of ServerStreamSearch calls of type [{}], which wraps gRPC's own: a client that stops "

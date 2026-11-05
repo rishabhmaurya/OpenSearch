@@ -27,14 +27,14 @@ import java.util.TreeSet;
 /**
  * A result column: a field and the Arrow type its doc values are read into.
  * <p>
- * A scalar column holds one value per row, and fails the search on a document with several values. A list column holds
- * every value of each document as an Arrow list, in doc-values order: numbers sorted, keyword and ip values sorted and
+ * A scalar column holds one value per row. It fails the search on a document with several values. A list column holds every
+ * value of each document as an Arrow list, in doc-values order: numbers sorted, keyword and ip values sorted and
  * deduplicated, as {@code docvalue_fields} returns them.
  *
- * @param name          the field name
- * @param type          the type of the column's values
- * @param mappingTypes  the mapping types of the field across the target indices, exposed as field metadata
- * @param list          whether the column holds a list of values per row
+ * @param name         the field name
+ * @param type         the type of the column's values
+ * @param mappingTypes the mapping types of the field across the target indices, exposed as field metadata
+ * @param list         whether the column holds a list of values per row
  */
 public record Column(String name, ColumnType type, Set<String> mappingTypes, boolean list) implements Writeable {
 
@@ -52,17 +52,29 @@ public record Column(String name, ColumnType type, Set<String> mappingTypes, boo
      * but compatibly still produce one column.
      */
     public enum ColumnType {
+        /** Signed 8-bit integer, for {@code byte}. */
         INT8(new ArrowType.Int(8, true)),
+        /** Signed 16-bit integer, for {@code short}. */
         INT16(new ArrowType.Int(16, true)),
+        /** Signed 32-bit integer, for {@code integer}. */
         INT32(new ArrowType.Int(32, true)),
+        /** Signed 64-bit integer, for {@code long} and for integer fields of mixed widths. */
         INT64(new ArrowType.Int(64, true)),
+        /** Unsigned 64-bit integer, for {@code unsigned_long}. */
         UINT64(new ArrowType.Int(64, false)),
+        /** Single-precision float, for {@code half_float} and {@code float}. */
         FLOAT32(new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)),
+        /** Double-precision float, for {@code double} and {@code scaled_float}, and for float fields of mixed widths. */
         FLOAT64(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
+        /** Boolean, for {@code boolean}. */
         BOOL(ArrowType.Bool.INSTANCE),
+        /** UTC timestamp in milliseconds, for {@code date}. */
         TIMESTAMP_MILLIS(new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")),
+        /** UTC timestamp in nanoseconds, for {@code date_nanos} and for fields mapped as both {@code date} and {@code date_nanos}. */
         TIMESTAMP_NANOS(new ArrowType.Timestamp(TimeUnit.NANOSECOND, "UTC")),
+        /** UTF-8 string, for {@code keyword}. */
         UTF8(ArrowType.Utf8.INSTANCE),
+        /** 16-byte IPv6 address, for {@code ip}; an IPv4 address reads as an IPv4-mapped IPv6 address. */
         IP(new ArrowType.FixedSizeBinary(16));
 
         private final ArrowType arrowType;
@@ -71,6 +83,7 @@ public record Column(String name, ColumnType type, Set<String> mappingTypes, boo
             this.arrowType = arrowType;
         }
 
+        /** Returns the Arrow type of the column's values. */
         public ArrowType arrowType() {
             return arrowType;
         }
@@ -97,18 +110,32 @@ public record Column(String name, ColumnType type, Set<String> mappingTypes, boo
     private static final Set<ColumnType> FLOATS = Set.of(ColumnType.FLOAT32, ColumnType.FLOAT64);
     private static final Set<ColumnType> TIMESTAMPS = Set.of(ColumnType.TIMESTAMP_MILLIS, ColumnType.TIMESTAMP_NANOS);
 
+    /**
+     * Creates a column that keeps an immutable copy of the mapping types.
+     *
+     * @param name         the field name
+     * @param type         the type of the column's values
+     * @param mappingTypes the mapping types of the field across the target indices
+     * @param list         whether the column holds a list of values per row
+     */
     public Column {
         mappingTypes = Set.copyOf(mappingTypes);
     }
 
     /**
-     * A scalar column.
+     * Creates a scalar column.
+     *
+     * @param name         the field name
+     * @param type         the type of the column's values
+     * @param mappingTypes the mapping types of the field across the target indices
      */
     public Column(String name, ColumnType type, Set<String> mappingTypes) {
         this(name, type, mappingTypes, false);
     }
 
     /**
+     * Reads a column from a stream.
+     *
      * @param in the stream to read from
      * @throws IOException if reading fails
      */
@@ -125,16 +152,19 @@ public record Column(String name, ColumnType type, Set<String> mappingTypes, boo
     }
 
     /**
+     * Returns whether doc values of {@code mappingType} can be read into a column.
+     *
      * @param mappingType a mapping type
-     * @return whether doc values of {@code mappingType} can be read into a column
      */
     public static boolean isSupported(String mappingType) {
         return MAPPING_TYPES.containsKey(mappingType);
     }
 
     /**
+     * Returns the column type of a field that every target index maps with {@code mappingType}.
+     *
      * @param mappingType a supported mapping type
-     * @return the column type of a field with this mapping type in every index
+     * @throws IllegalArgumentException if the mapping type is not supported
      */
     public static ColumnType columnType(String mappingType) {
         final ColumnType type = MAPPING_TYPES.get(mappingType);
@@ -170,7 +200,7 @@ public record Column(String name, ColumnType type, Set<String> mappingTypes, boo
     }
 
     /**
-     * @return the nullable Arrow field of this column; a document without values reads as null
+     * Returns the nullable Arrow field of this column. A document without values reads as null.
      */
     public Field toArrowField() {
         final Map<String, String> metadata = Map.of(MAPPING_TYPES_METADATA_KEY, String.join(",", new TreeSet<>(mappingTypes)));
@@ -182,10 +212,31 @@ public record Column(String name, ColumnType type, Set<String> mappingTypes, boo
     }
 
     /**
-     * @param columns the columns, in order
-     * @return the Arrow schema of batches with these columns
+     * Returns the Arrow schema of batches with these columns.
+     *
+     * @param columns the columns, in schema order
      */
     public static Schema toSchema(List<Column> columns) {
         return new Schema(columns.stream().map(Column::toArrowField).toList());
+    }
+
+    /** Returns the field name. */
+    public String name() {
+        return name;
+    }
+
+    /** Returns the type of the column's values. */
+    public ColumnType type() {
+        return type;
+    }
+
+    /** Returns the mapping types of the field across the target indices. */
+    public Set<String> mappingTypes() {
+        return mappingTypes;
+    }
+
+    /** Returns whether the column holds a list of values per row. */
+    public boolean list() {
+        return list;
     }
 }

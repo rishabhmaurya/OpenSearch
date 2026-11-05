@@ -83,18 +83,18 @@ import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 /**
- * Coordinates Arrow searches, and serves the shard streams of this node.
+ * Coordinates Arrow searches and serves the shard streams of this node.
  * <p>
- * A search resolves its columns from field capabilities, sends their schema, and then runs through
- * {@link TransportSearchAction}'s single-phase path, which provides the index resolution, routing, can-match, throttling,
- * failover, stats and slow logs of a regular search, while {@link ArrowSearchExecution} streams each shard.
+ * A search resolves its columns from field capabilities, sends their schema, then runs through
+ * {@link TransportSearchAction}'s single-phase path. That path provides the index resolution, routing, can-match,
+ * throttling, failover, stats and slow logs of a regular search, while {@link ArrowSearchExecution} streams each shard.
  */
 public class TransportArrowSearchAction extends TransportAction<ArrowSearchRequest, SearchResponse> {
 
     /**
-     * Batches a shard stream may hold in flight on the coordinating node: the stream transport prefetches up to five, and the
-     * relay holds one while it waits to send it. Besides, gRPC holds the batch last sent while the client reads it, one per
-     * search, as the call is not ready for the next once it queued a batch.
+     * Batches a shard stream may hold in flight on the coordinator: the stream transport prefetches up to five, and the relay
+     * holds one while it waits to send it. Separately, gRPC holds the last batch sent while the client reads it. That is one
+     * batch per search, because the call is not ready for the next batch once it has queued one.
      */
     static final int BATCHES_IN_FLIGHT_PER_STREAM = 6;
     /** How often a stopped search cancels its tasks again while some of its shard streams are still opening. */
@@ -115,6 +115,22 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
     private final CoordinatorBudget budget;
     private final BufferAllocator relayAllocator;
 
+    /**
+     * Creates the action, and registers this node's shard stream handler when the stream transport is available.
+     *
+     * @param actionFilters          the action filters
+     * @param transportService       the node's transport service
+     * @param streamTransportService the stream transport, or {@code null} if it is not available
+     * @param clusterService         the cluster service
+     * @param resolver               resolves index expressions
+     * @param transportSearchAction  runs the shard phase of each search
+     * @param searchService          runs the query phase of each shard scan on this node
+     * @param indicesService         resolves the shards and field-level security filter of shard scans on this node
+     * @param threadPool             schedules client resets and repeated cancels, and runs the slices of shard scans
+     * @param client                 runs field capabilities requests and task cancels
+     * @param nativeAllocator        provides the Flight memory pool that batches are allocated from
+     * @param components             the plugin's shared components
+     */
     @Inject
     public TransportArrowSearchAction(
         ActionFilters actionFilters,
@@ -204,8 +220,8 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
         final BatchSizes sizes = BatchSizes.of(settings, relayAllocator.getRoundingPolicy());
         final long minimum = sizes.perSearch() + sizes.perStream();
         final ShardTargets targets = ShardTargets.of(clusterService.state(), resolver, clusterService.operationRouting(), request);
-        // Request listeners, such as workload management, may still set max_concurrent_shard_requests once the search
-        // started, so it reserves for one stream per shard, and trims the reservation when its first shard starts.
+        // Request listeners such as workload management may set max_concurrent_shard_requests after the search starts. So
+        // the search reserves for up to one shard stream per shard, and trims the reservation when its first shard starts.
         final CoordinatorBudget.Reservation reservation = budget.reserve(
             reservationBytes(sizes.perStream(), sizes.perSearch(), settings.maxBufferedBytesPerRequest(), targets.shards()),
             minimum
@@ -271,7 +287,7 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
         final List<Column> columns = ColumnResolver.resolve(requestedFields, fieldCaps, maxColumns(request));
         final Schema schema = Column.toSchema(columns);
         final int streams = (int) Math.max(1, Math.min(Integer.MAX_VALUE, (reservation.bytes() - sizes.perSearch()) / sizes.perStream()));
-        // Each relay waits for its turn at the client, so a data node may wait for one client timeout per open stream.
+        // Each relay waits for its turn at the client, so a data node may wait one client idle timeout per open shard stream.
         final TimeValue producerReadyTimeout = TimeValue.timeValueMillis(
             Math.multiplyExact(settings.clientIdleTimeout().millis(), (long) streams + 1)
         );
@@ -318,9 +334,10 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
     }
 
     /**
-     * Ends the search's own hold on its reservation; only the first call has an effect, as a listener may be notified twice.
-     * Batches that gRPC has not yet written to the client keep holding it, and only they still count against the budget; a
-     * client that has not read them within the idle timeout has its call reset, which releases them.
+     * Ends the search's own hold on its reservation. Only the first call has an effect, because a listener may be notified
+     * twice. Batches that gRPC has not yet written to the client keep holding the reservation, and only they still count
+     * against the budget. A client that does not read them within the client idle timeout has its call reset, which
+     * releases them.
      */
     static void endSearch(CoordinatorBudget.Reservation reservation, ArrowBatchSink sink, Scheduler scheduler, TimeValue idleTimeout) {
         if (reservation.endSearch() == false) {
@@ -342,18 +359,18 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
     }
 
     /**
-     * The batch sizes of one search, read from the settings once so that what its coordinator reserves fits what its scans
-     * send.
+     * The batch sizes of one search, read from the settings once so that what the coordinator reserves fits what the shard
+     * scans send.
      *
      * @param batchBytes      the size batches grow to
      * @param firstBatchBytes the size of a shard's first batch
      * @param batchRows       the maximum rows in a batch
-     * @param maxBatchBytes   the largest batch a scan sends, and so the largest row: a row larger than the batch size goes
-     *                        out on its own, and a row the scan must reject always exceeds the batch budget, so it is
-     *                        rejected in whichever batch it falls
-     * @param batchMemory     the memory the coordinator holds for a received batch of {@code maxBatchBytes}: the stream
-     *                        transport reads its body into one buffer, which Arrow rounds up as it does every allocation, to
-     *                        the next power of two below its 16MB chunk size
+     * @param maxBatchBytes   the largest batch a shard scan sends, and so the largest row. A row larger than the batch size
+     *                        goes out alone. A row the scan must reject always exceeds the batch budget, so the scan rejects
+     *                        it in whichever batch it falls.
+     * @param batchMemory     the memory the coordinator holds for a received batch of {@code maxBatchBytes}. The stream
+     *                        transport reads its body into one buffer, which Arrow rounds up, as it does every allocation, to
+     *                        the next power of two below its 16MB chunk size.
      */
     record BatchSizes(long batchBytes, long firstBatchBytes, int batchRows, long maxBatchBytes, long batchMemory) {
 
@@ -370,16 +387,15 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
         }
 
         /**
-         * @return the bytes one open shard stream may buffer on the coordinating node, every batch it holds in flight being
-         *         as large as a batch can be
+         * Returns the bytes one open shard stream may buffer on the coordinator, counting every batch in flight at its largest.
          */
         long perStream() {
             return BATCHES_IN_FLIGHT_PER_STREAM * batchMemory;
         }
 
         /**
-         * @return the bytes a search buffers on the coordinating node besides its streams: the batch gRPC holds while the
-         *         client reads it
+         * Returns the bytes a search buffers on the coordinator besides its shard streams: the batch gRPC holds while the
+         * client reads it.
          */
         long perSearch() {
             return batchMemory;
@@ -387,8 +403,8 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
     }
 
     /**
-     * Moves the options a regular search would apply to hits into the scan: {@code post_filter} filters like the query,
-     * and the row limits are enforced by the scan, so no shard collects or fetches hits.
+     * Moves the options a regular search applies to hits into the shard scan. {@code post_filter} becomes a filter of the
+     * query, and the scan enforces the row limits, so no shard collects or fetches hits.
      */
     private static void prepareSource(ArrowSearchRequest request) {
         final SearchSourceBuilder source = request.source();
@@ -399,7 +415,8 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
             source.postFilter(null);
         }
         source.query(query).size(0).from(0).trackTotalHits(true).terminateAfter(SearchContext.DEFAULT_TERMINATE_AFTER);
-        // Shards still check the fields against index.max_docvalue_fields_search; the list format is the scan's alone.
+        // Shards still check the fields against index.max_docvalue_fields_search. Only the scan reads the list format, so
+        // the fields drop it.
         source.docValueFields().replaceAll(field -> new FieldAndFormat(field.field, null));
         request.requestCache(false);
     }
@@ -414,8 +431,8 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
     }
 
     /**
-     * @return the bytes a search reserves: its own, and one stream's worth for each of the {@code streams} it may open at
-     *         once, within the per-request limit, and at least one stream's worth whatever the limit
+     * Returns the bytes a search reserves: its own bytes plus one shard stream's worth for each of the {@code streams} it may
+     * open at once. The per-request limit caps the shard streams, but the search reserves at least one.
      */
     static long reservationBytes(long perStream, long perSearch, long perRequest, long streams) {
         final long reserved = Math.max(1, Math.min(streams, Math.max(0, perRequest - perSearch) / perStream));
@@ -436,11 +453,15 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
     /**
      * The shards a search's routing and preference target, and the nodes holding a copy of them, which bound the shard
      * streams it opens at once.
+     *
+     * @param shards how many shards the search targets
+     * @param nodes  how many nodes hold a copy of them
      */
     record ShardTargets(int shards, int nodes) {
 
         /**
-         * @return the targets of the search, or a single shard if they do not resolve, as the search then fails the same way
+         * Resolves the targets of a search. Returns a single shard on one node if they do not resolve, because the search
+         * then fails the same way.
          */
         static ShardTargets of(
             ClusterState state,
@@ -466,8 +487,8 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
         }
 
         /**
-         * @return the most shard streams the search opens at once, at least one: one per shard, and no more than
-         *         {@code maxConcurrentShardRequests} per node, which is how many shard requests a search runs at once on a node
+         * Returns the most shard streams the search opens at once, at least one: one per shard, but no more than the nodes
+         * times {@code maxConcurrentShardRequests}, the shard requests a search runs at once on a node.
          */
         long maxOpenStreams(int maxConcurrentShardRequests) {
             return Math.max(1, Math.min(shards, (long) maxConcurrentShardRequests * nodes));
@@ -475,8 +496,8 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
     }
 
     /**
-     * Every shard reads every column, as nulls where its index does not map the field, so a search across indices may read
-     * as many columns as the largest {@code index.max_docvalue_fields_search} of its target indices lets a search of one.
+     * Returns the most columns a search may read: the largest {@code index.max_docvalue_fields_search} of its target
+     * indices. Every shard reads every column, as nulls where its index does not map the field.
      */
     private int maxColumns(ArrowSearchRequest request) {
         final ClusterState state = clusterService.state();
@@ -495,9 +516,9 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
     }
 
     /**
-     * A search pipeline would transform the hits and response of a regular search, which an Arrow search does not produce,
-     * and its request processors may restrict what a search sees, so searches of indices with a default pipeline are
-     * rejected rather than run without it.
+     * Rejects searches of indices with a default search pipeline, rather than running them without it. A pipeline transforms
+     * the hits and response of a regular search, which an Arrow search does not produce, and its request processors may
+     * restrict what a search sees.
      */
     private void rejectSearchPipelines(ArrowSearchRequest request) {
         final ClusterState state = clusterService.state();
@@ -526,7 +547,7 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
     }
 
     /**
-     * @return the bytes the Arrow searches coordinated by this node reserve
+     * Returns the bytes that the Arrow searches on this coordinator reserve.
      */
     public long reservedBytes() {
         return budget.reserved();
@@ -544,7 +565,7 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
             request.setNodes(nodes);
             request.setReason(reason);
             request.setWaitForCompletion(false);
-            // As the tasks origin, like the cancel-after timeout, since the caller may not hold the privilege to cancel tasks.
+            // Cancel as the tasks origin, like the cancel-after timeout: the caller may lack the privilege to cancel tasks.
             new OriginSettingClient(client, GetTaskAction.TASKS_ORIGIN).admin()
                 .cluster()
                 .cancelTasks(request, ActionListener.runAfter(ActionListener.wrap(response -> {}, e -> {
@@ -554,13 +575,15 @@ public class TransportArrowSearchAction extends TransportAction<ArrowSearchReque
     }
 
     /**
-     * Cancels a stopped search's tasks on {@code nodes}, every node if none is given, and then again on the nodes of the shard
-     * streams still opening, until none is. A cancel only reaches the tasks already registered, and a stream's request may
-     * reach its node after the cancel did, while the stream itself can only be cancelled once its first batch arrived.
+     * Cancels a stopped search's tasks on {@code nodes}, then again on the nodes of the shard streams still opening, until
+     * none is left. A cancel only reaches the tasks already registered, and a shard stream's request may reach its node
+     * after the cancel. The stream itself can only be cancelled once its first batch arrives.
      *
-     * @param cancel   sends one cancel to the given nodes, and runs the given callback once it completed
-     * @param opening  the nodes of the shard streams still opening
-     * @param interval how long to wait before cancelling again
+     * @param nodes     the nodes to cancel on, or none for every node
+     * @param cancel    sends one cancel to the given nodes, and runs the given callback once it completes
+     * @param opening   returns the nodes of the shard streams still opening
+     * @param scheduler schedules the next cancel
+     * @param interval  how long to wait before cancelling again
      */
     static void cancelChildren(
         String[] nodes,

@@ -54,7 +54,7 @@ import static org.mockito.Mockito.when;
 public class ArrowScanCollectorTests extends OpenSearchTestCase {
 
     private static final Column COLUMN = new Column("k", ColumnType.UTF8, Set.of("keyword"));
-    /** Rows per batch: the first chunk a slice buffers fills its first batch with every doc of the chunk. */
+    /** Rows per batch, equal to the first chunk a slice buffers, so that chunk fills the slice's first batch. */
     private static final int BATCH_ROWS = ArrowScanCollector.SEED_CHUNK;
 
     private final AtomicInteger slotsHeld = new AtomicInteger();
@@ -73,15 +73,15 @@ public class ArrowScanCollectorTests extends OpenSearchTestCase {
     }
 
     /**
-     * Slice a sends a batch of every doc it buffered while slice b takes the shard's last rows: once a resumes, it has no
-     * compute slot to look for a match past the limit with, so it stops at once rather than score the rest of its segment
-     * outside of the node's compute slots and its budget, and the rest of its segment may hold matches the limit cut.
+     * Slice a sends a batch of every doc it buffered while slice b takes the shard's last rows. When a resumes, it holds no
+     * compute slot to look for a match past the limit, so it stops at once instead of scoring the rest of its segment outside
+     * the node's compute slots and its budget. The rest of its segment may hold matches the limit cut.
      */
     public void testSliceResumingAfterTheRowLimitWasReachedStopsScoring() throws Exception {
         assertSliceResumingAfterTheRowLimitWasReached(BATCH_ROWS + randomIntBetween(1, 100), true);
     }
 
-    /** As above, with the batch slice a sends ending its segment: no doc of the segment is left out. */
+    /** As above, but the batch slice a sends ends its segment, so no doc of the segment is left out. */
     public void testSliceResumingAfterTheRowLimitWasReachedAtTheEndOfItsSegmentLeavesNoMatchOut() throws Exception {
         assertSliceResumingAfterTheRowLimitWasReached(BATCH_ROWS, false);
     }
@@ -147,8 +147,8 @@ public class ArrowScanCollectorTests extends OpenSearchTestCase {
     }
 
     /**
-     * A slice that reached the shard's row limit with every doc it read keeps scoring, for a match past the limit; its compute
-     * budget running out meanwhile ends that wait, but does not time the scan out: it kept every row the shard may stream.
+     * A slice that reaches the shard's row limit with every doc it read keeps scoring, to find a match past the limit. If its
+     * compute budget runs out meanwhile, the wait ends, but the scan does not time out: it kept every row the shard may stream.
      */
     public void testComputeBudgetSpentWhileAwaitingAMatchPastTheRowLimitIsNoTimeout() throws Exception {
         int limit = randomIntBetween(1, BATCH_ROWS - 1);
@@ -177,7 +177,7 @@ public class ArrowScanCollectorTests extends OpenSearchTestCase {
     }
 
     /**
-     * A slice whose compute budget runs out after another slice reached the shard's row limit does not time the scan out: the
+     * A slice whose compute budget runs out after another slice reached the shard's row limit does not time the scan out. The
      * shard streamed every row it may, and the rest of the slice's segment may hold matches the limit cut.
      */
     public void testComputeBudgetSpentAfterAnotherSliceReachedTheRowLimitIsNoTimeout() throws Exception {
@@ -217,8 +217,8 @@ public class ArrowScanCollectorTests extends OpenSearchTestCase {
     }
 
     /**
-     * Looking up the values of lists grows a slice's scratch buffers to about a few batches while it computes; a slice that
-     * sends a batch, and so may wait for its consumer as long as it does not read, keeps little of that heap.
+     * Looking up list values grows a slice's scratch buffers to a few batches while it computes. A slice that sends a batch
+     * may wait for as long as its consumer does not read, so it keeps little of that heap.
      */
     public void testSliceWaitingToSendKeepsLittleScratchHeap() throws Exception {
         Column tags = new Column(COLUMN.name(), ColumnType.UTF8, Set.of("keyword"), true);
@@ -317,7 +317,7 @@ public class ArrowScanCollectorTests extends OpenSearchTestCase {
         withSegments(docsPerSegment, doc -> List.of(new BytesRef("v" + doc)), test);
     }
 
-    /** As above, with the values of the column of each doc of a segment. */
+    /** As above, with {@code values} giving the column's values for each doc of a segment. */
     private static void withSegments(int[] docsPerSegment, IntFunction<List<BytesRef>> values, ReaderTest test) throws Exception {
         try (Directory directory = new ByteBuffersDirectory()) {
             try (IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig().setMergePolicy(NoMergePolicy.INSTANCE))) {

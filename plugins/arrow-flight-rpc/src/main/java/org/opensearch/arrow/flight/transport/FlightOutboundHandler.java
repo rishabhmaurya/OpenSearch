@@ -224,7 +224,7 @@ class FlightOutboundHandler extends ProtocolOutboundHandler {
     }
 
     /**
-     * Sends the batch, failing the stream if that fails.
+     * Sends the batch and fails the stream if the send fails.
      *
      * @return the failure reported to the listener, or {@code null} if the batch was sent
      */

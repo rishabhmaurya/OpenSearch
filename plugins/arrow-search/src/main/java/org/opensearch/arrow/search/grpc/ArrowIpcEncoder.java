@@ -28,22 +28,23 @@ import java.util.List;
 
 /**
  * Encodes Arrow data as encapsulated Arrow IPC messages, one per payload. Concatenated, the payloads of a search form an
- * Arrow IPC stream (without its optional end-of-stream marker), readable by any Arrow implementation.
+ * Arrow IPC stream without its optional end-of-stream marker, which any Arrow implementation can read.
  * <p>
- * A record batch payload references the vectors' memory instead of copying it: only the small flatbuffer header is
- * built on heap, and the body segments are views of the batch buffers laid out exactly as
- * {@link MessageSerializer#serialize(WriteChannel, ArrowRecordBatch)} writes them, padded with direct memory.
+ * A record batch payload references the batch's memory instead of copying it. Only the small flatbuffer header is built on
+ * the heap. The body segments are views of the batch buffers, laid out and padded exactly as
+ * {@link MessageSerializer#serialize(WriteChannel, ArrowRecordBatch)} writes them, and the padding is direct memory too.
  */
 public final class ArrowIpcEncoder {
 
-    /** Zeros that pad buffers to 8 bytes; direct, so the transport can write a whole batch without copying it. */
+    /** Zeros that pad buffers to 8-byte boundaries. They are direct, so the transport writes a whole batch without copying it. */
     private static final ByteBuffer PADDING = ByteBuffer.allocateDirect(8).asReadOnlyBuffer();
 
     private ArrowIpcEncoder() {}
 
     /**
-     * @param schema the schema
-     * @return the schema message
+     * Encodes a schema message.
+     *
+     * @param schema the schema of every batch of the search
      */
     public static StreamPayload schema(Schema schema) {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -56,10 +57,10 @@ public final class ArrowIpcEncoder {
     }
 
     /**
-     * Encodes a batch, taking ownership of it: the batch is closed when the payload is released, or now if encoding fails.
+     * Encodes a batch as a record batch message and takes ownership of it. Releasing the payload closes the batch. If
+     * encoding fails, the batch closes at once.
      *
      * @param root the batch
-     * @return the record batch message
      */
     public static StreamPayload recordBatch(VectorSchemaRoot root) {
         ArrowRecordBatch batch = null;

@@ -11,7 +11,7 @@ package org.opensearch.arrow.search.action;
 import org.opensearch.search.SearchPhaseResult;
 
 /**
- * How the stream of one shard ended on the coordinating node. It never leaves the node.
+ * How the shard stream of one shard ended on the coordinator. It never leaves the node.
  */
 final class ArrowShardResult extends SearchPhaseResult {
 
@@ -21,10 +21,12 @@ final class ArrowShardResult extends SearchPhaseResult {
     private final boolean terminatedEarly;
 
     /**
+     * Creates the result of one shard.
+     *
      * @param rows            the rows relayed to the client
-     * @param truncated       whether the request row limit stopped the shard before it was exhausted
+     * @param truncated       whether the search's row limit stopped the shard before it was exhausted
      * @param timedOut        whether the shard hit the search timeout
-     * @param terminatedEarly whether {@code terminate_after} stopped the shard
+     * @param terminatedEarly whether the shard's row limit, from {@code size} or {@code terminate_after}, may have left matches out
      */
     ArrowShardResult(long rows, boolean truncated, boolean timedOut, boolean terminatedEarly) {
         this.rows = rows;

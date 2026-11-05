@@ -312,7 +312,7 @@ public class SearchServiceTests extends OpenSearchSingleNodeTestCase {
                 assertThat("slices beyond the first run on the extension's executor", forked.get(), greaterThan(0));
             }
 
-            // Disabling concurrent segment search still wins.
+            // Disabling concurrent segment search overrides the extension.
             setConcurrentSearch("none", 2);
             try (DefaultSearchContext context = service.createSearchContext(shardRequest(shard, ext), new TimeValue(1000))) {
                 context.addSearchExt(ext);

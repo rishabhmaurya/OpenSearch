@@ -41,13 +41,13 @@ import java.util.Set;
 /**
  * Reads the doc values of one segment into the Arrow vector of a column.
  * <p>
- * Numeric columns read raw Lucene doc values and decode them exactly as the field mappers encode them, using Lucene's bulk
- * read when a chunk has no missing values. Keyword and ip columns look each distinct ordinal of a chunk up once, in
- * ascending order. A list column writes every value of a document, in doc-values order, into the list's value vector.
- * Writers are created and used by one thread, as Lucene requires of doc-values iterators.
+ * Numeric columns read raw Lucene doc values and decode them exactly as the field mappers encode them. They use Lucene's
+ * bulk read when every doc of a chunk has exactly one value. Keyword and ip columns look each distinct ordinal of a chunk up
+ * once, in ascending order. A list column writes every value of a doc, in doc-values order, into the list's value vector.
+ * One thread creates and uses each writer, as Lucene requires of doc-values iterators.
  * <p>
- * Values whose size varies (keyword values and list values) take their bytes from the {@link Allowance} of the pass, which
- * ends after the doc whose row overdraws it, so docs far larger than the pass was sized for cost at most about one batch of
+ * Variable-size values (keyword values and list values) take their bytes from the {@link Allowance} of the pass. The pass
+ * ends after the doc whose row overdraws it, so docs far larger than the pass expected cost at most about one batch of
  * memory per column of such values.
  */
 final class ColumnWriters {
@@ -56,25 +56,24 @@ final class ColumnWriters {
     interface LeafColumnWriter {
         /**
          * Writes the values of {@code docs[0..count)}, which are increasing, into rows {@code [offset, offset + count)} of
-         * {@code vector}; documents without a value become nulls. Values of varying size take their bytes from
-         * {@code allowance}, and the writer stops after the doc whose row overdraws it, having possibly read the doc values
-         * of later docs.
+         * {@code vector}. Docs without a value become nulls. Variable-size values take their bytes from {@code allowance},
+         * and the writer stops after the doc whose row overdraws it. It may have read the doc values of later docs.
          *
-         * @return how many docs, from the first, were written: {@code count}, or fewer, but at least one, if the allowance ran out
+         * @return how many docs, from the first, were written: {@code count}, or at least one but fewer if the allowance ran out
          */
         int write(int[] docs, int count, FieldVector vector, int offset, Allowance allowance) throws IOException;
     }
 
     /**
-     * The bytes the values of a pass over buffered docs may take, shared by the pass's columns row by row. The columns are
-     * written one after the other, and each stops after the first doc whose row, with the values of the columns written
-     * before it, takes more than the allowance: so the pass ends at the row that overdraws the batch, and each column's values
-     * take about the allowance at most. Only values whose size varies take from it: the size of the other values is known
-     * when the pass is sized.
+     * The bytes that the values of a pass over buffered docs may take, shared row by row by the pass's columns. The columns
+     * are written one after another. Each stops after the first doc whose row, counting the columns before it, takes more
+     * than the allowance. So the pass ends at the row that overdraws the batch, and each column's values take at most about
+     * the allowance. Only variable-size values take from it, since the pass is sized with the size of the others.
      */
     static final class Allowance {
+        /** The bytes the pass's values may take. */
         private long bytes;
-        /** Per doc of the pass, the bytes the columns written before the current one took for the docs up to it. */
+        /** Per doc of the pass, the bytes that the columns before the current one took for the docs up to and including it. */
         private long[] before = new long[0];
         /** Per doc of the pass, the bytes the current column took for it. */
         private long[] current = new long[0];
@@ -91,7 +90,7 @@ final class ColumnWriters {
             taken = 0;
         }
 
-        /** @return the bytes the current column may still take for the docs up to {@code doc}, negative once overdrawn */
+        /** Returns the bytes the current column may still take for the docs up to {@code doc}; negative once overdrawn. */
         long remaining(int doc) {
             return bytes - before[doc] - taken;
         }
@@ -99,7 +98,7 @@ final class ColumnWriters {
         /**
          * Takes the bytes of the current column's values of {@code doc}, after those of the docs before it.
          *
-         * @return whether the rows up to {@code doc} overdrew the allowance, which ends the pass after it
+         * @return whether the rows up to {@code doc} overdraw the allowance, which ends the pass after {@code doc}
          */
         boolean take(int doc, long bytes) {
             current[doc] += bytes;
@@ -107,7 +106,7 @@ final class ColumnWriters {
             return remaining(doc) < 0;
         }
 
-        /** Ends the current column, which wrote the first {@code docs} docs of the pass; the next one takes what their rows left. */
+        /** Ends the current column, which wrote the first {@code docs} docs of the pass; the next column takes what their rows left. */
         void nextColumn(int docs) {
             if (taken == 0) {
                 return;
@@ -125,12 +124,11 @@ final class ColumnWriters {
     private ColumnWriters() {}
 
     /**
-     * @param column      the column
-     * @param leaf        the segment
-     * @param context     the shard's query context
-     * @param visible     whether field-level security lets the caller see the field
-     * @param scratch     reusable buffers of the scan
-     * @return a writer for the segment
+     * Opens the writer of a column for a segment. A field that the caller may not see, or that the shard does not map, reads
+     * as nulls.
+     *
+     * @param visible whether field-level security lets the caller see the field
+     * @param scratch the reusable buffers of the slice
      * @throws ArrowScanDataException if the shard maps the field to a type the column cannot hold, or without doc values
      */
     static LeafColumnWriter open(Column column, LeafReaderContext leaf, QueryShardContext context, boolean visible, Scratch scratch)
@@ -204,7 +202,7 @@ final class ColumnWriters {
             case "date" -> columnType == ColumnType.TIMESTAMP_NANOS ? ColumnWriters::millisToNanos : raw -> raw;
             case "date_nanos", "unsigned_long", "boolean" -> raw -> raw;
             case "byte", "short", "integer", "long" -> raw -> raw;
-            // Floating point columns keep the decoded value's bits, written by the vector's width below.
+            // Floating-point decoders return the value's raw bits, which put() stores at the vector's width (4 or 8 bytes).
             case "double" -> raw -> Double.doubleToRawLongBits(NumericUtils.sortableLongToDouble(raw));
             case "float" -> columnType == ColumnType.FLOAT64
                 ? raw -> Double.doubleToRawLongBits(NumericUtils.sortableIntToFloat((int) raw))
@@ -230,9 +228,9 @@ final class ColumnWriters {
     }
 
     /**
-     * Reusable buffers of a slice, so writing a chunk of small values allocates nothing on the heap. A slice writes its
-     * batches one at a time, so the buffers are never used concurrently. Since passes stop at their allowance, the buffers
-     * take up to a few times a batch's budget, for lists of many short values; {@link #trim} drops the large ones.
+     * Reusable buffers of a slice, so writing a chunk of small values allocates nothing on the heap. A slice writes one batch
+     * at a time, so the buffers are never used concurrently. Since passes stop at their allowance, the buffers take up to a
+     * few times a batch's budget, for lists of many short values. {@link #trim} drops the large ones.
      */
     static final class Scratch {
         /** The largest array, in bytes, that {@link #trim} keeps. */
@@ -261,7 +259,7 @@ final class ColumnWriters {
                 sortedOrds = new int[0];
             }
             if ((long) valueOffsets.length * Integer.BYTES > KEPT_BYTES) {
-                // Sized together.
+                // The offsets and lengths are sized together.
                 valueOffsets = new int[0];
                 valueLengths = new int[0];
             }
@@ -270,13 +268,13 @@ final class ColumnWriters {
             }
         }
 
-        /** @return the heap the arrays take */
+        /** Returns the heap the arrays take. */
         long heapBytes() {
             return (long) values.length * Long.BYTES + (long) Integer.BYTES * (ords.length + valueCounts.length + sortedOrds.length
                 + valueOffsets.length + valueLengths.length) + bytes.length;
         }
 
-        // Grown by copying, since callers keep filling arrays they asked for earlier.
+        // The arrays grow by copying, since callers keep filling the arrays they got earlier.
         long[] values(int count) {
             return values = ArrayUtil.grow(values, count);
         }
@@ -358,7 +356,7 @@ final class ColumnWriters {
         private int writeLists(int[] docs, int count, ListVector list, int offset, Allowance allowance) throws IOException {
             final FieldVector items = list.getDataVector();
             if (dense(docs, count)) {
-                // One value per doc, whose size the pass was sized with.
+                // One value per doc, whose fixed size the pass is sized with, so the allowance does not count it.
                 final long[] raw = scratch.values(count);
                 single.longValues(count, docs, raw, 0L);
                 final int first = list.startNewValue(offset);
@@ -473,9 +471,9 @@ final class ColumnWriters {
     }
 
     /**
-     * Keyword and ip values: gathers a chunk's ordinals, looks each distinct one up once in ascending order, which reads each
-     * block of the terms dictionary once, then writes the values in row order. The values looked up are copied to the heap
-     * while they fit the pass's allowance; the others, if any, are looked up again when they are written.
+     * Writes keyword and ip values. It gathers a chunk's ordinals and looks each distinct one up once, in ascending order,
+     * which reads each block of the terms dictionary once. It then writes the values in row order. Looked-up values are
+     * copied to the heap while they fit the pass's allowance; the others, if any, are looked up again when they are written.
      */
     private static final class OrdinalWriter implements LeafColumnWriter {
         private static final int IP_BYTES = 16;
@@ -502,8 +500,8 @@ final class ColumnWriters {
             // What a list value takes besides its bytes: the offset of a keyword.
             final int itemOverhead = ip ? 0 : VarCharVector.OFFSET_WIDTH;
             final int minItemBytes = ip ? IP_BYTES : itemOverhead;
-            // The ordinals of the docs in row order, and how many each doc has, or -1 if it has none. A list column stops
-            // gathering once the values gathered overdraw the allowance even at their smallest.
+            // Gathers the ordinals of the docs in row order, and how many each doc has, or -1 if it has none. A list column stops
+            // gathering once the values gathered overdraw the allowance even at their smallest size.
             final int[] counts = scratch.valueCounts(count);
             int total = 0;
             int gathered = 0;
@@ -577,7 +575,7 @@ final class ColumnWriters {
                     vector.setNull(offset + i);
                 } else {
                     final int bytes = writeValue(vector, offset + i, ords[next++], sorted, distinct, copied);
-                    // An ip value has a fixed size.
+                    // An ip value has a fixed size, which the pass is sized with.
                     if (ip == false && allowance.take(i, bytes)) {
                         return i + 1;
                     }
@@ -589,7 +587,7 @@ final class ColumnWriters {
         /**
          * Writes the value of an ordinal, from the scratch buffer if it was copied there.
          *
-         * @return the bytes of the value
+         * @return the length of the value in bytes
          */
         private int writeValue(FieldVector vector, int index, int ord, int[] sorted, int distinct, int copied) throws IOException {
             final int slot = Arrays.binarySearch(sorted, 0, distinct, ord);
@@ -644,7 +642,7 @@ final class ColumnWriters {
         private BytesRef lookupOrd(int ord) throws IOException {
             final BytesRef value = single != null ? single.lookupOrd(ord) : values.lookupOrd(ord);
             if (ip && value.length != IP_BYTES) {
-                // Every copy of the shard reads the same values, e.g. those field masking replaced an address with.
+                // A data error: every copy of the shard holds the same values, e.g. the masks that replace addresses under field masking.
                 throw new ArrowScanDataException(
                     "field [" + column.name() + "] has values on this shard that are not ip addresses, such as masked values"
                 );
@@ -654,8 +652,8 @@ final class ColumnWriters {
     }
 
     /**
-     * Grows a scalar vector, or the value vector of a list, so indices below {@code rows} can be written directly to its
-     * buffers. A variable-width vector grows its validity and offsets only: its data grows with the values written into it.
+     * Grows a scalar vector, or the value vector of a list, so that indices below {@code rows} can be written straight to its
+     * buffers. A variable-width vector grows only its validity and offset buffers, since its data grows as values are written.
      */
     static void ensureCapacity(FieldVector vector, int rows) {
         if (vector instanceof VarCharVector varChar) {
@@ -672,9 +670,7 @@ final class ColumnWriters {
         }
     }
 
-    /**
-     * Sets the row count of a batch, which may drop rows written past it.
-     */
+    /** Sets the row count of a batch, which may drop rows written past it. */
     static void setRowCount(VectorSchemaRoot root, int rows) {
         ArrowBatches.setRowCount(root, rows);
     }

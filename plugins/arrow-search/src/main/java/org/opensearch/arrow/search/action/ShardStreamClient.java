@@ -20,8 +20,8 @@ import org.opensearch.transport.StreamTransportResponseHandler;
 interface ShardStreamClient {
 
     /**
-     * Opens the stream of a shard copy. The handler receives the stream, or the failure to open it; this method may also
-     * throw if the node cannot be reached at all.
+     * Opens the shard stream of a shard copy. The handler receives the stream or the failure to open it. This method may
+     * also throw, if the node cannot be reached at all.
      */
     void open(
         DiscoveryNode node,

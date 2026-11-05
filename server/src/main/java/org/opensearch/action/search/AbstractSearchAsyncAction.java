@@ -549,7 +549,7 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
         onShardFailure(shardIndex, shard, e);
         final SearchShardTarget nextShard;
         if (shard != null && shouldTryNextCopy(shard, e) == false) {
-            // The copies that will not be tried still count as done, as when a shard succeeds.
+            // Count the copies that are not tried as done, as a successful shard does.
             totalOps.addAndGet(shardIt.remaining());
             nextShard = null;
         } else {
@@ -601,8 +601,8 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
     }
 
     /**
-     * Whether the next copy of a shard is tried after {@code shard} failed. Phases whose shard results already left the node
-     * return {@code false}, so they are not produced twice.
+     * Returns whether to try the next copy of a shard after the copy {@code shard} failed. For example, a phase that has
+     * already passed on some results of the shard returns {@code false}, so that no result is produced twice.
      *
      * @param shard the failed copy
      * @param e     the failure

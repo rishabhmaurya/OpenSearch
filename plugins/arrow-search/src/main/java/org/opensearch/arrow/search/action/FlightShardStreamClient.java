@@ -22,7 +22,7 @@ import org.opensearch.transport.TransportRequestOptions;
  */
 final class FlightShardStreamClient implements ShardStreamClient {
 
-    // No timeout: a stream lasts as long as the client reads, which the coordinator bounds with its idle timeout.
+    // No timeout: a shard stream lasts as long as the client reads, which the client idle timeout bounds.
     private static final TransportRequestOptions OPTIONS = TransportRequestOptions.builder()
         .withType(TransportRequestOptions.Type.STREAM)
         .build();

@@ -21,11 +21,12 @@ import io.grpc.internal.ServerStream;
 
 /**
  * Resets the HTTP/2 stream of a server call. Closing a call only queues its trailers behind the messages its client has not
- * read, so they keep their memory as long as the connection lives; a reset discards them. gRPC itself resets a server
- * stream, through {@code ServerStream#cancel}, only when the call's deadline expires, and offers no API to do so otherwise.
+ * read. Those messages hold their memory for as long as the connection lives, and a reset discards them. gRPC resets a
+ * server stream, through {@code ServerStream#cancel}, only when the call's deadline expires, and has no API to reset it
+ * otherwise.
  * <p>
- * The stream is a grpc-java internal of the call, so the lookup is verified once and {@link #of} reports {@code null} when
- * it is unavailable.
+ * The stream is a grpc-java internal of the call. The lookup is verified once, and {@link #of} returns {@code null} when it
+ * is unavailable.
  */
 public final class StreamReset {
 
@@ -39,18 +40,18 @@ public final class StreamReset {
     private StreamReset() {}
 
     /**
-     * @return whether the grpc-java internals this class depends on were found
+     * Returns whether the grpc-java internals that this class depends on were found.
      */
     public static boolean isAvailable() {
         return INTERNALS != null;
     }
 
     /**
-     * Looks up the stream of a call.
+     * Returns a task that resets the stream of {@code call}.
      *
      * @param call a call as gRPC passes it to the method's handler
-     * @return resets the call's stream, from any thread and any number of times; {@code null} if the internals are
-     *         unavailable or {@code call} is not gRPC's own, for example because an interceptor wrapped it
+     * @return a task that resets the stream, safe to run from any thread and more than once; {@code null} if the internals
+     *         are unavailable or {@code call} is not gRPC's own, for example because an interceptor wrapped it
      */
     @Nullable
     public static Runnable of(ServerCall<?, ?> call) {
@@ -81,7 +82,7 @@ public final class StreamReset {
                 stream.setAccessible(true);
                 return new Internals(serverCallClass, stream);
             } catch (ReflectiveOperationException | RuntimeException e) {
-                logger.warn("gRPC stream resets are unavailable, a client that stops reading holds its last messages", e);
+                logger.warn("gRPC stream resets are unavailable; a client that stops reading holds its last messages", e);
                 return null;
             }
         }

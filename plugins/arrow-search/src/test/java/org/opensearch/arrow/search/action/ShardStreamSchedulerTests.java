@@ -69,7 +69,7 @@ public class ShardStreamSchedulerTests extends OpenSearchTestCase {
         scheduler.submit("b", new Launch("b", log));
         scheduler.submit("b", new Launch("b", log));
         runExecuted();
-        // a, a, a fill the slots in submission order; when one ends, b goes next since a still has two open.
+        // The three launches on a fill the slots in submission order. When one ends, b runs next, since a still has two open.
         assertEquals(List.of("run a", "run a", "run a"), log);
         scheduler.release("a");
         runExecuted();

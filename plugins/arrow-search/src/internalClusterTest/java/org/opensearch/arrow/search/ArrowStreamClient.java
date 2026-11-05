@@ -79,7 +79,9 @@ final class ArrowStreamClient implements AutoCloseable {
     }
 
     /**
-     * @param onTransportThread whether call callbacks run on the transport's event loop, so a callback that blocks stops the
+     * Creates a client of the gRPC endpoint at {@code address}.
+     *
+     * @param onTransportThread whether call callbacks run on the transport's event loop; a callback that blocks then stops the
      *                          client from reading the connection at all, as a stuck consumer would
      */
     ArrowStreamClient(TransportAddress address, boolean onTransportThread) {
@@ -142,9 +144,7 @@ final class ArrowStreamClient implements AutoCloseable {
         }
     }
 
-    /**
-     * @return the payload of a payload message, or {@code null} for any other message
-     */
+    /** Returns the Arrow IPC payload of a payload message, or {@code null} for any other message. */
     static byte[] payloadOf(byte[] message) throws IOException {
         final CodedInputStream in = CodedInputStream.newInstance(message);
         final int tag = in.readTag();

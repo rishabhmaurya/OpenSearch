@@ -1086,8 +1086,8 @@ final class DefaultSearchContext extends SearchContext {
     }
 
     /**
-     * The executor that collects the request's segment slices: the one a search extension names, or the index searcher pool.
-     * Without an index searcher pool, concurrent segment search is unavailable whatever the extensions ask for.
+     * Returns the executor that collects the request's segment slices: the one a search extension names, or else the index
+     * searcher pool. Without an index searcher pool, concurrent segment search is unavailable whatever the extensions ask for.
      */
     private static Executor sliceExecutor(ShardSearchRequest request, @Nullable Executor indexSearcherExecutor) {
         if (indexSearcherExecutor == null || request.source() == null || request.source().ext() == null) {

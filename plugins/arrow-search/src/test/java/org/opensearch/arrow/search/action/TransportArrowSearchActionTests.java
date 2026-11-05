@@ -171,7 +171,7 @@ public class TransportArrowSearchActionTests extends OpenSearchTestCase {
             scheduled.incrementAndGet();
             return scheduler.getThreadPool().schedule(command, delay, executor);
         };
-        // As when the listener's response handling throws and the listener is then notified of the failure.
+        // This happens when the listener's response handling throws and the listener is then notified of the failure.
         TransportArrowSearchAction.endSearch(reservation, sink, counting, IDLE_TIMEOUT);
         TransportArrowSearchAction.endSearch(reservation, sink, counting, IDLE_TIMEOUT);
         assertEquals("the second end does not release the batch's hold", 10, budget.reserved());
@@ -227,7 +227,7 @@ public class TransportArrowSearchActionTests extends OpenSearchTestCase {
         );
         SearchRequest request = new SearchRequest("idx");
         TransportArrowSearchAction.ShardTargets targets = TransportArrowSearchAction.ShardTargets.of(state, resolver, routing, request);
-        // A workload group may raise the value once the search starts, after its targets resolved.
+        // A workload group may raise the value when the search starts, after its targets are resolved.
         request.setMaxConcurrentShardRequests(20);
         assertEquals(20, targets.maxOpenStreams(request.getMaxConcurrentShardRequests()));
     }
@@ -271,7 +271,7 @@ public class TransportArrowSearchActionTests extends OpenSearchTestCase {
         assertEquals(2, cancels.size());
         assertEquals("then the nodes of the streams still opening", Set.of("n1", "n2"), Set.copyOf(cancels.get(1)));
 
-        // One stream's first batch arrived, and it is cancelled directly.
+        // The first batch of the stream on n1 arrived, so that stream is cancelled directly.
         opening.remove("n1");
         scheduler.advanceTime();
         scheduler.runAllRunnableTasks();

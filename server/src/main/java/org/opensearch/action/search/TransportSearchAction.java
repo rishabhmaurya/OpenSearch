@@ -336,7 +336,8 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
     }
 
     /**
-     * Applies the cancellation timeout of the task and records the response status, as every search request does.
+     * Wraps {@code listener} to apply the task's cancellation timeout and to record the response status, as for every
+     * search request.
      */
     private ActionListener<SearchResponse> wrapSearchListener(Task task, ActionListener<SearchResponse> listener) {
         // only if task is of type CancellableTask and support cancellation on timeout, treat this request eligible for timeout based
@@ -375,6 +376,9 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
      * @opensearch.internal
      */
     public interface SinglePhaseSearchAction {
+        /**
+         * Runs the operation on one shard copy, without the shard request.
+         */
         default void executeOnShardTarget(
             SearchTask searchTask,
             SearchShardTarget target,
@@ -399,34 +403,34 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
         }
 
         /**
-         * Whether a failed shard copy may be retried on the next copy. An operation whose results already left the node
-         * returns {@code false}, so they are not produced twice.
+         * Returns whether to retry a failed shard copy on the next copy. For example, an operation that has already passed
+         * on some results of the shard returns {@code false}, so that no result is produced twice.
          */
         default boolean shouldTryNextCopy(SearchShardTarget target, Exception failure) {
             return true;
         }
 
         /**
-         * Called once per shard whose every tried copy failed.
+         * Called once for each shard whose tried copies all failed.
          */
         default void onShardGroupFailure(int shardIndex, @Nullable SearchShardTarget target, Exception failure) {}
 
         /**
-         * Builds the response sections from the shard results; throwing fails the request.
+         * Builds the response sections from the shard results. An exception fails the request.
          */
         default InternalSearchResponse buildResponse(List<SearchPhaseResult> results) {
             return InternalSearchResponse.empty();
         }
 
         /**
-         * Whether shards may be skipped by index pruning and the can-match pre-filter phase before the operation runs.
+         * Returns whether index pruning and the can-match pre-filter phase may skip shards before the operation runs.
          */
         default boolean allowShardSkipping() {
             return false;
         }
 
         /**
-         * Whether the request gets the cancellation timeout and response-status stats of a regular search.
+         * Returns whether the request gets the cancellation timeout and response status stats of a regular search.
          */
         default boolean applySearchRequestWrappers() {
             return false;

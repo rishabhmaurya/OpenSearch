@@ -20,7 +20,7 @@ import org.apache.arrow.vector.complex.ListVector;
  */
 final class BatchBytes {
 
-    /** Upper bound of the encapsulation and flatbuffer metadata of a record batch message, apart from per-column parts. */
+    /** Upper bound of the encapsulation and flatbuffer metadata of a record batch message, without its per-column parts. */
     static final long MESSAGE_OVERHEAD = 128;
     /** Upper bound of the metadata of one vector of a column: its field node and up to three buffer descriptors. */
     static final long COLUMN_OVERHEAD = 64;
@@ -28,9 +28,9 @@ final class BatchBytes {
     private BatchBytes() {}
 
     /**
+     * Returns the IPC message size of the first {@code rows} rows of a batch.
+     *
      * @param root a batch whose vectors hold at least {@code rows} values
-     * @param rows a row count
-     * @return the IPC message size of the first {@code rows} rows of {@code root}
      */
     static long messageBytes(VectorSchemaRoot root, int rows) {
         long bytes = metadataBytes(root);
@@ -40,9 +40,7 @@ final class BatchBytes {
         return bytes;
     }
 
-    /**
-     * @return the upper bound of the metadata of a record batch message of {@code root}, whatever its row count
-     */
+    /** Returns an upper bound of the metadata of a record batch message of {@code root}, whatever its row count. */
     static long metadataBytes(VectorSchemaRoot root) {
         long bytes = MESSAGE_OVERHEAD;
         for (FieldVector vector : root.getFieldVectors()) {
@@ -60,9 +58,10 @@ final class BatchBytes {
     }
 
     /**
-     * @param vector a vector of one of the column types, or a list of one, holding at least {@code rows} values
-     * @param rows   a row count
-     * @return the size of the vector's buffers for {@code rows} rows, each padded to 8 bytes as IPC lays them out
+     * Returns the size of a vector's buffers for its first {@code rows} rows, each buffer padded to 8 bytes as IPC lays it
+     * out.
+     *
+     * @param vector a vector of a column type, or a list of one, holding at least {@code rows} values
      */
     static long bodyBytes(FieldVector vector, int rows) {
         final long validity = pad(bits(rows));

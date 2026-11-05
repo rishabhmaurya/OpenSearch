@@ -29,7 +29,7 @@ dependencies {
 
   internalClusterTestImplementation project(':plugins:arrow-base')
   internalClusterTestImplementation project(':plugins:arrow-flight-rpc')
-  // arrow-flight-rpc and transport-grpc pin different Guava releases; one copy is needed when both run in the test JVM.
+  // arrow-flight-rpc and transport-grpc pin different Guava releases; the test JVM runs both and needs only one copy.
   internalClusterTestImplementation(project(':modules:transport-grpc')) {
     exclude group: 'com.google.guava', module: 'guava'
   }

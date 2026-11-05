@@ -26,18 +26,19 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 /**
- * Sends Arrow data as IPC messages over a gRPC response stream, one message at a time and only while the call is ready, so
- * the transport never buffers more than its flow-control window.
+ * Sends Arrow data as IPC messages over a gRPC response stream. It sends one message at a time, and only while the call is
+ * ready, so the transport never buffers more than its flow-control window.
  * <p>
- * Senders take turns in arrival order and wait on {@link ReentrantLock}s, which unmount virtual threads. A client that
- * stops reading for longer than the idle timeout fails the search, which releases what the search holds on every node.
- * The messages already handed to gRPC for that call stay queued, and keep their memory, until the client reads again,
- * when it sees {@code DEADLINE_EXCEEDED}, or the call is {@link #reset}.
+ * Senders take turns in arrival order. They wait on {@link ReentrantLock}s, which unmount virtual threads. A client that
+ * stops reading for longer than the idle timeout fails the search, which releases what the search holds on every node. The
+ * messages already handed to gRPC stay queued, and keep their memory, until the client reads them and then sees
+ * {@code DEADLINE_EXCEEDED}, or until the call is {@link #reset}.
  */
 public final class GrpcArrowBatchSink implements ArrowBatchSink {
 
-    /** Upper bound of a wait for readiness, guarding against a missed ready notification. */
+    /** How long a wait for readiness lasts before it checks again, in case a ready notification is missed. */
     private static final long READY_RECHECK_NANOS = TimeUnit.MILLISECONDS.toNanos(100);
+    /** Marks that the client cancelled, so a cancel callback set later runs at once. */
     private static final Runnable FIRED = () -> {};
 
     private final StreamSearchResponseChannel channel;
@@ -51,9 +52,11 @@ public final class GrpcArrowBatchSink implements ArrowBatchSink {
     private volatile boolean schemaSent;
 
     /**
+     * Creates the sink of one call and registers its ready and cancel handlers.
+     *
      * @param channel     the response channel of the call
      * @param idleTimeout how long the client may stop reading
-     * @param executor    runs the cancellation callback, off the gRPC thread
+     * @param executor    runs the cancel callback, off the gRPC thread
      */
     public GrpcArrowBatchSink(StreamSearchResponseChannel channel, Supplier<TimeValue> idleTimeout, Executor executor) {
         this.channel = channel;
@@ -88,6 +91,7 @@ public final class GrpcArrowBatchSink implements ArrowBatchSink {
             sendLock.lockInterruptibly();
             try {
                 awaitReady();
+                // The encoder, then the channel, owns the batch from here and closes it, also on failure.
                 owned = false;
                 channel.sendPayload(ArrowIpcEncoder.recordBatch(batch));
             } finally {
@@ -137,8 +141,8 @@ public final class GrpcArrowBatchSink implements ArrowBatchSink {
     @Override
     public void complete(SearchResponse summary) {
         if (schemaSent == false) {
-            // Something ran the request as a regular search, e.g. security's filter-level document-level security, so the
-            // client would get a summary without its rows.
+            // Without a schema, something ran the request as a regular search, e.g. the security plugin's filter-level
+            // document-level security. The client would get a summary without its rows.
             fail(
                 new OpenSearchStatusException(
                     "the search did not run as an Arrow search; Arrow search does not support filter-level document-level security",

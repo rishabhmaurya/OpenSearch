@@ -123,10 +123,9 @@ public enum StreamErrorCode {
     }
 
     /**
-     * A cancellation maps to {@link RestStatus#INTERNAL_SERVER_ERROR}, the status of a {@link TaskCancelledException}: the stream
-     * may have been cancelled on the producer's side, e.g. by a closing shard, which says nothing about the request.
-     *
-     * @return the REST status a failure with this code maps to
+     * Returns the REST status that a failure with this code maps to. {@link #CANCELLED} maps to
+     * {@link RestStatus#INTERNAL_SERVER_ERROR}, the status of a {@link TaskCancelledException}, because the producer side can
+     * cancel a stream, for example when a shard closes, which says nothing about the request.
      */
     public RestStatus restStatus() {
         return switch (this) {
@@ -145,9 +144,10 @@ public enum StreamErrorCode {
     }
 
     /**
-     * Picks the code that carries the meaning of {@code failure} across a stream, so the consumer can map it back to the
-     * same {@link RestStatus}. The first {@link StreamException} or {@link TaskCancelledException} in the cause chain
-     * decides, since a wrapper such as the query phase's says nothing about the failure.
+     * Returns the code that carries the meaning of {@code failure} across a stream, so the consumer can map it back to the
+     * same {@link RestStatus}. The first {@link StreamException} or {@link TaskCancelledException} in the cause chain decides,
+     * because a wrapper such as the query phase's exception says nothing about the failure. Otherwise the REST status of
+     * {@code failure} decides.
      *
      * @param failure the failure of a stream producer
      * @return the code for the failure

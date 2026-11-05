@@ -20,14 +20,16 @@ import java.util.Map;
 /**
  * Asks a shard copy to stream the doc values of the matches of a search.
  * <p>
- * It is the shard search request the coordinator built, with the scan's columns and batch sizing added, so everything
- * that applies to shard search requests, such as security's handling of document-level security, applies to it too.
+ * It is the shard search request the coordinator built, plus the scan's columns and batch sizing, so everything that
+ * applies to shard search requests, such as document-level security, applies to it too.
  */
 public final class ArrowShardStreamRequest extends ShardSearchRequest {
 
     private final ArrowScanSpec spec;
 
     /**
+     * Adds a scan spec to the coordinator's shard request.
+     *
      * @param shardRequest the shard request the coordinator built: query, alias filter, routing and start time
      * @param spec         the columns and batch sizing
      */
@@ -37,6 +39,8 @@ public final class ArrowShardStreamRequest extends ShardSearchRequest {
     }
 
     /**
+     * Reads a request written by {@link #writeTo}.
+     *
      * @param in the stream to read from
      * @throws IOException if reading fails
      */
@@ -51,6 +55,7 @@ public final class ArrowShardStreamRequest extends ShardSearchRequest {
         spec.writeTo(out);
     }
 
+    /** Returns the scan's columns and batch sizing. */
     public ArrowScanSpec spec() {
         return spec;
     }

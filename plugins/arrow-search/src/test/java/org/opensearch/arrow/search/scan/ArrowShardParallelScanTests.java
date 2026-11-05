@@ -32,7 +32,7 @@ import static org.hamcrest.Matchers.containsString;
 
 /**
  * Runs every shard scan test with the shard's segments collected in parallel slices on virtual threads, as concurrent
- * segment search does for a streaming aggregation, and checks the slices really run in parallel.
+ * segment search does for a streaming aggregation. Also checks that the slices run in parallel.
  */
 public class ArrowShardParallelScanTests extends ArrowShardScanTests {
 
@@ -75,8 +75,8 @@ public class ArrowShardParallelScanTests extends ArrowShardScanTests {
     }
 
     /**
-     * A consumer that goes away fails every slice: the slices computing must free their compute slots at once, and the slices
-     * waiting for one must stop waiting, or the scan never ends and holds the node's slots.
+     * A consumer that goes away fails every slice. Computing slices must free their compute slots at once, and slices waiting
+     * for a slot must stop waiting; otherwise the scan never ends and holds the node's slots.
      */
     public void testCancelledScanEndsAndFreesItsComputeSlots() throws Exception {
         // Fewer compute slots than slices, so slices wait for each other's slots.
@@ -108,8 +108,8 @@ public class ArrowShardParallelScanTests extends ArrowShardScanTests {
     }
 
     /**
-     * A query that fails while it is scored fails its slice outside of the scan's collector: the slice must still free its
-     * compute slot and stop its siblings, or they wait for the slot until the whole query phase ends, which it never does.
+     * A query that fails during scoring fails its slice outside the scan's collector. The slice must still free its compute
+     * slot and stop the other slices; otherwise they wait for the slot until the query phase ends, which never happens.
      */
     public void testQueryFailingWhileScoredEndsTheScanAndFreesItsComputeSlots() throws Exception {
         // Fewer compute slots than slices, so slices wait for each other's slots.

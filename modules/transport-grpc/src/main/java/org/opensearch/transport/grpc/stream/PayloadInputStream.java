@@ -23,9 +23,10 @@ import io.grpc.Drainable;
 /**
  * The bytes of one gRPC message: a protobuf field prefix followed by a {@link StreamPayload}.
  * <p>
- * Deliberately not {@code KnownLength}: gRPC then drains it into its buffer chain, which {@link ZeroCopyBufferChain}
- * extends without copying. Otherwise, or when read, the bytes are copied. The payload is released exactly once: by
- * Netty after a zero-copy hand-off, after a copying drain, or at the latest by {@link #close()}, which gRPC always calls.
+ * The stream is deliberately not {@code KnownLength}, so gRPC drains it into its buffer chain, which
+ * {@link ZeroCopyBufferChain} extends without copying. When that hand-off is unavailable, or when the stream is read, the
+ * bytes are copied. The payload is released exactly once: by Netty after a zero-copy hand-off, after a copying drain, or at
+ * the latest by {@link #close()}, which gRPC always calls.
  */
 final class PayloadInputStream extends InputStream implements Drainable {
 
@@ -136,7 +137,7 @@ final class PayloadInputStream extends InputStream implements Drainable {
     }
 
     /**
-     * @return the number of bytes in the message
+     * Returns the number of bytes in the message.
      */
     int length() {
         return length;

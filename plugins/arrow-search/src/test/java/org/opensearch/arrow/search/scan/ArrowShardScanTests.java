@@ -101,11 +101,11 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.lessThan;
 
 /**
- * Runs shard scans on a real shard: every batch is a query phase on a registered reader context, as on a data node.
+ * Runs shard scans on a real shard, as a data node does: each scan is one query phase whose collectors send every batch.
  */
 public class ArrowShardScanTests extends OpenSearchSingleNodeTestCase {
 
-    /** Registers the scan collector and the virtual-thread executor scans run on, as the plugin does. */
+    /** Registers the scan collector, the slice listener and the virtual-thread executor that scans run on, as the plugin does. */
     public static class ScanCollectorPlugin extends Plugin implements SearchPlugin {
         @Override
         public List<QueryCollectorContextSpecFactory> getCollectorContextSpecFactories() {
@@ -123,7 +123,7 @@ public class ArrowShardScanTests extends OpenSearchSingleNodeTestCase {
         }
     }
 
-    /** A script that fails while the query is scored, outside of the scan's collector. */
+    /** Provides a script that fails during scoring, outside the scan's collector. */
     public static class FailingScriptPlugin extends MockScriptPlugin {
         static final String FAIL = "fail";
 
@@ -164,17 +164,17 @@ public class ArrowShardScanTests extends OpenSearchSingleNodeTestCase {
         return List.of(ScanCollectorPlugin.class, MapperExtrasModulePlugin.class, FailingScriptPlugin.class);
     }
 
-    /** How many scans, or slices of scans, compute at once. */
+    /** Returns the number of compute slots: how many scans, or slices of scans, compute at once. */
     protected int computeSlots() {
         return 1;
     }
 
-    /** Collects the slices of a scan, or {@code null} to collect a shard's segments one after another. */
+    /** Returns the executor that collects the slices of a scan, or {@code null} to collect a shard's segments one by one. */
     protected Executor sliceExecutor() {
         return null;
     }
 
-    /** The concurrent segment search settings scans run with. */
+    /** Returns the concurrent segment search settings that scans run with. */
     protected Settings concurrentSearchSettings() {
         return Settings.builder().put(SearchService.CLUSTER_CONCURRENT_SEGMENT_SEARCH_MODE.getKey(), "none").build();
     }
@@ -534,7 +534,7 @@ public class ArrowShardScanTests extends OpenSearchSingleNodeTestCase {
         }
         assertFalse(bulk.get().hasFailures());
         client().admin().indices().prepareRefresh("idx").get();
-        // Without exact matching, a range query stops after about 10k docs per segment unless hits are counted exactly.
+        // Unless hits are counted exactly, a range query stops after about 10k docs per segment.
         ScanResult result = scan(QueryBuilders.rangeQuery("l").gte(0), spec(1 << 20, 64 << 10, Long.MAX_VALUE));
         assertRows(expected.keySet(), result.rows());
     }
@@ -556,14 +556,14 @@ public class ArrowShardScanTests extends OpenSearchSingleNodeTestCase {
         assertRows(expected.keySet(), exact.rows());
         assertFalse("the limit left no match out", exact.summary().terminatedEarly());
 
-        // A segment past the limit, or a match past it in the same segment, is left out.
+        // With a lower limit, a segment past the limit, or a match past it in the same segment, is left out.
         for (int limit : new int[] { 250, 499 }) {
             ScanResult cut = scan(QueryBuilders.matchAllQuery(), spec(16 << 10, 16 << 10, limit));
             assertEquals(limit, cut.rows().size());
             assertTrue("limit " + limit, cut.summary().terminatedEarly());
         }
 
-        // The same holds for a filter: its matches across both segments are exactly the limit.
+        // The same holds for a filter whose matches across both segments exactly fill the limit.
         Set<String> group = ids(values -> false);
         for (int n = 0; n < expected.size(); n++) {
             if (n % 10 == 3) {
@@ -837,7 +837,7 @@ public class ArrowShardScanTests extends OpenSearchSingleNodeTestCase {
         assertRows(expected.keySet(), result.rows());
         // The rows before the large one go out together, then the large row on its own; not one batch per row.
         assertThat(result.batchRows().toString(), result.batchRows().size(), lessThan(10));
-        // The batch after the large row is presized for one row of its size, not 16, which would take 2MB.
+        // The batch after the large row is presized for one row of that size, not for 16 such rows, which would take 2MB.
         assertThat(batchAllocator.getPeakMemoryAllocation(), lessThan(1L << 20));
     }
 
@@ -907,8 +907,8 @@ public class ArrowShardScanTests extends OpenSearchSingleNodeTestCase {
             new ArrowScanSpec(columns, budget, budget, 65536, 3 << 20, Long.MAX_VALUE, TimeValue.timeValueMinutes(1))
         );
         assertRows(expected.keySet(), result.rows());
-        // A pass ends at the row that overdraws the batch, in whichever column: every batch sent holds the rows that fit, not
-        // only the first row of a pass whose column a overdrew the batch.
+        // A pass ends at the row that overdraws the batch, whichever column overdraws it. So every batch sent holds the rows
+        // that fit, not only the first row of a pass whose column a overdrew the batch.
         for (int b = 0; b < batchBytes.size(); b++) {
             assertThat(result.batchRows().toString(), batchBytes.get(b), greaterThan(budget / 2));
         }
@@ -979,7 +979,8 @@ public class ArrowShardScanTests extends OpenSearchSingleNodeTestCase {
     }
 
     /**
-     * The scan fails as a rejection, which the coordinator retries on another copy, and releases its batches and compute slots.
+     * Asserts that the scan fails as a rejection, which the coordinator retries on another copy, and releases its batches and
+     * compute slots.
      */
     private void assertRejectedAndReleased(ArrowScanSpec spec) throws Exception {
         Exception e = expectThrows(Exception.class, () -> scan(QueryBuilders.matchAllQuery(), spec));
@@ -1032,7 +1033,7 @@ public class ArrowShardScanTests extends OpenSearchSingleNodeTestCase {
             new ArrowScanSpec(columns, budget, budget, 65536, 3 << 20, Long.MAX_VALUE, TimeValue.timeValueMinutes(1))
         );
         assertRows(expected.keySet(), result.rows());
-        // About 30 rows of 2KB fit a 64KB batch; a pass that misjudges the row size cuts its batch to the rows that fit,
+        // About 30 rows of 2KB fit a 64KB batch. A pass that misjudges the row size cuts its batch to the rows that fit,
         // not to a single row.
         long small = result.batchRows().stream().filter(rows -> rows < 8).count();
         assertThat(result.batchRows().toString(), small, lessThan(4L));

@@ -22,16 +22,16 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Resolves the requested {@code docvalue_fields} into columns from field capabilities merged across the target indices,
- * so that every shard produces the same schema.
+ * Resolves the requested {@code docvalue_fields} into columns, from field capabilities merged across the target indices, so
+ * every shard produces the same schema.
  * <p>
- * An explicitly named field must be mapped in at least one index, with compatible supported types and doc values wherever
- * it is mapped; indices without the field produce nulls. A wildcard pattern expands, in name order, to the matching fields
- * that meet these conditions and skips the others. Since every shard produces every column, the columns are bounded like the
- * doc value fields a search of one index may read.
+ * An explicitly named field must be mapped in at least one index, with doc values and compatible supported types wherever it
+ * is mapped. Indices that do not map it produce nulls. A wildcard pattern expands, in name order, to the matching fields that
+ * meet these conditions, and skips the others. Every shard reads every column, so the column count is bounded like the doc
+ * value fields a search of one index may read.
  * <p>
- * A field inside a nested field does not qualify: its values are indexed on hidden child documents, while a scan reads the
- * top-level documents, so the column would only hold nulls.
+ * A field inside a nested field does not qualify. Its values are indexed on hidden nested documents, while a scan reads the
+ * top-level documents, so the column would hold only nulls.
  */
 public final class ColumnResolver {
 
@@ -49,14 +49,36 @@ public final class ColumnResolver {
      * @param list    whether the matching fields read into list columns
      */
     public record RequestedField(String pattern, boolean list) {
+
+        /**
+         * Creates a requested field.
+         *
+         * @param pattern a field name or wildcard pattern
+         * @param list    whether the matching fields read into list columns
+         */
+        public RequestedField {
+        }
+
+        /** Returns the field name or wildcard pattern. */
+        public String pattern() {
+            return pattern;
+        }
+
+        /** Returns whether the matching fields read into list columns. */
+        public boolean list() {
+            return list;
+        }
     }
 
     /**
-     * @param requested  field names and patterns, in output order; a field matched by several keeps the first
+     * Resolves the requested fields into columns, without duplicates, in the order the fields are first requested.
+     *
+     * @param requested  field names and patterns, in output order; a field that several entries match takes its position and
+     *                   list setting from the first of them
      * @param fieldCaps  field capabilities of the target indices, including unmapped entries
      * @param maxColumns the most columns allowed: the largest {@code index.max_docvalue_fields_search} of the target indices
-     * @return the columns, without duplicates, in the order the fields were first requested
-     * @throws IllegalArgumentException if a named field is unusable, or no column or more than {@code maxColumns} result
+     * @throws IllegalArgumentException if a named field is unusable, or the fields resolve to no column or to more than
+     *                                  {@code maxColumns}
      */
     public static List<Column> resolve(List<RequestedField> requested, FieldCapabilitiesResponse fieldCaps, int maxColumns) {
         final Map<String, Map<String, FieldCapabilities>> capabilities = fieldCaps.get();
@@ -108,8 +130,8 @@ public final class ColumnResolver {
     }
 
     /**
-     * @return the closest enclosing path of {@code field} that some target index maps as a nested field, or {@code null};
-     *         field capabilities report the enclosing paths of every field they return
+     * Returns the closest enclosing path of {@code field} that some target index maps as a nested field, or {@code null}.
+     * Field capabilities report the enclosing paths of every field they return.
      */
     private static String nestedParent(String field, Map<String, Map<String, FieldCapabilities>> capabilities) {
         for (int dot = field.lastIndexOf('.'); dot > 0; dot = field.lastIndexOf('.', dot - 1)) {
@@ -132,7 +154,7 @@ public final class ColumnResolver {
             if (Column.isSupported(type) == false) {
                 return reject(strict, "field [" + field + "] of type [" + type + "] is not supported by Arrow search");
             }
-            // Field capabilities report doc values as aggregatable for every supported type.
+            // For the supported types, field capabilities report doc values as aggregatable.
             if (entry.getValue().isAggregatable() == false) {
                 return reject(strict, "field [" + field + "] has no doc values in at least one target index");
             }

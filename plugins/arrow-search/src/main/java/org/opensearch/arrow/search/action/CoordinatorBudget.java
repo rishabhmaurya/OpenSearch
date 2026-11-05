@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 
 /**
- * The batch memory that Arrow searches coordinated by this node may buffer, reserved per search.
+ * The batch memory that the Arrow searches on this coordinator may buffer, reserved per search.
  */
 final class CoordinatorBudget {
 
@@ -27,7 +27,9 @@ final class CoordinatorBudget {
     private final AtomicLong reserved = new AtomicLong();
 
     /**
-     * @param limit the bytes all searches may reserve together
+     * Creates a budget that all searches on this coordinator share.
+     *
+     * @param limit the bytes all searches may reserve together, read on every reservation
      */
     CoordinatorBudget(LongSupplier limit) {
         this.limit = limit;
@@ -57,9 +59,9 @@ final class CoordinatorBudget {
     }
 
     /**
-     * Bytes reserved for one search. The search holds them until it ends, and every batch it relayed holds the reservation
-     * until the client's transport released the batch, which may be later. Once the search ended, the reservation charges
-     * the budget only for the batches that still hold it, and returns their bytes as they let go.
+     * The bytes reserved for one search. The search holds them until it ends. Every batch it relays also holds the
+     * reservation, until the client's transport releases the batch, which may be later. Once the search has ended, the
+     * reservation charges the budget only for the batches that still hold it, and returns their bytes as they are released.
      */
     final class Reservation {
         private final AtomicReference<Runnable> onReleased = new AtomicReference<>();
@@ -80,7 +82,7 @@ final class CoordinatorBudget {
         }
 
         /**
-         * Returns the bytes beyond {@code bytes} to the budget, while the search runs; has no effect once it ended.
+         * Shrinks the reservation to {@code bytes} and returns the rest to the budget. Has no effect once the search has ended.
          */
         synchronized void trim(long bytes) {
             if (searchEnded || bytes >= this.bytes) {
@@ -96,8 +98,8 @@ final class CoordinatorBudget {
         /**
          * Holds the reservation for a relayed batch until the returned releasable is closed.
          *
-         * @param maxBytes the most memory the batch can hold, which the budget is charged once the search ended
-         * @return the hold, released once; {@code null} if the search already ended
+         * @param maxBytes the most memory the batch can take, which the budget charges for it once the search has ended
+         * @return the hold, which releases only on its first close, or {@code null} if the search has ended
          */
         @Nullable
         synchronized Releasable holdBatch(long maxBytes) {
@@ -126,8 +128,8 @@ final class CoordinatorBudget {
         }
 
         /**
-         * Ends the search's own hold, the first time it is called: the bytes return to the budget but for the batches that
-         * still hold the reservation.
+         * Ends the search's own hold, on the first call only. From then on, the budget charges the reservation only for the
+         * batches that still hold it.
          *
          * @return whether this was the first call and batches still hold the reservation
          */
@@ -148,14 +150,15 @@ final class CoordinatorBudget {
         }
 
         /**
-         * @return whether the search ended and no batch holds the reservation anymore, so that its bytes returned
+         * Returns whether the search has ended and no batch holds the reservation, so all its bytes are back in the budget.
          */
         synchronized boolean isReleased() {
             return searchEnded && batches == 0;
         }
 
         /**
-         * @param callback run once the bytes returned to the budget, at once if they already did; replaces an earlier one
+         * Sets the callback to run once all bytes are back in the budget, or runs it at once if they already are. Replaces
+         * an earlier callback.
          */
         void whenReleased(Runnable callback) {
             final Runnable previous = onReleased.getAndUpdate(current -> current == RELEASED ? RELEASED : callback);

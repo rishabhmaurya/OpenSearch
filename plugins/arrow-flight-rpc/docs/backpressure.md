@@ -29,23 +29,23 @@ queue grow.
 | Setting | Default | Property |
 |---|---|---|
 | `arrow.flight.channel.ready_timeout` | `60s` | node-scope |
-| `arrow.flight.channel.outbound_buffer_threshold` | `64mb` | node-scope |
+| `arrow.flight.channel.outbound_buffer_threshold` | `512kb` | node-scope |
 | `flight.keepalive.time` | `30s` | node-scope |
 | `flight.keepalive.timeout` | `20s` | node-scope |
 
 - `ready_timeout` caps how long the producer thread parks before failing the
-  batch with `StreamErrorCode.TIMED_OUT`. `100ms` minimum. A stream may set its
-  own, longer or unbounded, through `setBatchReadyTimeout`.
+  batch with `StreamErrorCode.TIMED_OUT`. `100ms` minimum. A stream may override
+  it, or wait without a bound, through `setBatchReadyTimeout`.
 - `keepalive.time` is how long the server waits without hearing from a
   connection before it pings it; a ping not acknowledged within
   `keepalive.timeout` closes the connection (see Cancellation). It must be
   longer than `keepalive.timeout`. Unset, it is `30s`, or `keepalive.timeout`
   plus `10s` if that is longer, so a node that sets only the timeout still
-  starts. Before 3.10 it defaulted to gRPC's own `2h`. Now every node
-  connection silent for `30s` is pinged, and is closed if its peer cannot
-  acknowledge within `20s`, e.g. in a long GC pause. Setting it to `2h` restores
-  the old behaviour, and with it the long wait on a vanished peer described
-  under Cancellation.
+  starts. With the defaults, a node connection silent for `30s` is pinged and
+  closed if its peer does not acknowledge within `20s`, e.g. during a long GC
+  pause. Releases before 3.10 use gRPC's default of `2h`. Setting `2h` restores
+  that behaviour, and with it the long wait on a vanished peer described under
+  Cancellation.
 - `outbound_buffer_threshold` is the per-stream gRPC buffered-bytes watermark.
   `isReady()` flips false once the per-stream outbound queue crosses this size.
   **Must be strictly smaller than `native.allocator.pool.flight.max`** so the
@@ -73,16 +73,16 @@ callback. Any thread parked on `waitForListener` wakes promptly with
 
 A call the server ended itself, e.g. because a batch failed on the send executor
 and failed the stream, is never ready again, and gRPC fires neither handler for
-it. Closing the channel wakes every parked producer, which fails with
-`StreamErrorCode.UNAVAILABLE`, even with an unbounded ready timeout; a later wait
-on the closed channel fails at once.
+it. Closing the channel wakes every parked producer, even one with an unbounded
+ready timeout, and its wait fails with `StreamErrorCode.UNAVAILABLE`. A later
+wait on the closed channel fails at once.
 
 A consumer that vanishes without closing its connection, e.g. on a host failure
 or a network partition, cancels nothing. The server's keepalive finds the
 connection dead within `flight.keepalive.time` plus `flight.keepalive.timeout`
-(50s by default) of the last frame it received, and closing it cancels its
-streams, so their parked producers wake with `StreamErrorCode.CANCELLED` instead
-of waiting out their ready timeout.
+(50s by default) of the last frame it received. Closing the connection cancels
+its streams, so their parked producers wake with `StreamErrorCode.CANCELLED`
+instead of waiting out their ready timeout.
 
 ## Tuning and operational concerns
 
@@ -157,7 +157,7 @@ ahead of this one — outstanding batches are bounded to one, with no eventloop
 queue to grow. When that outbound buffer is full, the `isReady()` back-pressure
 gate (above) throttles the producer. A send that fails on the executor fails the
 stream, and the caller's `sendResponseBatch` throws that failure, so the producer
-stops instead of computing batches nobody can receive.
+stops instead of computing batches that nobody can receive.
 
 A caller that opts in **must drive a single stream from a single thread** and must
 not call from the send-executor thread itself. The default

@@ -28,16 +28,16 @@ import java.util.function.BooleanSupplier;
  *
  * <p>This implementation reads {@code listener.isReady()} and
  * {@code listener.isCancelled()} once per loop iteration inside the lock and commits
- * to those values — there is no second read to disagree with. The handlers'
- * {@code notifyAll()} simply wakes the waiter so the next iteration reads fresh.
+ * to those values — there is no second read to disagree with. The handlers' {@link #signal()}
+ * only wakes the waiters; each waiter reads fresh values on its next iteration.
  *
  * <p>Composes channel-level cancel cleanup: the cancel callback runs the channel's
  * cleanup (e.g. marking cancelled, releasing resources) before notifying parked
  * waiters, so a thread waking from {@code waitForListener} always observes the
  * channel in cancelled state.
  *
- * <p>A call the server ended itself is never ready again, and gRPC fires neither callback for it, so the wait also ends
- * once the channel is closed: the channel signals the strategy when it closes.
+ * <p>A call the server ended itself is never ready again, and gRPC fires neither callback for it. The wait therefore also
+ * ends once the channel is closed; the channel calls {@link #signal()} when it closes.
  */
 final class CompositeBackpressureStrategy implements BackpressureStrategy {
 
@@ -49,6 +49,8 @@ final class CompositeBackpressureStrategy implements BackpressureStrategy {
     private ServerStreamListener listener;
 
     /**
+     * Creates the strategy for one server stream.
+     *
      * @param channelCancelCleanup runs when gRPC reports the call cancelled, before parked waiters wake
      * @param channelClosed        whether the channel is closed, which ends a wait with {@link WaitResult#OTHER}
      */

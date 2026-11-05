@@ -17,17 +17,17 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Bounds how many shard streams one search keeps open, which bounds the batches it buffers on the coordinating node.
+ * Bounds how many shard streams one search keeps open, which bounds the batches it buffers on the coordinator.
  * <p>
- * The search's regular per-node shard request limit decides which shards are submitted; this scheduler then opens up to
- * {@code maxOpen} of them, preferring the node with the fewest open streams of the search, so that its streams spread
+ * The search's per-node shard request limit decides which shards are submitted. This scheduler then opens up to
+ * {@code maxOpen} of them, preferring the node with the fewest open streams of the search, so that the streams spread
  * across nodes. Launches always run on the executor, never on the caller's thread.
  */
 final class ShardStreamScheduler {
 
     /** A shard stream waiting to open. */
     interface Launch {
-        /** Opens the stream; {@link #release} must be called once it ends. */
+        /** Opens the stream. The launch must call {@link ShardStreamScheduler#release} once the stream ends. */
         void run();
 
         /** Ends the shard without opening its stream, because the search stopped. */
@@ -44,7 +44,9 @@ final class ShardStreamScheduler {
     private boolean closed;
 
     /**
-     * @param maxOpen  how many streams may be open at once
+     * Creates a scheduler for one search.
+     *
+     * @param maxOpen  how many streams may be open at once; values below one count as one
      * @param executor runs the launches
      */
     ShardStreamScheduler(int maxOpen, Executor executor) {
@@ -53,7 +55,8 @@ final class ShardStreamScheduler {
     }
 
     /**
-     * Queues a shard stream to open on {@code nodeId}, and opens it if a slot is free.
+     * Queues a shard stream to open on {@code nodeId}, and opens queued streams while slots are free. Once the scheduler is
+     * closed, abandons the stream instead.
      */
     void submit(String nodeId, Launch launch) {
         boolean abandon = false;
@@ -76,7 +79,7 @@ final class ShardStreamScheduler {
     }
 
     /**
-     * Lowers how many streams may be open at once to {@code maxOpen}, and at least one; a higher limit has no effect.
+     * Lowers how many streams may be open at once to {@code maxOpen}, but not below one. A higher limit has no effect.
      */
     void limit(int maxOpen) {
         lock.lock();
@@ -88,7 +91,7 @@ final class ShardStreamScheduler {
     }
 
     /**
-     * Frees the slot of a stream that ended on {@code nodeId}.
+     * Frees the slot of a stream that ended on {@code nodeId}, and opens queued streams while slots are free.
      */
     void release(String nodeId) {
         lock.lock();
@@ -102,7 +105,7 @@ final class ShardStreamScheduler {
     }
 
     /**
-     * Abandons every queued stream; streams submitted later are abandoned too.
+     * Abandons every queued stream, and every stream submitted later.
      */
     void close() {
         final List<Launch> abandoned = new ArrayList<>();

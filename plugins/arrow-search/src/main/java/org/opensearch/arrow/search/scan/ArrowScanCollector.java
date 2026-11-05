@@ -32,35 +32,43 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Collects the matches of one slice of a shard into Arrow batches, and sends each batch as soon as it is full, from within
- * collection.
+ * Collects the matches of one slice of a shard into Arrow batches, and sends each batch from within collection as soon as
+ * it is full.
  * <p>
- * Sending waits while the consumer is not ready, which pauses the slice where it is: the scorer and doc-values iterators
- * stay open and collection resumes on the next match once the consumer takes the batch, so the query is evaluated once
- * however many batches it produces. Docs are buffered in chunks whose doc values are read column by column; a chunk is sized
- * from the bytes per row seen so far, and a batch that overshoots its budget is cut to the rows that fit, the others
- * starting the next batch.
+ * Sending waits while the consumer is not ready, which pauses the slice in place. The scorer and doc-values iterators stay
+ * open, and collection resumes on the next match once the consumer takes the batch. So the query is evaluated once, however
+ * many batches it produces.
  * <p>
- * Once the shard's row limit is reached, a slice keeps scoring until its next match, which shows the limit cut the results,
- * as a regular search reports early termination only once a match past its limit arrives. It does so within its compute
- * slot and budget only: a slice that has no slot, or whose budget runs out first, stops and reports that the limit may have
- * cut the results, not a timeout, since the shard streamed every row it may.
+ * The slice buffers matches in chunks and reads their doc values column by column. It sizes each chunk from the bytes per
+ * row seen so far. A batch that overshoots its byte budget keeps the rows that fit, and the other rows start the next batch.
  * <p>
- * Each slice of the query phase has its own collector, used by the one thread that collects the slice; the slices share
- * the shard's {@link ScanState}. A slice holds a compute slot while it reads a segment, and not while it waits to send.
+ * Once the shard reaches its row limit, a slice keeps scoring until its next match, which shows that the limit cut the
+ * results. A regular search also reports early termination only once a match past its limit arrives. The slice keeps
+ * scoring for that match only while it holds a compute slot and has compute budget left. A slice that has no compute
+ * slot, or whose compute budget runs out first, stops and reports that the limit may have cut the results. It reports no
+ * timeout, since the shard streamed every row it may.
+ * <p>
+ * Each slice of the query phase has its own collector, which only the thread that collects the slice uses. The slices
+ * share the shard's {@link ScanState}. A slice holds a compute slot while it reads a segment, but not while it waits to send.
  */
 final class ArrowScanCollector implements Collector {
 
+    /** The most matches a chunk buffers before their doc values are read. */
     static final int MAX_CHUNK = 1024;
+    /** The docs a chunk or a pass holds before any row was measured. */
     static final int SEED_CHUNK = 32;
+    /** How many matches the slice buffers between two checks of its limits. */
     private static final int CLOCK_INTERVAL = 64;
+    /** The fewest rows a new batch presizes its vectors for before any row was measured. */
     private static final int MIN_INITIAL_ROWS = 16;
+    /** The assumed bytes of a variable-width value until values are measured. */
     private static final double DEFAULT_VALUE_BYTES = 16;
+    /** The assumed values per row of a list column until lists are measured. */
     private static final double DEFAULT_VALUES_PER_LIST = 2;
-    /** How often a slice waiting for a compute slot checks whether its scan stopped or was cancelled. */
+    /** How often a slice that waits for a compute slot checks whether its scan stopped or was cancelled. */
     private static final long SLOT_RECHECK_NANOS = TimeUnit.MILLISECONDS.toNanos(50);
 
-    /** The collector of the slice the current thread collects, which the searcher's budget check applies to. */
+    /** The collector of the slice that the current thread collects, which {@link #budgetCheck} applies to. */
     private static final ThreadLocal<ArrowScanCollector> COLLECTING = new ThreadLocal<>();
 
     private final ScanState state;
@@ -70,40 +78,52 @@ final class ArrowScanCollector implements Collector {
     private final ColumnWriters.Allowance allowance = new ColumnWriters.Allowance();
 
     private Weight weight;
-    /** Whether collection is over: the row limit or the compute budget was reached. */
+    /** Whether the slice stopped collecting, because the shard stopped or this slice spent its compute budget. */
     private boolean done;
 
+    /** The batch being filled, or {@code null} until the slice reads its next rows. */
     private VectorSchemaRoot root;
     private int rows;
+    /** The message bytes of the batch. */
     private long bytes;
+    /** The bytes the batch may take, which double with each batch the slice sends, up to the configured batch size. */
     private long budget;
+    /** How many matches to buffer before their doc values are read. */
     private int chunkTarget;
 
     private LeafReaderContext leaf;
     private ColumnWriters.LeafColumnWriter[] writers;
+    /** How many matches at the start of {@link #chunk} are not in the batch yet. */
     private int buffered;
 
     private int batchesSent;
-    /** Running estimate of the body bytes of a row, used to size chunks and vectors; 0 until measured. */
+    /** Running estimate of the body bytes of a row, which sizes chunks and vectors; 0 until measured. */
     private double bytesPerRow;
     /**
-     * Per column, the average bytes of a value of a variable-width column, or the average values per row of a list column,
-     * used to presize vectors; 0 until measured.
+     * Per column, the estimate that presizes its vectors: the average bytes of a value of a variable-width column, or the
+     * average values per row of a list column. 0 until measured.
      */
     private final double[] bytesPerValue;
     /** Per list column of variable-width values, the average bytes of a value; 0 until measured. */
     private final double[] itemBytesPerValue;
-    /** The body bytes of a row as the schema suggests, which size the first batch until rows are measured. */
+    /** The body bytes of a row as estimated from the schema, which size the first batch until rows are measured. */
     private final double schemaRowBytes;
 
+    /**
+     * The compute slot the slice holds while it reads a segment, or {@code null} when it holds none, e.g. while it waits for
+     * its consumer or for a slot.
+     */
     private Releasable computeSlot;
+    /** The compute time the slice spent up to when it last released its compute slot. */
     private long computeNanos;
+    /** When the slice last took its compute slot. */
     private long resumedAt;
     private int clock;
     /** Bytes per row of the docs the last flush pass read. */
     private double passRowBytes;
-    /** Whether the searcher is scoring a segment, and whether doc values are being read into the batch. */
+    /** Whether the searcher is scoring a segment: its scorer is set and the segment is not finished. */
     private boolean scoring;
+    /** Whether a flush is reading doc values into the batch. */
     private boolean flushing;
 
     ArrowScanCollector(ScanState state, QueryShardContext context) {
@@ -119,8 +139,8 @@ final class ArrowScanCollector implements Collector {
     }
 
     /**
-     * @return the check the searcher runs while it scores, which ends the slice the current thread collects once its compute
-     *         budget is spent or another slice stopped the shard
+     * Returns the check that the searcher runs while it scores. The check ends the slice that the current thread collects once
+     * the slice's compute budget is spent or the shard stopped.
      */
     static Runnable budgetCheck(ScanState state) {
         return () -> {
@@ -171,7 +191,7 @@ final class ArrowScanCollector implements Collector {
         return new LeafCollector() {
             @Override
             public void setScorer(Scorable scorer) {
-                // The searcher sets the scorer once it is built, right before scoring the segment.
+                // The searcher sets the scorer right before it scores the segment.
                 scoring = true;
             }
 
@@ -204,8 +224,8 @@ final class ArrowScanCollector implements Collector {
     }
 
     /**
-     * Ends collection with docs of a segment that may match left unscored: if the shard's row limit is why, the limit may have
-     * cut the results.
+     * Ends collection while docs of the segment that may match are left unscored. If the shard reached its row limit, it
+     * records that the limit may have cut the results.
      */
     private CollectionTerminatedException stopCollecting() {
         done = true;
@@ -216,8 +236,8 @@ final class ArrowScanCollector implements Collector {
     }
 
     /**
-     * Fails the slice the current thread collects, if it belongs to the scan: the searcher reports a slice that failed
-     * outside of the collector, e.g. in the query's scorer.
+     * Fails the scan when one of its slices fails outside the collector, e.g. in the query's scorer. It runs on the failed
+     * slice's thread, and also fails the slice that the thread collects, if that slice belongs to the scan.
      */
     static void sliceFailed(ScanState state) {
         state.failed = true;
@@ -228,8 +248,8 @@ final class ArrowScanCollector implements Collector {
     }
 
     /**
-     * A slice failed: it frees its compute slot at once, since the query phase only ends once every slice did, and stops
-     * the other slices of the shard, whose results no longer matter.
+     * Fails the slice. The slice frees its compute slot at once, since the query phase ends only once every slice ends. It
+     * also stops the other slices of the shard, whose results no longer matter.
      */
     private void failed() {
         state.failed = true;
@@ -249,7 +269,7 @@ final class ArrowScanCollector implements Collector {
 
     private void collect(int doc) throws IOException {
         if (done || state.rowBudget.exhausted()) {
-            // Past the shard's row limit, this is a match the limit cut.
+            // Past the shard's row limit, this match shows that the limit cut the results.
             throw stopCollecting();
         }
         chunk[buffered++] = doc;
@@ -268,9 +288,10 @@ final class ArrowScanCollector implements Collector {
     }
 
     /**
-     * Whether the shard reached its row limit with no match left out so far, and the slice holds no docs past it but holds a
-     * compute slot: the slice then keeps scoring, within its compute budget, so its next match, if any, shows that the limit
-     * cut the results.
+     * Whether the slice keeps scoring past the shard's row limit, within its compute budget, so that its next match, if any,
+     * shows that the limit cut the results. It does so if the shard reached its row limit with no match cut so far, the slice
+     * holds a compute slot and no docs past the limit, and the scan has not failed, timed out, been cancelled or lost its
+     * consumer.
      */
     private boolean awaitsMatchPastLimit() {
         return computeSlot != null
@@ -283,11 +304,11 @@ final class ArrowScanCollector implements Collector {
     }
 
     /**
-     * Reads the doc values of the buffered docs into the batch, sending the batch each time it is full.
+     * Reads the doc values of the buffered docs into the batch, and sends the batch each time it is full.
      * <p>
-     * Each pass reads only as many docs as the rows read last are estimated to fit, and ends early at the row whose values
-     * take more than the bytes the batch has left, so rows that suddenly grow cost at most about one batch of overshoot per
-     * column of variable-size values before the estimate follows them.
+     * Each pass reads only as many docs as fit by the size of the rows read last. It ends early at the row whose values take
+     * more than the bytes the batch has left. So rows that suddenly grow cost at most about one batch of overshoot per column
+     * of variable-size values before the estimate catches up.
      */
     private void flush() throws IOException {
         flushing = true;
@@ -304,8 +325,8 @@ final class ArrowScanCollector implements Collector {
                     final List<FieldVector> vectors = root.getFieldVectors();
                     allowance.reset(budget - bytes, count);
                     for (int c = 0; c < writers.length; c++) {
-                        // Each column stops after the doc whose row, with the columns before, overdraws the allowance, which
-                        // ends the pass there; rowsThatFit then cuts the batch to the rows that fit.
+                        // A column stops after the doc whose row, counting the columns before it, overdraws the allowance, which ends the
+                        // pass there. rowsThatFit then cuts the batch to the rows that fit.
                         written = writers[c].write(chunk, written, vectors.get(c), offset, allowance);
                         allowance.nextColumn(written);
                     }
@@ -351,7 +372,7 @@ final class ArrowScanCollector implements Collector {
                     measure();
                 }
                 if (state.rowBudget.exhausted()) {
-                    // The rows not kept are past the shard's limit; the batch goes out with the end of the stream.
+                    // The docs not kept are past the shard's row limit. The batch goes out with the end of the stream.
                     if (buffered > consumed) {
                         state.terminatedEarly = true;
                     }
@@ -359,14 +380,14 @@ final class ArrowScanCollector implements Collector {
                     done = true;
                     break;
                 }
-                // Docs [consumed, count) were read, by some columns at least, but did not fit; docs past count were not read yet.
+                // Some columns read docs [consumed, count), which did not fit. No column read the docs past count yet.
                 final boolean readPastBatch = consumed < count;
                 System.arraycopy(chunk, consumed, chunk, 0, buffered - consumed);
                 buffered -= consumed;
                 if (readPastBatch || bytes >= budget || rows >= state.spec.maxBatchRows()) {
                     sendBatch();
                     if (readPastBatch) {
-                        // The doc-values iterators already passed the docs that did not fit, so the next batch reads them anew.
+                        // The doc-values iterators already passed the docs that did not fit, so new writers read them again.
                         writers = openWriters(leaf);
                     }
                 }
@@ -378,7 +399,7 @@ final class ArrowScanCollector implements Collector {
         chunkTarget = chunkTarget();
     }
 
-    /** How many buffered docs the next pass of a flush reads: as many as the latest rows' size says fit. */
+    /** Returns how many buffered docs the next pass of a flush reads: as many as fit by the size of the latest rows. */
     private int passTarget() {
         final double rowBytes = Math.max(bytesPerRow, passRowBytes);
         final long byBytes = rowBytes > 0 ? (long) ((budget - bytes) / rowBytes) : SEED_CHUNK;
@@ -387,7 +408,7 @@ final class ArrowScanCollector implements Collector {
     }
 
     /**
-     * Sends the full batch, which pauses the slice until the consumer can take more. The compute slot is free meanwhile.
+     * Sends the full batch, which pauses the slice until the consumer can take more. The slice frees its compute slot meanwhile.
      */
     private void sendBatch() throws IOException {
         final VectorSchemaRoot batch = root;
@@ -407,16 +428,16 @@ final class ArrowScanCollector implements Collector {
             throw new IllegalStateException(e);
         }
         if (acquireComputeSlot()) {
-            // The scan may have been cancelled, or its consumer may have left, while it waited.
+            // The scan may have stopped, or its consumer may have gone away, while the slice waited.
             checkLimits();
         }
     }
 
     /**
-     * Takes a compute slot, waiting while other slices and scans compute, but not past the end of the scan: a cancelled
-     * scan fails, and a scan another slice stopped (row limit, compute budget, failure) ends this slice too.
+     * Takes a compute slot, waiting while other slices and scans compute, but not past the end of the scan. A cancelled scan
+     * fails. A scan that another slice stopped (row limit, compute budget, failure) ends this slice too.
      *
-     * @return whether the slice holds a slot and may compute; {@code false} once the scan stopped, which ends the slice
+     * @return whether the slice holds a compute slot and may compute; {@code false} once the scan stopped, which ends the slice
      */
     private boolean acquireComputeSlot() {
         if (computeSlot != null) {
@@ -425,11 +446,11 @@ final class ArrowScanCollector implements Collector {
         try {
             while (true) {
                 if (state.consumerGone.getAsBoolean()) {
-                    throw new TaskCancelledException("the consumer of the stream went away");
+                    throw new TaskCancelledException("the consumer of the stream went away or the scan was cancelled");
                 }
                 if (state.stopped()) {
                     if (buffered > 0 && state.rowBudget.exhausted()) {
-                        // The docs read past the batch just sent are past the shard's row limit.
+                        // The buffered docs are matches past the shard's row limit.
                         state.terminatedEarly = true;
                     }
                     done = true;
@@ -445,7 +466,7 @@ final class ArrowScanCollector implements Collector {
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new TaskCancelledException("interrupted while waiting to compute");
+            throw new TaskCancelledException("interrupted while waiting for a compute slot");
         }
     }
 
@@ -456,26 +477,27 @@ final class ArrowScanCollector implements Collector {
             computeNanos += System.nanoTime() - resumedAt;
             state.releaseComputeSlot(slot);
         }
-        // The values looked up for a batch may have grown the scratch buffers to a few batches, which no memory limit counts:
-        // only the slices that compute keep them, so a slice paused for its consumer or waiting for a slot holds little heap.
+        // Looked-up values may grow the scratch buffers to a few batches, which no memory limit counts. Only the slices that compute keep
+        // them, so a slice that waits for its consumer or for a slot holds little heap.
         scratch.trim();
     }
 
     /**
-     * Ends the slice once its compute budget is spent or the shard stopped, run by the searcher while the scorer moves
-     * through a segment, so documents that do not match count against the budget too. It only stops while a segment is
-     * scored, after its scorer was built and outside of reading doc values, where the searcher handles the stop.
+     * Ends the slice once its compute budget is spent or the shard stopped. The searcher runs this check while the scorer
+     * moves through a segment, so docs that do not match count against the budget too. The check acts only after the
+     * segment's scorer is set and while no flush runs, since only then does the searcher handle the stop.
      */
     void checkBudgetWhileScoring() {
         if (scoring && flushing == false) {
             checkStopped();
-            // A slice awaiting a match past the row limit kept every row it may: a spent budget ends the wait, without a timeout.
+            // A slice that awaits a match past the row limit kept every row it may, so a spent budget ends the wait without a timeout.
             if (done && (awaitsMatchPastLimit() == false || budgetSpent())) {
                 throw stopCollecting();
             }
         }
     }
 
+    /** Whether the slice spent its compute budget, which excludes its waits for the consumer and for a compute slot. */
     private boolean budgetSpent() {
         if (state.computeBudgetNanos < 0) {
             return false;
@@ -484,17 +506,20 @@ final class ArrowScanCollector implements Collector {
         return computeNanos + computing >= state.computeBudgetNanos;
     }
 
-    /** Stops on a consumer that went away, and ends the slice once its compute budget is spent or the shard stopped. */
+    /**
+     * Fails the slice if its consumer went away or the scan was cancelled, and ends it once the shard stopped or its compute
+     * budget is spent.
+     */
     private void checkLimits() {
         if (state.consumerGone.getAsBoolean()) {
-            throw new TaskCancelledException("the consumer of the stream went away");
+            throw new TaskCancelledException("the consumer of the stream went away or the scan was cancelled");
         }
         checkStopped();
     }
 
     /**
-     * Ends the slice once the shard stopped, or once its compute budget is spent, which times the scan out. A scan another
-     * slice already stopped, e.g. at the row limit, does not time out, whatever this slice's budget.
+     * Ends the slice once the shard stopped, or once its compute budget is spent, which times the scan out. A scan that
+     * another slice already stopped, e.g. at the row limit, does not time out, whatever this slice's budget.
      */
     private void checkStopped() {
         if (done == false) {
@@ -506,9 +531,7 @@ final class ArrowScanCollector implements Collector {
         }
     }
 
-    /**
-     * @return the most rows in {@code [offset, total)} whose message fits the budget, knowing the first {@code offset} do
-     */
+    /** Returns the most rows, in {@code [offset, total)}, whose message fits the budget, given that {@code offset} rows fit. */
     private int rowsThatFit(int offset, int total) {
         int lo = offset;
         int hi = total;
@@ -525,11 +548,12 @@ final class ArrowScanCollector implements Collector {
 
     private VectorSchemaRoot newRoot() {
         final long remaining = state.rowBudget.remaining();
-        // Until rows were measured, the rows the budget holds besides the batch's metadata, by the schema's estimate.
+        // The rows the budget holds: by the measured row size, or, until rows are measured, by the schema's estimate of the
+        // budget left after the batch's metadata.
         final double rowsInBudget = bytesPerRow > 0
             ? budget / bytesPerRow
             : Math.min(MAX_CHUNK, Math.max(0, budget - emptyBatchBytes()) / schemaRowBytes);
-        // Measured rows near or above the budget presize a single row, not many times the budget: vectors grow as rows are written.
+        // Measured rows near or above the budget presize one row, not many times the budget, since vectors grow as rows are written.
         final int minRows = bytesPerRow > 0 ? 1 : MIN_INITIAL_ROWS;
         final int initialRows = (int) Math.max(minRows, Math.min(Math.min(remaining, state.spec.maxBatchRows()), rowsInBudget));
         final VectorSchemaRoot created = VectorSchemaRoot.create(state.schema, state.allocator);
@@ -558,7 +582,7 @@ final class ArrowScanCollector implements Collector {
         return created;
     }
 
-    /** Updates the size estimates later chunks and batches are planned with. */
+    /** Updates the size estimates that plan later chunks and batches. */
     private void measure() {
         final long body = bytes - BatchBytes.metadataBytes(root);
         bytesPerRow = Math.max(1, (double) body / rows);
@@ -580,7 +604,7 @@ final class ArrowScanCollector implements Collector {
         return vector.getOffsetBuffer().getInt((long) values * VarCharVector.OFFSET_WIDTH);
     }
 
-    /** @return the body bytes of a row of {@code columns}, with the default sizes of values whose size varies */
+    /** Returns the body bytes of a row of {@code columns}, assuming default sizes for variable-size values. */
     private static double schemaRowBytes(List<Column> columns) {
         double bytes = 0;
         for (Column column : columns) {
@@ -609,32 +633,35 @@ final class ArrowScanCollector implements Collector {
         return (int) Math.max(1, Math.min(Math.min(byBytes, byRows), MAX_CHUNK));
     }
 
-    /** @return the rejection of a batch allocation the scans' memory limit refused, which the coordinator retries elsewhere */
+    /**
+     * Returns the rejection of a batch allocation that the data node's scan memory limit refused. The coordinator retries a
+     * rejected shard elsewhere.
+     */
     static OpenSearchRejectedExecutionException rejection(OutOfMemoryException e) {
         final OpenSearchRejectedExecutionException rejection = new OpenSearchRejectedExecutionException(
             "native memory allocation rejected at [arrow-search-batches]: " + e.getMessage()
         );
-        // Suppressed rather than the cause: concurrent segment search replaces a slice's failure with its cause, unless it is
-        // an OpenSearchException, which would turn the rejection into an internal error.
+        // Suppressed rather than the cause: concurrent segment search replaces a failure that has a cause and is not an
+        // OpenSearchException with a query phase failure around that cause, which would turn the rejection into an internal error.
         rejection.addSuppressed(e);
         return rejection;
     }
 
     /**
-     * Ends the slice once the query phase is over: frees the compute slot. Each segment's rows were read when it finished;
-     * the rows not sent stay in the state, for the last messages of the stream.
+     * Ends the slice once the query phase is over, and frees its compute slot. Each segment's rows were read when the segment
+     * finished. The rows not sent stay in the state for the last messages of the stream.
      */
     void finish() {
         scoring = false;
         releaseComputeSlot();
     }
 
-    /** @return the rows of the slice not sent yet */
+    /** Returns the rows of the slice that were not sent yet. */
     int rowsUnsent() {
         return rows;
     }
 
-    /** @return the heap the slice's scratch buffers take */
+    /** Returns the heap that the slice's scratch buffers take. */
     long scratchBytes() {
         return scratch.heapBytes();
     }

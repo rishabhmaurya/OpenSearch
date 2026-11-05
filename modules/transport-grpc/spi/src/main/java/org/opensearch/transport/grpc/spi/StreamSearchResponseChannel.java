@@ -59,15 +59,15 @@ public interface StreamSearchResponseChannel {
     void sendPayload(StreamPayload payload);
 
     /**
-     * Sends {@code summary} as the last message and closes the call successfully. Hits of the summary are not sent. The
-     * messages sent before stay queued, holding their payloads, until the client reads them or the call is {@link #reset}.
+     * Sends {@code summary} as the last message and closes the call successfully. The hits of the summary are not sent.
+     * Messages sent earlier stay queued, holding their payloads, until the client reads them or the call is {@link #reset}.
      *
      * @param summary the search summary: took, shard statistics, total hits and termination flags
      */
     void complete(SearchResponse summary);
 
     /**
-     * Closes the call with the gRPC status corresponding to {@code failure}. The messages sent before stay queued, holding
+     * Closes the call with the gRPC status that corresponds to {@code failure}. Messages sent earlier stay queued, holding
      * their payloads, until the client reads them or the call is {@link #reset}.
      *
      * @param failure the failure
@@ -75,9 +75,9 @@ public interface StreamSearchResponseChannel {
     void fail(Exception failure);
 
     /**
-     * Resets the call's stream, for a client that stopped reading: the messages the transport has not written yet are
-     * discarded, which releases their payloads, and the client sees the call cancelled. Ends the call like {@link #fail} if
-     * it has not ended yet; has no effect once the transport closed the call.
+     * Resets the call's stream for a client that stopped reading. The transport discards the messages it has not written,
+     * which releases their payloads, and the client sees the call cancelled. Ends the call like {@link #fail} if it has not
+     * ended. Does nothing once the transport has closed the call.
      */
     void reset();
 }

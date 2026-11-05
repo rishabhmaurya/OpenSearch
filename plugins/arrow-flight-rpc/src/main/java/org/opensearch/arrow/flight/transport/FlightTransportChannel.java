@@ -92,7 +92,7 @@ class FlightTransportChannel extends TcpTransportChannel implements ArrowFlightC
     @Override
     public void sendResponseBatch(TransportResponse response, boolean sync) {
         if (!streamOpen.get()) {
-            // The batch's buffers belong to the channel once it is passed in, so the caller cannot free them.
+            // The channel owns the batch's buffers once it is passed in and the caller does not free them, so free them here.
             FlightServerChannel.releaseUnsentSource(response);
             throw new StreamException(StreamErrorCode.UNAVAILABLE, "Stream is closed for requestId [" + requestId + "]");
         }

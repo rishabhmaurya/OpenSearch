@@ -311,8 +311,8 @@ public class FlightClientChannelTests extends FlightTransportTestBase {
     }
 
     /**
-     * A consumer holding a stream without reading it may be waiting elsewhere for long, e.g. a relay
-     * waiting for its own client. Close must not wait for it: it closes the stream itself, so the
+     * A consumer holding a stream without reading it may be waiting elsewhere for a long time, e.g. a
+     * relay waiting for its own client. Close must not wait for it: it closes the stream itself, so the
      * FlightClient closes without leaking, and the consumer finds the stream closed when it comes back.
      */
     public void testCloseClosesStreamItsConsumerIsNotReading() throws Exception {
@@ -840,8 +840,8 @@ public class FlightClientChannelTests extends FlightTransportTestBase {
 
     /**
      * A server that fails a stream before its first batch sends its header with the error, and the client's middleware
-     * stores it in the header context of the connection, which lives as long as the connection. No consumer takes it, so
-     * the stream must remove it.
+     * stores it in the connection's header context, which lives as long as the connection. No consumer takes the header,
+     * so the stream must remove it.
      */
     public void testStreamFailedBeforeFirstBatchLeavesNoHeaderOnTheConnection() throws Exception {
         String action = "internal:test/stream/fail-before-first-batch";

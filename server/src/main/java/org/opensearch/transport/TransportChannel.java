@@ -122,7 +122,8 @@ public interface TransportChannel {
     /**
      * Overrides how long {@link #sendResponseBatch} waits for the consumer to accept more data before failing the stream with
      * {@link StreamErrorCode#TIMED_OUT}. A stream paced by an end client, such as an export, passes {@code null} to wait until
-     * the stream is cancelled, and bounds stalls on the consumer side instead. No-op for channels without consumer flow control.
+     * the stream is cancelled, and must then bound stalls on the consumer side itself. Channels without consumer flow control
+     * ignore it.
      *
      * @param timeout the maximum wait, or {@code null} to wait until cancelled
      */

@@ -101,11 +101,11 @@ this bug. All subsequent batches should use the same allocator.
 
 ### Receive side
 
-Each batch a consumer reads is transferred out of the Flight stream into the transport's
-long-lived client allocator, not the per-connection allocator of the `FlightClient` that
-received it. A consumer may therefore keep a batch after the stream is closed, including
-when the connection to the data node closes and takes its `FlightClient` with it, and must
-close the batch's root itself.
+Each native batch a consumer reads is transferred out of the Flight stream into the
+transport's long-lived client allocator, not the per-connection allocator of the
+`FlightClient` that received it. A consumer may therefore keep a batch after the stream
+closes, even when the connection closes and takes its `FlightClient` with it. The consumer
+must close the batch's root itself.
 
 ## Ownership Contract
 

@@ -370,8 +370,8 @@ class FlightTransport extends TcpTransport {
             .build();
 
         try {
-            // The client's batches live on its own child of clientAllocator, closed with the client; the ones handed to
-            // consumers go to clientAllocator itself, so a consumer can keep them after the channel has closed.
+            // The client's stream buffers live on its own child of clientAllocator, which closes with the client. Batches
+            // handed to consumers move to clientAllocator itself, so a consumer can keep them after the channel closes.
             return new FlightClientChannel(
                 boundAddress,
                 client,

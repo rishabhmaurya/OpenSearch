@@ -62,31 +62,31 @@ import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 /**
- * Runs the shard phase of an Arrow search inside the regular search coordination: for each shard copy the search picks, it
- * opens a stream on the copy's node and relays every batch to the sink.
+ * Runs the shard phase of an Arrow search inside the regular search coordination. For each shard copy the search picks, it
+ * opens a shard stream on the copy's node and relays every batch to the sink.
  * <p>
- * The search's routing, throttling and failover decide which copies are tried, with one rule added: a shard that relayed
+ * The search's routing, throttling and failover decide which copies are tried, with one added rule: a shard that relayed
  * rows is never retried, because its rows cannot be taken back. Its failure, and any failure the request cannot recover
- * from, stops the whole search at once. Reaching the row limit also stops every stream, but the search succeeds.
+ * from, stops the whole search at once. Reaching the row limit also stops every shard stream, but the search succeeds.
  */
 final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSearchAction {
 
     private static final Logger logger = LogManager.getLogger(ArrowSearchExecution.class);
 
-    /** Cancels the search's tasks on other nodes. */
+    /** Cancels the search's child tasks. */
     @FunctionalInterface
     interface ChildTaskCanceller {
         /**
          * Cancels the search's tasks on every node, but not the search task itself.
          *
          * @param reason  why the search stopped
-         * @param opening the nodes of the shard streams still opening, as of each call: their requests may reach their nodes
-         *                after the cancel did, so these nodes need cancelling again until none is left
+         * @param opening returns, on each call, the nodes of the shard streams still opening. Their requests may reach their
+         *                nodes after the cancel, so the canceller cancels on these nodes again until none is left.
          */
         void cancel(String reason, Supplier<Set<String>> opening);
     }
 
-    /** Why the search stopped early. The first reason wins. */
+    /** Why the search stopped early. The first reason wins, except that a failure overrides the row limit. */
     enum Stop {
         NONE,
         ROW_LIMIT,
@@ -117,21 +117,25 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
     private final Set<ShardStream> streams = ConcurrentHashMap.newKeySet();
 
     /**
+     * Creates the shard phase of one Arrow search.
+     *
      * @param task                the search task, parent of the shard streams
      * @param sink                receives the batches
      * @param spec                the scan every shard runs
      * @param client              opens shard streams
-     * @param executorName        the virtual-thread executor relays run on
+     * @param executorName        the name of the virtual-thread executor that relays run on
      * @param executor            that executor
-     * @param relayAllocator      owns relayed batches until the sink has sent them
-     * @param reservation         the search's coordinator memory, which every relayed batch holds until the sink closes it
-     * @param batchMemory         the memory a relayed batch may take, which it counts as once the search ended
+     * @param relayAllocator      owns relayed batches until the sink closes them
+     * @param reservation         the search's reservation of coordinator memory, which every relayed batch holds until the
+     *                            sink closes it
+     * @param batchMemory         the most memory a relayed batch may take, which the budget charges for it once the search
+     *                            has ended
      * @param maxOpenStreams      how many shard streams may be open at once
-     * @param streamLimit         trims the reservation to the streams the search may open at once, and returns how many, at
-     *                            most {@code maxOpenStreams}; called once, before the first stream opens, when the search's
-     *                            request listeners, such as workload management, have set its
-     *                            {@code max_concurrent_shard_requests}
-     * @param rowLimit            the most rows to relay
+     * @param streamLimit         trims the reservation to the shard streams the search may open at once, and returns that
+     *                            count, at most {@code maxOpenStreams}. It is called once, before the first shard stream
+     *                            opens, after request listeners such as workload management set the search's
+     *                            {@code max_concurrent_shard_requests}.
+     * @param rowLimit            the row limit of the search
      * @param allowPartialResults whether shards may fail without failing the search
      * @param cancelChildren      cancels the search's child tasks on every node, but not the search task
      */
@@ -178,7 +182,7 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
         final DiscoveryNode node = connection.getNode();
         final ShardStream stream = new ShardStream(target, node, request, listener);
         if (node.getStreamAddress() == null || node.getAttributes().containsKey(ArrowSearchPlugin.NODE_ATTRIBUTE) == false) {
-            // Before anything is relayed, so the search tries the next copy.
+            // Fails before any row is relayed, so the search tries the next copy.
             executor.execute(
                 () -> stream.complete(
                     // Only the node's name and id: its description holds addresses and attributes the caller must not see.
@@ -195,7 +199,7 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
     }
 
     /**
-     * Lowers the open stream limit to what the search's final request allows, once, before the first stream opens.
+     * Lowers the open stream limit to what the search's final request allows, once and before the first shard stream opens.
      */
     private void limitStreams() {
         if (streamsLimited) {
@@ -216,7 +220,7 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
         }
         final Stop reason = stop.get();
         if (reason == Stop.ROW_LIMIT) {
-            // The next copy is never opened: it ends at once as a shard the row limit stopped, which succeeds.
+            // The next copy never opens: it ends at once as a shard the row limit stopped, so it succeeds.
             return true;
         }
         return reason == Stop.NONE && isDeterministic(failure) == false;
@@ -234,8 +238,9 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
     }
 
     /**
-     * A bad request fails on every copy alike, and silently skipping a shard of an export because its data cannot be read
-     * would lose rows, so such failures end the search.
+     * Returns whether {@code failure} is a bad request, other than a cancellation, which fails on every copy alike. Such a
+     * failure ends the search, even with partial results allowed, because silently skipping a shard whose data cannot be
+     * read loses rows.
      */
     private static boolean isDeterministic(Exception failure) {
         if (ExceptionsHelper.status(failure) != RestStatus.BAD_REQUEST) {
@@ -294,7 +299,8 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
     }
 
     /**
-     * @return the failure the search ended with: the one that stopped it, if any, otherwise {@code failure}
+     * Returns the failure the search ends with: the one that stopped it, a cancellation if the search was cancelled, and
+     * otherwise {@code failure}.
      */
     Exception failureFor(Exception failure) {
         final Exception stopped = fatal.get();
@@ -309,9 +315,9 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
     }
 
     /**
-     * Stops the search: open streams are cancelled, queued ones abandoned, and on failure or cancellation the sink fails
-     * and the search's tasks on other nodes are cancelled. Safe to call from any thread; only the first call has effect,
-     * except that a failure overrides reaching the row limit.
+     * Stops the search: cancels open shard streams, abandons queued ones and cancels the search's child tasks. On failure
+     * or cancellation, also fails the sink. Safe to call from any thread. Only the first call has an effect, except that a
+     * failure overrides the row limit.
      *
      * @return whether this call stopped the search
      */
@@ -333,14 +339,14 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
         if (reason != Stop.ROW_LIMIT) {
             sink.fail(failureFor(cause));
         }
-        // Reaches the shard streams that are still opening, which the cancel above cannot, until none is left.
+        // Cancelling the child tasks reaches the shard streams still opening, which the stream cancel above cannot.
         cancelChildren.cancel("arrow search " + reason.name().toLowerCase(Locale.ROOT), this::openingStreamNodes);
         return true;
     }
 
     /**
-     * @return the nodes of the shard streams whose request was sent but whose first batch has not arrived, which only a cancel
-     *         of their tasks reaches
+     * Returns the nodes of the shard streams whose request was sent but whose first batch has not arrived. Only a cancel of
+     * their tasks reaches these streams.
      */
     private Set<String> openingStreamNodes() {
         final Set<String> nodes = new HashSet<>();
@@ -357,7 +363,7 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
         return new TaskCancelledException("the arrow search was cancelled" + (reason == null ? "" : ": " + reason));
     }
 
-    /** @return how many rows of {@code rows} may still be relayed, claiming them */
+    /** Claims up to {@code rows} rows of the remaining row limit, and returns how many it claimed. */
     private long claimRows(long rows) {
         while (true) {
             final long remaining = rowsRemaining.get();
@@ -373,7 +379,7 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
 
     /**
      * A relayed batch, which holds the search's reservation until it is closed. The sink closes it once the client's transport
-     * released its memory, which can be after the search ended, so that memory counts against the coordinator until then.
+     * releases its memory. That can be after the search ends, so the memory counts against the coordinator until then.
      */
     private static final class RelayedBatch extends VectorSchemaRoot {
         private final Releasable hold;
@@ -415,7 +421,8 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
     }
 
     /**
-     * The stream of one shard copy: opened on its node, relayed until exhausted, then reported to the search exactly once.
+     * The shard stream of one shard copy. It opens on the copy's node, relays batches until it is exhausted, and reports the
+     * shard to the search exactly once.
      */
     private final class ShardStream extends ArrowBatchResponseHandler<ArrowScanBatchResponse> implements ShardStreamScheduler.Launch {
         private final SearchShardTarget target;
@@ -471,7 +478,8 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
             Exception failure = null;
             boolean drained = false;
             try {
-                // A stop that missed this stream in its cancel sweep is seen here: the stream is not read, but cancelled below.
+                // A stop whose cancel sweep missed this stream is seen here: the loop stops reading, and the finally block
+                // cancels the stream.
                 ArrowScanBatchResponse batch;
                 while (stop.get() == Stop.NONE && (batch = stream.nextResponse()) != null) {
                     relay(batch);
@@ -515,8 +523,8 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
                     stop(Stop.ROW_LIMIT, null);
                     return;
                 }
-                // The relay's own allocator owns the batch while the client reads it, so it outlives the stream, and so may
-                // the search's reservation, which the batch holds until then.
+                // The relay allocator owns the batch while the client reads it, so the batch can outlive the shard stream.
+                // The batch holds the search's reservation until then, so the reservation can outlive the search.
                 final VectorSchemaRoot relayed = RelayedBatch.create(received.getSchema(), relayAllocator, reservation, batchMemory);
                 try {
                     VectorTransfer.transferRoot(received, relayed);
@@ -527,7 +535,7 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
                     relayed.close();
                     throw e;
                 }
-                // Marked before sending: once any row may have reached the client the shard must not be retried.
+                // Mark before sending: once any row may have reached the client, the shard must not be retried.
                 relayedShards.add(target.getShardId());
                 rows += granted;
                 try {
@@ -551,7 +559,7 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
             }
         }
 
-        /** Ends a stream that held a scheduler slot. */
+        /** Ends a shard stream that holds a scheduler slot, once: frees the slot and reports the shard. */
         private void end(@Nullable Exception failure) {
             if (ended.compareAndSet(false, true) == false) {
                 return;
@@ -569,11 +577,11 @@ final class ArrowSearchExecution implements TransportSearchAction.SinglePhaseSea
             final Stop reason = stop.get();
             try {
                 if (reason == Stop.ROW_LIMIT) {
-                    // The rows the search needs have been relayed, so however this stream ended, the shard succeeded. It
-                    // is complete only if it sent its summary before the limit cut it short.
+                    // The search relayed all the rows it needs, so the shard succeeds however its stream ended. The shard
+                    // is complete only if it sent its summary and the row limit did not cut its rows.
                     listener.onResponse(shardResult(cutShort || summary == null));
                 } else if (failure != null) {
-                    // Decided here, where the stop reason was read, so a row limit reached meanwhile cannot turn a shard that
+                    // Decide with the stop reason read above, so that a row limit reached meanwhile cannot turn a shard that
                     // must fail the search into one that is retried.
                     if (reason == Stop.NONE && (relayedShards.contains(target.getShardId()) || isDeterministic(failure))) {
                         stop(Stop.FAILED, failure);

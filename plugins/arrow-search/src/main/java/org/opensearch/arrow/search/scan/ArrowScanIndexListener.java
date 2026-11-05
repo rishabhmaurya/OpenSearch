@@ -15,8 +15,8 @@ import org.opensearch.index.shard.IndexEventListener;
 import org.opensearch.index.shard.IndexShard;
 
 /**
- * Aborts the scans of a shard that closes, e.g. when it relocates or its index is deleted, so they release the shard's
- * reader: a scan that computes stops at once, and a scan that waits for its consumer stops when it resumes or its wait
+ * Aborts the scans of a closing shard, e.g. one that relocates or whose index is deleted, so they release the shard's
+ * reader. A scan that computes stops at once. A scan that waits for the coordinator stops when it resumes or its wait
  * times out.
  */
 public final class ArrowScanIndexListener implements IndexEventListener {
@@ -24,7 +24,9 @@ public final class ArrowScanIndexListener implements IndexEventListener {
     private final ArrowScanRegistry registry;
 
     /**
-     * @param registry the scans of this node
+     * Creates a listener that aborts the scans of {@code registry}.
+     *
+     * @param registry the scans of this data node
      */
     public ArrowScanIndexListener(ArrowScanRegistry registry) {
         this.registry = registry;

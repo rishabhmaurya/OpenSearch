@@ -176,11 +176,11 @@ class FlightClientChannel implements TcpChannel {
 
         // The FlightClient's allocator close treats any outstanding buffer as a leak, and live
         // streams legitimately hold buffers (current batch root, retained heartbeat metadata)
-        // until they are closed. So: cancel every active stream. A stream nobody is reading is closed
-        // at once, since its consumer may not come back to it for long (a relay waiting for its own
-        // client, say); a consumer parked in nextResponse() is woken and closes it itself. Batches a
-        // consumer already holds are on responseAllocator, not the client's, so they outlive the
-        // stream and the client.
+        // until they are closed. So: cancel every active stream. A stream nobody is reading is
+        // closed at once, since its consumer may not return to it for a long time (e.g. a relay
+        // waiting for its own client). A consumer parked in nextResponse() wakes and closes its
+        // stream itself. Batches a consumer already holds live on responseAllocator, not on the
+        // client's allocator, so they outlive the stream and the client.
         for (FlightTransportResponse<?> streamResponse : activeStreams) {
             try {
                 streamResponse.cancelForChannelClose("channel to node [" + node.getId() + "] closed");

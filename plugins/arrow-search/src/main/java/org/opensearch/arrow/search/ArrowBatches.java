@@ -20,12 +20,15 @@ public final class ArrowBatches {
     private ArrowBatches() {}
 
     /**
-     * Sets the row count of a batch, which may drop rows written past it, including the values of dropped list rows.
+     * Sets the row count of a batch and drops the rows written past it, including the values of dropped list rows.
+     *
+     * @param root the batch
+     * @param rows the new row count
      */
     public static void setRowCount(VectorSchemaRoot root, int rows) {
         for (FieldVector vector : root.getFieldVectors()) {
             if (vector instanceof ListVector list) {
-                // A list vector sizes its values from the last row written, so rows past the count must be forgotten first.
+                // A list vector sizes its values from its last-set row, so that index must first move back to the last kept row.
                 list.setLastSet(rows - 1);
             }
         }

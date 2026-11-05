@@ -87,7 +87,7 @@ import static org.opensearch.arrow.flight.transport.FlightErrorMapper.mapFromCal
  */
 class FlightServerChannel implements TcpChannel, ArrowFlightChannel {
 
-    /** Ready timeout meaning "wait until the stream is cancelled or closed". */
+    /** Ready timeout that waits until the stream is cancelled or closed. */
     static final long UNBOUNDED_READY_WAIT = Long.MAX_VALUE;
     private static final String PROFILE_NAME = "flight";
 
@@ -144,7 +144,7 @@ class FlightServerChannel implements TcpChannel, ArrowFlightChannel {
         // CompositeBackpressureStrategy.register installs both setOnReadyHandler and
         // setOnCancelHandler; the cancel callback runs onChannelCancelled before
         // notifying parked threads so the cancelled state is visible on wake. close()
-        // wakes them too, since a call this side ended fires neither callback.
+        // wakes them too, since gRPC fires neither callback for a call this side ended.
         this.bp = new CompositeBackpressureStrategy(this::onChannelCancelled, () -> open.get() == false);
         this.bp.register(serverStreamListener);
     }
@@ -162,8 +162,9 @@ class FlightServerChannel implements TcpChannel, ArrowFlightChannel {
      * Parks the calling thread until gRPC signals it can accept another batch. Called
      * from the producer thread before the batch is submitted to the channel's executor.
      *
-     * <p><b>Warning:</b> the calling thread may park for up to {@code readyTimeoutMillis}
-     * under a slow consumer. If the action handler is registered on a bounded thread
+     * <p><b>Warning:</b> under a slow consumer the calling thread may park for up to
+     * {@code readyTimeoutMillis}, or until the stream is cancelled or closed if the timeout
+     * is unbounded. If the action handler is registered on a bounded thread
      * pool (e.g. {@code SEARCH}), N concurrent slow streams will hold N threads parked
      * simultaneously and can starve the pool. Operators should size the action's thread
      * pool — or limit concurrent streams via admission control — accordingly.
@@ -523,8 +524,8 @@ class FlightServerChannel implements TcpChannel, ArrowFlightChannel {
         if (!open.compareAndSet(true, false)) {
             return;
         }
-        // A call ended on this side is never ready again and gRPC reports no cancel for it, so wake the producers parked in
-        // awaitReadyOrThrow; they see the channel closed.
+        // A call this side ended is never ready again, and gRPC reports no cancel for it. Wake the producers parked in
+        // awaitReadyOrThrow so they see the channel closed.
         bp.signal();
         // The stream root is owned exclusively by the flight-executor thread (created, filled, and
         // freed there). Post the free onto that executor so it is serialized behind any in-flight send

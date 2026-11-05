@@ -46,8 +46,8 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
 
     private final FlightClient flightClient;
     /**
-     * Receives the native batches handed to the consumer. It outlives {@link #flightClient}, whose own allocator holds the
-     * stream's buffers: a channel close closes the stream and then the client while a consumer may still hold batches.
+     * Holds the native batches handed to the consumer. It outlives {@link #flightClient}, whose own allocator holds the
+     * stream's buffers, because a channel close closes the stream and then the client while a consumer may still hold batches.
      */
     private final BufferAllocator responseAllocator;
     private final Ticket ticket;
@@ -62,7 +62,7 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
     private volatile FlightStream flightStream;
     private volatile long currentBatchSize;
     private volatile boolean firstBatchConsumed;
-    // Result of the prefetching next(): false when the producer completed the stream without a batch.
+    // Result of the prefetch's next(): false when the producer completed the stream without a batch.
     private volatile boolean firstBatchAvailable;
     private volatile boolean closed;
     private final Object streamCloseLock = new Object();
@@ -86,7 +86,10 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
     private volatile boolean prefetchCompleted;
     /** Set once the prefetch has read the first batch; from then on only a consumer reads the stream. */
     private volatile boolean firstBatchPrefetched;
-    /** Set by {@link #cancelForChannelClose} before it checks {@link #firstBatchPrefetched}; the prefetch checks it after. */
+    /**
+     * Set by {@link #cancelForChannelClose} before it checks {@link #firstBatchPrefetched}. The prefetch checks it after it sets
+     * {@link #firstBatchPrefetched}, so at least one of them sees the other and closes the stream.
+     */
     private volatile boolean channelClosing;
     /**
      * The thread currently executing the consumer's stream callback, or {@code null} when no
@@ -95,11 +98,11 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
      */
     private volatile Thread dispatchThread;
     /**
-     * Held by the consumer for the duration of {@link #nextResponse()}. {@link #cancel} closes the stream only when it can take
-     * this lock: closing while the consumer reads would free buffers it is loading or transferring.
+     * Held by the consumer for the duration of {@link #nextResponse()}. A cancel closes the stream only when it can take this
+     * lock, because closing while the consumer reads would free buffers it is loading or transferring.
      */
     private final ReentrantLock readLock = new ReentrantLock();
-    /** Set by a {@link #cancel} that found a consumer reading; that consumer closes the stream when it returns. */
+    /** Set by a cancel that finds a consumer reading; that consumer closes the stream when it returns. */
     private volatile boolean closeRequested;
 
     FlightTransportResponse(
@@ -172,8 +175,8 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
                     start = System.nanoTime();
                     firstBatchAvailable = flightStream.next();
                     firstBatchPrefetched = true;
-                    // A channel close that came while next() was reading left the stream to us, and may have been too late
-                    // to fail that read; close the stream rather than hand a consumer a cancelled one nobody closes.
+                    // A channel close during next() leaves the stream to this thread and may come too late to fail the read.
+                    // Close the stream rather than hand a consumer a cancelled stream that nobody closes.
                     if (channelClosing) {
                         close();
                         future.completeExceptionally(new StreamException(StreamErrorCode.UNAVAILABLE, "Stream is closed"));
@@ -188,9 +191,9 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
                 } catch (Exception e) {
                     future.completeExceptionally(new StreamException(StreamErrorCode.INTERNAL, "Stream open/prefetch failed", e));
                 } finally {
-                    // The header context lives as long as the connection, so remove the header of a stream that failed or
-                    // closed before reaching a consumer: the server sends one with an error too, and the middleware stores
-                    // it before next() fails or close() returns.
+                    // The header context lives as long as the connection. The server sends a header with an error too, and
+                    // the middleware stores it before next() fails or close() returns. Remove the header of a stream that
+                    // never reaches a consumer, so it does not stay in the context.
                     if (initialHeader == null) {
                         headerContext.getHeader(correlationId);
                     }
@@ -305,8 +308,8 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
     }
 
     /**
-     * Cancels the stream. Safe to call from any thread: a consumer blocked in {@link #nextResponse()} is woken by the
-     * cancellation and closes the stream itself when it returns, so the stream is never closed under a reader.
+     * Cancels the stream. Safe to call from any thread: the cancellation wakes a consumer blocked in {@link #nextResponse()},
+     * which closes the stream itself when it returns, so the stream is never closed under a reader.
      */
     @Override
     public void cancel(String reason, Throwable cause) {
@@ -369,13 +372,17 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
 
     /**
      * Cancels the underlying flight stream because the channel it runs on is closing. Safe to call
-     * from any thread, and never closes the stream under a thread using it: {@link FlightStream#cancel}
-     * unblocks a consumer parked in {@link #nextResponse()} (it observes a CANCELLED error), which then
-     * closes the stream itself, and fails a prefetch still reading the first batch, whose failure
-     * handling closes it; a prefetch whose read completed anyway closes it itself. A stream nobody is
-     * using is closed here, since its consumer may be waiting elsewhere, e.g. for its own downstream,
-     * and the channel cannot wait for it to come back. Batches the consumer already holds are on
-     * {@link #responseAllocator}, so they survive the stream and the client.
+     * from any thread. It never closes the stream under a thread that uses it:
+     * <ul>
+     *   <li>{@link FlightStream#cancel} wakes a consumer parked in {@link #nextResponse()} with a
+     *       CANCELLED error, and that consumer closes the stream itself.</li>
+     *   <li>It also fails a prefetch still reading the first batch, whose failure handling closes the
+     *       stream. A prefetch whose read completes anyway closes the stream itself.</li>
+     *   <li>A stream nobody uses is closed here. Its consumer may be waiting elsewhere, e.g. for its
+     *       own downstream, and the channel cannot wait for it to come back.</li>
+     * </ul>
+     * Batches the consumer already holds live on {@link #responseAllocator}, so they survive the
+     * stream and the client.
      *
      * <p>If the stream has not been published yet (open/prefetch still in flight, or never started),
      * this falls back to {@link #close()}: the prefetch's closed re-check self-closes the stream it
@@ -393,8 +400,8 @@ class FlightTransportResponse<T extends TransportResponse> implements StreamTran
         } catch (Exception e) {
             logFailure("Error requesting flight stream cancellation", e);
         }
-        // Once the prefetch has read, only a reader can be using the stream, and closeUnlessReading leaves the close to it.
-        // Before that, the prefetch sees channelClosing once its read is done.
+        // Once the prefetch has read, only a reader can use the stream, and closeUnlessReading leaves the close to it.
+        // Before that, the prefetch checks channelClosing after its read.
         if (firstBatchPrefetched) {
             closeUnlessReading();
         }

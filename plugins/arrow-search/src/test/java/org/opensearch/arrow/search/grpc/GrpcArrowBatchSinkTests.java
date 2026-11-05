@@ -214,7 +214,7 @@ public class GrpcArrowBatchSinkTests extends OpenSearchTestCase {
     }
 
     public void testSummaryOfASearchThatNeverSentItsSchemaFails() {
-        // E.g. security's filter-level document-level security ran the request as a regular search.
+        // For example, the security plugin's filter-level document-level security ran the request as a regular search.
         sink.complete(null);
         OpenSearchStatusException e = (OpenSearchStatusException) channel.failed.get();
         assertNotNull(e);

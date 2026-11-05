@@ -138,7 +138,7 @@ public class ColumnResolverTests extends OpenSearchTestCase {
     }
 
     public void testFieldsInsideNestedFieldsAreRejectedOrSkipped() {
-        // Field capabilities report the enclosing paths of the fields they return, as nested in the indices that nest them.
+        // Field capabilities also report the parent paths of the fields they return, with type nested where an index nests them.
         field("order", "long", true);
         field("items", "nested", false);
         field("items", "object", false);

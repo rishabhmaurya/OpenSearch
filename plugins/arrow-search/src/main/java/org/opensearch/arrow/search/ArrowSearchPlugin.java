@@ -51,21 +51,21 @@ import java.util.function.Supplier;
 /**
  * Streams search results as Apache Arrow record batches read from doc values.
  * <p>
- * Clients call the gRPC {@code SearchService/ServerStreamSearch} method with the {@code x-opensearch-format: arrow}
- * header. The coordinating node runs the search through the regular search coordination, and streams every shard over the
- * native Arrow stream transport; each batch is computed by a query phase on the data node and relayed to the client as an
- * Arrow IPC message, without decoding it.
+ * Clients call the gRPC {@code SearchService/ServerStreamSearch} method with the {@code x-opensearch-format: arrow} header.
+ * The coordinator runs the search through the regular search coordination and reads each shard as a shard stream over the
+ * Arrow stream transport. A query phase on the data node computes each batch, and the coordinator relays it to the client as
+ * an Arrow IPC message without decoding it.
  */
 public class ArrowSearchPlugin extends Plugin implements ActionPlugin, SearchPlugin {
 
     /**
-     * Virtual-thread executor of shard streams on the coordinating node, and of shard scans on data nodes, whose query
-     * phases and slices both compute their batches on it, as many at once as the scans' compute slots allow, and wait on it
-     * for their consumer.
+     * Name of the virtual-thread executor that runs shard streams on the coordinator and shard scans on data nodes. The query
+     * phase and slices of a scan compute batches on it, as many at once as the compute slots allow, and wait on it for their
+     * consumer.
      */
     public static final String EXECUTOR = "arrow_search";
 
-    /** The node attribute of nodes that serve Arrow search shard streams. */
+    /** The node attribute that marks nodes able to serve shard streams. */
     public static final String NODE_ATTRIBUTE = "arrow_search";
 
     private static final Logger logger = LogManager.getLogger(ArrowSearchPlugin.class);
@@ -74,7 +74,9 @@ public class ArrowSearchPlugin extends Plugin implements ActionPlugin, SearchPlu
     private final AtomicReference<Components> components = new AtomicReference<>();
 
     /**
-     * @param settings the node settings
+     * Creates the plugin and the shard scan registry of this node.
+     *
+     * @param settings the node settings, which set the scan and compute slot limits
      */
     public ArrowSearchPlugin(Settings settings) {
         this.registry = new ArrowScanRegistry(
@@ -84,8 +86,8 @@ public class ArrowSearchPlugin extends Plugin implements ActionPlugin, SearchPlu
     }
 
     /**
-     * What the plugin's request handlers need once the node created its components, and the allocators they create, which
-     * close with the node.
+     * The node components the plugin's request handlers use, available once the node creates them. Also holds the allocators
+     * the handlers create, which close with the node.
      */
     public static final class Components {
         private final Client client;
@@ -101,24 +103,30 @@ public class ArrowSearchPlugin extends Plugin implements ActionPlugin, SearchPlu
             this.registry = registry;
         }
 
+        /** Returns the node client. */
         public Client client() {
             return client;
         }
 
+        /** Returns the Arrow search settings of this node. */
         public ArrowSearchSettings settings() {
             return settings;
         }
 
+        /** Returns the {@link ArrowSearchPlugin#EXECUTOR} executor. */
         public Executor executor() {
             return executor;
         }
 
+        /** Returns the registry of the shard scans open on this node. */
         public ArrowScanRegistry registry() {
             return registry;
         }
 
         /**
          * Keeps an allocator to close with the node.
+         *
+         * @param allocator the allocator
          */
         public void registerAllocator(BufferAllocator allocator) {
             synchronized (allocators) {
@@ -164,7 +172,7 @@ public class ArrowSearchPlugin extends Plugin implements ActionPlugin, SearchPlu
     }
 
     /**
-     * @return the components, available once the node created them
+     * Returns the components; fails before the node creates them.
      */
     public Components components() {
         return Objects.requireNonNull(components.get(), "arrow-search plugin components are not created yet");
@@ -199,7 +207,7 @@ public class ArrowSearchPlugin extends Plugin implements ActionPlugin, SearchPlu
 
     @Override
     public Settings additionalSettings() {
-        // Lets coordinating nodes skip copies on nodes that cannot serve shard streams, e.g. during a rolling upgrade.
+        // Lets the coordinator skip shard copies on nodes that cannot serve shard streams, e.g. during a rolling upgrade.
         return Settings.builder().put("node.attr." + NODE_ATTRIBUTE, true).build();
     }
 

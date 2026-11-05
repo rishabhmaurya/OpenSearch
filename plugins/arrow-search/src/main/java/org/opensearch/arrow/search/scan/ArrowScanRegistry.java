@@ -22,7 +22,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 /**
- * The shard scans open on this node, and the limits on how many may be open, and compute a batch, at once.
+ * Tracks the shard scans open on a data node, and limits how many scans may be open and how many slices may compute at
+ * once.
  */
 public final class ArrowScanRegistry {
 
@@ -31,8 +32,10 @@ public final class ArrowScanRegistry {
     private final Slots batchSlots;
 
     /**
+     * Creates a registry with the given limits.
+     *
      * @param maxOpenScans         how many scans may be open at once
-     * @param maxConcurrentBatches how many scans may compute a batch at once
+     * @param maxConcurrentBatches how many scan slices may compute at once
      */
     public ArrowScanRegistry(int maxOpenScans, int maxConcurrentBatches) {
         this.scanSlots = new Slots(maxOpenScans);
@@ -40,14 +43,18 @@ public final class ArrowScanRegistry {
     }
 
     /**
-     * @param maxOpenScans how many scans may be open at once; scans already open are not affected by a lower limit
+     * Changes how many scans may be open at once. A lower limit does not affect scans already open.
+     *
+     * @param maxOpenScans the new limit
      */
     public void setMaxOpenScans(int maxOpenScans) {
         scanSlots.setLimit(maxOpenScans);
     }
 
     /**
-     * @param maxConcurrentBatches how many scans may compute a batch at once
+     * Changes how many scan slices may compute at once. A lower limit does not take compute slots from slices that hold them.
+     *
+     * @param maxConcurrentBatches the new limit
      */
     public void setMaxConcurrentBatches(int maxConcurrentBatches) {
         batchSlots.setLimit(maxConcurrentBatches);
@@ -56,8 +63,8 @@ public final class ArrowScanRegistry {
     /**
      * Takes a slot for a new scan, waiting up to {@code wait} for one to free up.
      *
-     * @return the slot, released when the scan ends
-     * @throws OpenSearchRejectedExecutionException if no slot freed up in time, which the coordinator retries on another copy
+     * @return the slot, which the caller releases when the scan ends
+     * @throws OpenSearchRejectedExecutionException if no slot freed up in time; the coordinator then retries another copy
      */
     Releasable acquireScanSlot(TimeValue wait) throws InterruptedException {
         final Releasable slot = scanSlots.acquire(wait.nanos());
@@ -70,8 +77,8 @@ public final class ArrowScanRegistry {
     }
 
     /**
-     * Takes a slot to compute, waiting up to {@code waitNanos} for one to free up. A scan slice holds it while it collects,
-     * not while it waits for its consumer.
+     * Takes a compute slot, waiting up to {@code waitNanos} for one to free up. A slice holds it while it collects, not
+     * while it waits for the coordinator.
      *
      * @return the slot, or {@code null} if none freed up in time
      */
@@ -85,7 +92,7 @@ public final class ArrowScanRegistry {
      *
      * @param shardId the shard
      * @param abort   stops the scan, given why
-     * @return removes the scan once it ended
+     * @return removes the scan once it ends
      */
     Releasable register(ShardId shardId, Consumer<String> abort) {
         final RunningScan scan = new RunningScan(shardId, abort);
@@ -93,9 +100,7 @@ public final class ArrowScanRegistry {
         return () -> scans.remove(scan);
     }
 
-    /**
-     * @return the number of scans running on this node
-     */
+    /** Returns the number of scans running on this data node. */
     public int runningScans() {
         return scans.size();
     }
@@ -145,7 +150,9 @@ public final class ArrowScanRegistry {
         }
 
         /**
-         * @return the slot, or {@code null} if none freed up within {@code waitNanos}
+         * Takes a slot, waiting up to {@code waitNanos} for one to free up. Releasing the slot more than once frees it once.
+         *
+         * @return the slot, or {@code null} if none freed up in time
          */
         Releasable acquire(long waitNanos) throws InterruptedException {
             lock.lock();

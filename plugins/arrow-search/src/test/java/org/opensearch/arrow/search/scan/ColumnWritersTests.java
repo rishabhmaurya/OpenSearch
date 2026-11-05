@@ -49,7 +49,7 @@ public class ColumnWritersTests extends OpenSearchTestCase {
 
     public void testGrowingKeywordRowsLeavesTheirDataBufferAlone() {
         try (BufferAllocator allocator = new RootAllocator(); VarCharVector vector = new VarCharVector("k", allocator)) {
-            // Presized for a few large values, as a batch is after rows of large keywords.
+            // Presized for a few large values, like a batch that follows rows of large keywords.
             vector.setInitialCapacity(16, 1024);
             vector.allocateNew();
             long data = vector.getDataBuffer().capacity();
@@ -113,7 +113,7 @@ public class ColumnWritersTests extends OpenSearchTestCase {
     public void testALargeValueCountsTowardsItsOwnRowOnly() throws IOException {
         Column column = new Column("k", ColumnType.UTF8, Set.of("keyword"));
         MappedFieldType fieldType = new KeywordFieldMapper.KeywordFieldType(column.name());
-        // A column of 100 byte values but one of 8KB, then one of 1KB values.
+        // A column of 100-byte values except for one 8KB value, then a column of 1KB values.
         withSegment(column.name(), doc -> List.of(value(doc, doc == 3 ? 8192 : 100)), first -> {
             withSegment(column.name(), doc -> List.of(value(doc, 1024)), second -> {
                 ColumnWriters.Scratch scratch = new ColumnWriters.Scratch();
@@ -162,7 +162,7 @@ public class ColumnWritersTests extends OpenSearchTestCase {
 
     public void testIpValuesThatAreNotAddressesFailTheScanAsBadData() throws IOException {
         Column column = new Column("client_ip", ColumnType.IP, Set.of("ip"));
-        // Field masking replaces the values of any field, an ip field's too, with a hash.
+        // Field masking replaces the values of any field, including an ip field, with a hash.
         withSegment(column.name(), doc -> List.of(new BytesRef("4f8e2bd6c1a07e3355b26d1f0e9c7a48" + doc)), leaf -> {
             ColumnWriters.LeafColumnWriter writer = open(
                 column,

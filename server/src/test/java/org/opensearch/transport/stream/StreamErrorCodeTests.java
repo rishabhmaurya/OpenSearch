@@ -29,7 +29,7 @@ public class StreamErrorCodeTests extends OpenSearchTestCase {
         assertEquals(RestStatus.INTERNAL_SERVER_ERROR, new StreamException(StreamErrorCode.INTERNAL, "x").status());
     }
 
-    /** A cancellation, e.g. of a closing shard's scan, keeps the status of a TaskCancelledException, not a client error. */
+    /** Cancelling a stream, for example when its shard closes, is not a client error: it keeps a TaskCancelledException's status. */
     public void testCancellationIsNotAClientError() {
         assertEquals(new TaskCancelledException("x").status(), new StreamException(StreamErrorCode.CANCELLED, "x").status());
         assertEquals(RestStatus.INTERNAL_SERVER_ERROR, StreamErrorCode.forFailure(new TaskCancelledException("x")).restStatus());
@@ -55,7 +55,7 @@ public class StreamErrorCodeTests extends OpenSearchTestCase {
         }
     }
 
-    /** The query phase wraps a collector's failure, e.g. a send the consumer cancelled, which must stay a cancellation. */
+    /** The query phase wraps a collector's failure, such as a send the consumer cancelled, which must stay a cancellation. */
     public void testWrappedStreamExceptionKeepsItsCode() {
         SearchShardTarget target = new SearchShardTarget("node", new ShardId("index", "_na_", 0), null, OriginalIndices.NONE);
         assertEquals(
@@ -71,7 +71,7 @@ public class StreamErrorCodeTests extends OpenSearchTestCase {
         }
     }
 
-    /** Of a stream failure and a task cancellation in the same chain, the outer one decides. */
+    /** When a stream failure and a task cancellation are in the same cause chain, the outer one decides. */
     public void testOuterStreamFailureOrCancellationDecides() {
         StreamException unavailable = new StreamException(StreamErrorCode.UNAVAILABLE, "x", new TaskCancelledException("x"));
         assertEquals(StreamErrorCode.UNAVAILABLE, StreamErrorCode.forFailure(new RuntimeException(unavailable)));

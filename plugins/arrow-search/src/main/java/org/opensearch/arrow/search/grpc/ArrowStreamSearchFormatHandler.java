@@ -20,17 +20,20 @@ import org.opensearch.transport.grpc.spi.StreamSearchResponseChannel;
  * Serves {@code ServerStreamSearch} calls with {@code x-opensearch-format: arrow}.
  * <p>
  * The response stream carries, in {@code SearchResponse} payload messages, an Arrow IPC schema message followed by one
- * record batch message per batch, then a regular {@code SearchResponse} summary whose total hits is the number of rows.
+ * record batch message per batch. A regular {@code SearchResponse} summary ends it, and its total hits count is the number
+ * of rows.
  */
 public final class ArrowStreamSearchFormatHandler implements StreamSearchFormatHandler {
 
-    /** The format name. */
+    /** The value of the {@code x-opensearch-format} header that this handler serves. */
     public static final String FORMAT = "arrow";
 
     private final ArrowSearchPlugin plugin;
 
     /**
-     * @param plugin provides the node client, settings and executor once the node started
+     * Creates the handler of the {@value #FORMAT} format.
+     *
+     * @param plugin the plugin, which provides the node client, settings and executor once the node starts
      */
     public ArrowStreamSearchFormatHandler(ArrowSearchPlugin plugin) {
         this.plugin = plugin;
@@ -52,7 +55,7 @@ public final class ArrowStreamSearchFormatHandler implements StreamSearchFormatH
             sink.fail(e);
             return;
         }
-        // Every outcome ends the stream here, including failures before the action runs, such as validation or security.
+        // Every outcome ends the stream through this listener, including failures of validation or security before the action runs.
         components.client().execute(ArrowSearchAction.INSTANCE, arrowRequest, ActionListener.wrap(sink::complete, sink::fail));
     }
 }

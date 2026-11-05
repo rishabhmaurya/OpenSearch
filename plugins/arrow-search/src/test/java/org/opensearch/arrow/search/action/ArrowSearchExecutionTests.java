@@ -71,7 +71,7 @@ public class ArrowSearchExecutionTests extends OpenSearchTestCase {
     private static final List<Column> COLUMNS = List.of(new Column("l", Column.ColumnType.INT64, Set.of("long")));
     private static final Schema SCHEMA = Column.toSchema(COLUMNS);
     private static final Object END = new Object();
-    /** The memory a relayed batch may take: a row of max_row_size, 3MB, rounded up as Arrow allocates it. */
+    /** The memory a relayed batch may take: a row of max_row_size (3MB), rounded up as Arrow allocates it. */
     private static final long BATCH_MEMORY = 4 << 20;
 
     private BufferAllocator root;
@@ -103,7 +103,7 @@ public class ArrowSearchExecutionTests extends OpenSearchTestCase {
         }
         assertEquals("relayed batches are released", 0, relay.getAllocatedMemory());
         assertEquals("received batches are released", 0, dataNode.getAllocatedMemory());
-        // Once the search lets go of its reservation, no relayed batch still holds it.
+        // Once the search ends, no relayed batch still holds its reservation.
         reservation.endSearch();
         assertTrue("relayed batches return the reservation", reservation.isReleased());
         assertEquals(0, budget.reserved());
@@ -269,7 +269,7 @@ public class ArrowSearchExecutionTests extends OpenSearchTestCase {
         ArrowBatchSink batchSink,
         List<Column> columns
     ) {
-        ArrowScanSpec spec = new ArrowScanSpec(COLUMNS, 1 << 20, 64 << 10, 65536, 3 << 20, Long.MAX_VALUE, TimeValue.timeValueMinutes(1));
+        ArrowScanSpec spec = new ArrowScanSpec(columns, 1 << 20, 64 << 10, 65536, 3 << 20, Long.MAX_VALUE, TimeValue.timeValueMinutes(1));
         return new ArrowSearchExecution(
             task,
             batchSink,
@@ -339,7 +339,7 @@ public class ArrowSearchExecutionTests extends OpenSearchTestCase {
         FakeSink holdingSink = new FakeSink() {
             @Override
             public void sendBatch(VectorSchemaRoot batch) {
-                // As gRPC holds the batches its client has not read yet.
+                // Hold the batch, as gRPC holds the batches its client has not read yet.
                 unread.add(batch);
             }
         };
@@ -506,7 +506,7 @@ public class ArrowSearchExecutionTests extends OpenSearchTestCase {
         StreamException crash = new StreamException(StreamErrorCode.INTERNAL, "node left");
         nextOpened().deliver(new FakeStream().batch(1).fail(crash), relays);
         listener.await();
-        // Decided when the shard completed, without waiting for the shard group to fail.
+        // The search fails when the shard completes, without waiting for the shard group to fail.
         assertEquals(ArrowSearchExecution.Stop.FAILED, execution.stopReason());
         assertSame(crash, sink.failed.get());
         execution.stop(ArrowSearchExecution.Stop.ROW_LIMIT, null);
@@ -608,7 +608,7 @@ public class ArrowSearchExecutionTests extends OpenSearchTestCase {
         FakeStream late = new FakeStream() {
             @Override
             public void cancel(String reason, Throwable cause) {
-                // As the stream transport closes the stream when cancelled, which can fail.
+                // The stream transport closes a cancelled stream, and the close can fail.
                 super.cancel(reason, cause);
                 close();
                 throw new StreamException(StreamErrorCode.INTERNAL, "failed to close the flight stream");

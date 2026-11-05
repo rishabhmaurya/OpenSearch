@@ -26,11 +26,12 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 
 /**
- * What a shard scan shares across its slices while its query phase runs, and what the scan leaves for the end of the stream.
+ * The state that the slices of a shard scan share while its query phase runs, and that the scan leaves for the end of the
+ * stream.
  * <p>
- * Each slice of the query phase has its own collector, which builds and sends its own batches; the slices share the shard's
- * row limit, its stop conditions and the bookkeeping of the batches and compute slots they hold, so a failed query phase
- * releases them all. The stream's end reads the state once the query phase is over and no slice runs anymore.
+ * Each slice of the query phase has its own collector, which builds and sends its own batches. The slices share the shard's
+ * row limit, its stop conditions, and the bookkeeping of the batches and compute slots they hold, so a failed query phase
+ * releases them all. The end of the stream reads the state once the query phase is over and no slice runs.
  */
 final class ScanState implements Releasable {
 
@@ -40,10 +41,10 @@ final class ScanState implements Releasable {
         void send(VectorSchemaRoot batch) throws Exception;
     }
 
-    /** Takes a slot to compute; a slice releases it while it waits for its consumer, and as soon as it fails. */
+    /** Hands out compute slots. A slice releases its slot while it waits for its consumer, and as soon as it fails. */
     @FunctionalInterface
     interface ComputeSlots {
-        /** @return the slot, or {@code null} if none freed up within {@code waitNanos} */
+        /** Returns a compute slot, or {@code null} if none freed up within {@code waitNanos}. */
         @Nullable
         Releasable acquire(long waitNanos) throws InterruptedException;
     }
@@ -52,35 +53,38 @@ final class ScanState implements Releasable {
     final List<Column> columns;
     final Schema schema;
     final BufferAllocator allocator;
-    /** Field-level security: fields the caller may not see read as nulls. */
+    /** Whether field-level security lets the caller see a field; the fields it hides read as nulls. */
     final Predicate<String> fieldVisible;
     /** Sends batches; slices call it concurrently. */
     final BatchSender sender;
     final ComputeSlots computeSlots;
-    /** Whether the consumer went away. */
+    /** Whether the consumer went away or the scan's task was cancelled. */
     final BooleanSupplier consumerGone;
-    /** The compute time each slice may spend, excluding waits for the consumer, or -1 for no limit. */
+    /** The compute time each slice may spend, excluding waits for the consumer and for a compute slot, or -1 for no limit. */
     final long computeBudgetNanos;
     /** Collects the slices of the query phase, or {@code null} to collect segments one after another. */
     @Nullable
     final Executor sliceExecutor;
-    /** The rows the shard may still stream, claimed by the slices as they read them. */
+    /** The rows the shard may still stream, which the slices claim for the rows they keep. */
     final RowBudget rowBudget;
 
-    /** Rows sent in full batches so far. */
+    /** Rows the slices sent during collection, not counting the rows left for the end of the stream. */
     final AtomicLong rowsSent = new AtomicLong();
+    /** Whether a slice spent its compute budget, which stops the others. */
     volatile boolean timedOut;
+    /** Whether the row limit may have cut the results. */
     volatile boolean terminatedEarly;
     /** Whether a slice failed, which stops the others. */
     volatile boolean failed;
     /**
-     * Whether the scan's collectors collected the query phase, which another plugin's collector or query phase searcher may
-     * have done instead.
+     * Whether the scan's collectors collected the query phase. Another plugin's collector or query phase searcher may have
+     * collected it instead.
      */
     volatile boolean collected;
 
-    /** The batches being filled or left unsent, and the compute slots held, so a failed query phase releases them. */
+    /** The batches being filled or left unsent, which a failed query phase releases. */
     private final Set<VectorSchemaRoot> batches = ConcurrentHashMap.newKeySet();
+    /** The compute slots the slices hold, which a failed query phase releases. */
     private final Set<Releasable> computeSlotsHeld = ConcurrentHashMap.newKeySet();
 
     ScanState(
@@ -107,21 +111,22 @@ final class ScanState implements Releasable {
         this.terminatedEarly = spec.shardRowLimit() <= 0;
     }
 
-    /** Whether the slices should stop collecting: the shard's rows or compute budget are spent, or a slice failed. */
+    /** Whether the slices stop collecting: the shard reached its row limit, a slice spent its compute budget, or a slice failed. */
     boolean stopped() {
         return failed || timedOut || rowBudget.exhausted();
     }
 
+    /** Tracks a new batch, so that a failed query phase releases it. */
     void building(VectorSchemaRoot batch) {
         batches.add(batch);
     }
 
-    /** The batch leaves the scan for the consumer. */
+    /** Stops tracking a batch that a slice hands to the consumer. */
     void sending(VectorSchemaRoot batch) {
         batches.remove(batch);
     }
 
-    /** @return a compute slot, or {@code null} if none freed up within {@code waitNanos} */
+    /** Takes a compute slot, or returns {@code null} if none freed up within {@code waitNanos}. */
     @Nullable
     Releasable tryAcquireComputeSlot(long waitNanos) throws InterruptedException {
         final Releasable slot = computeSlots.acquire(waitNanos);
@@ -131,6 +136,7 @@ final class ScanState implements Releasable {
         return slot;
     }
 
+    /** Releases a compute slot, unless {@link #close} already released it. */
     void releaseComputeSlot(Releasable slot) {
         if (computeSlotsHeld.remove(slot)) {
             slot.close();
@@ -138,7 +144,8 @@ final class ScanState implements Releasable {
     }
 
     /**
-     * @return the batches with rows not sent yet, which the last messages of the stream carry; the caller owns them
+     * Takes the batches with rows not sent yet, which the last messages of the stream carry, and closes the empty ones. The
+     * caller owns the batches returned.
      */
     List<VectorSchemaRoot> takeRemainingRows() {
         final List<VectorSchemaRoot> remaining = new ArrayList<>();
@@ -164,9 +171,9 @@ final class ScanState implements Releasable {
     }
 
     /**
-     * The rows a shard may stream, shared by its slices: a slice claims the rows it keeps in a batch, once they are read,
-     * so the shard never streams more than its limit whichever slices find the matches. Claims are final, so once the
-     * limit is reached it stays reached.
+     * The rows a shard may stream, shared by its slices. A slice claims the rows it keeps in a batch once it has read them, so
+     * the shard never streams more than its row limit, whichever slices find the matches. Claims are final, so once the limit
+     * is reached it stays reached.
      */
     static final class RowBudget {
         private final long limit;
@@ -176,7 +183,7 @@ final class ScanState implements Releasable {
             this.limit = limit;
         }
 
-        /** @return how many of {@code rows} the caller may keep, at most {@code rows}, 0 once the limit is reached */
+        /** Claims up to {@code rows} rows and returns how many the caller may keep; 0 once the limit is reached. */
         int claim(int rows) {
             while (true) {
                 final long current = claimed.get();
@@ -190,11 +197,12 @@ final class ScanState implements Releasable {
             }
         }
 
-        /** @return the rows not claimed yet */
+        /** Returns the rows not claimed yet. */
         long remaining() {
             return Math.max(0, limit - claimed.get());
         }
 
+        /** Whether the slices claimed every row of the limit. */
         boolean exhausted() {
             return claimed.get() >= limit;
         }

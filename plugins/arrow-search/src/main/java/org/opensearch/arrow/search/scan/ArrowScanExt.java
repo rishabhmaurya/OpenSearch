@@ -17,9 +17,9 @@ import java.io.IOException;
 import java.util.concurrent.Executor;
 
 /**
- * Marks a query phase as one batch of an arrow scan, so the scan's collector replaces the top-docs collector.
+ * Marks a query phase as a shard scan, so the scan's collectors replace the top-docs collector.
  * <p>
- * It only exists on the node that runs the scan: it is never parsed from or serialized into a request, so a search cannot
+ * It exists only on the data node that runs the scan. It is never parsed from or written to a request, so a search cannot
  * opt into a scan by itself.
  */
 final class ArrowScanExt extends SearchExtBuilder {
@@ -38,7 +38,7 @@ final class ArrowScanExt extends SearchExtBuilder {
 
     @Override
     public Executor sliceExecutor() {
-        // Slices wait for the consumer while they send, so they run on virtual threads, not on the index searcher pool.
+        // Slices wait for the coordinator while they send, so they run on virtual threads, not on the index_searcher pool.
         return state.sliceExecutor;
     }
 

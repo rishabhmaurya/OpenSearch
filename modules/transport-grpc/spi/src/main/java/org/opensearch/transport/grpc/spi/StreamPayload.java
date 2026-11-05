@@ -61,7 +61,7 @@ public final class StreamPayload {
     }
 
     /**
-     * Releases the owner. Idempotent.
+     * Releases the owner on the first call. Later calls do nothing.
      */
     public void release() {
         if (released.compareAndSet(false, true)) {

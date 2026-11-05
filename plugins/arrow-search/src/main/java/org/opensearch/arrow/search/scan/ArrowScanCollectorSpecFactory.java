@@ -28,9 +28,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Replaces the top-docs collector of a query phase with {@link ArrowScanCollector}s when the phase is an arrow scan, which
- * only the node running the scan can mark with an {@link ArrowScanExt}: one collector when the shard's segments are
- * collected one after another, one per slice when they are collected in parallel.
+ * Replaces the top-docs collector of a shard scan's query phase with {@link ArrowScanCollector}s. Only the data node that
+ * runs the scan marks the phase, with an {@link ArrowScanExt}. Segments collected one after another share one collector;
+ * under concurrent segment search, each slice has its own.
  */
 public final class ArrowScanCollectorSpecFactory implements QueryCollectorContextSpecFactory {
 
@@ -44,7 +44,8 @@ public final class ArrowScanCollectorSpecFactory implements QueryCollectorContex
         QueryCollectorArguments queryCollectorArguments
     ) {
         if (searchContext.getSearchExt(ArrowScanExt.NAME) instanceof ArrowScanExt ext) {
-            // The scan's query phase runs without a timeout, since it waits for its consumer; the collectors bound compute.
+            // The query phase runs without a timeout because it waits for the coordinator. This check enforces each slice's
+            // compute budget while the searcher scores.
             final Runnable budgetCheck = searchContext.searcher().addQueryCancellation(ArrowScanCollector.budgetCheck(ext.state()));
             return Optional.of(new Spec(ext.state(), searchContext, () -> searchContext.searcher().removeQueryCancellation(budgetCheck)));
         }
@@ -55,6 +56,7 @@ public final class ArrowScanCollectorSpecFactory implements QueryCollectorContex
         private final ScanState state;
         private final SearchContext searchContext;
         private final Runnable removeBudgetCheck;
+        /** The collector of the sequential path, the only path that calls {@link #postProcess}. */
         private ArrowScanCollector collector;
 
         Spec(ScanState state, SearchContext searchContext, Runnable removeBudgetCheck) {
@@ -95,7 +97,11 @@ public final class ArrowScanCollectorSpecFactory implements QueryCollectorContex
             setTotalHits(result, complete(List.of(collector)));
         }
 
-        /** Ends the slices once collection is over. @return the rows the shard streams */
+        /**
+         * Ends the slices once collection is over.
+         *
+         * @return the rows the shard streams: those sent and those the slices still hold
+         */
         private long complete(Collection<ArrowScanCollector> collectors) {
             state.collected = true;
             removeBudgetCheck.run();

@@ -9,13 +9,16 @@
 package org.opensearch.arrow.search.scan;
 
 /**
- * Data on a shard that a scan cannot represent, such as a multi-valued field or a mapping that does not fit the column.
- * Every copy of the shard holds the same data, so the failure is final: it is a bad request, never retried.
+ * Shard data that a scan cannot stream, such as several values in a scalar column, a row larger than the maximum row size,
+ * or a mapping that does not fit the column. Every copy of the shard holds the same data, so the failure is a bad request
+ * and is never retried.
  */
 public final class ArrowScanDataException extends IllegalArgumentException {
 
     /**
-     * @param message what cannot be represented
+     * Creates the exception.
+     *
+     * @param message what the scan cannot stream
      */
     public ArrowScanDataException(String message) {
         super(message);

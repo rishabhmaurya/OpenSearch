@@ -33,8 +33,8 @@ import io.grpc.netty.shaded.io.netty.buffer.UnpooledByteBufAllocator;
  * Netty write the memory directly to the socket. Arrow Flight uses the same technique
  * ({@code org.apache.arrow.flight.grpc.AddWritableBuffer}); this variant binds to the classes of grpc-netty-shaded.
  * <p>
- * Both classes are grpc-java internals, so the lookup is verified once and {@link #tryAppend} reports {@code false} when
- * it is unavailable; callers must then copy.
+ * Both classes are grpc-java internals. The lookup is verified once, and {@link #tryAppend} returns {@code false} when it
+ * is unavailable; callers then copy.
  */
 final class ZeroCopyBufferChain {
 
@@ -48,7 +48,7 @@ final class ZeroCopyBufferChain {
     private ZeroCopyBufferChain() {}
 
     /**
-     * @return whether the grpc-java internals this class depends on were found
+     * Returns whether the grpc-java internals that this class depends on were found.
      */
     static boolean isAvailable() {
         return INTERNALS != null;
@@ -60,9 +60,9 @@ final class ZeroCopyBufferChain {
      * @param target    the stream gRPC passed to {@code Drainable#drainTo}
      * @param segments  the memory to append; must stay valid until {@code onRelease} runs
      * @param onRelease run once, on a Netty thread, after Netty no longer references the memory
-     * @return {@code true} if appended, transferring responsibility for {@code onRelease} to Netty; {@code false} if
-     *         {@code target} is not gRPC's buffer chain (for example when compression is enabled), in which case nothing
-     *         was changed and {@code onRelease} will not run
+     * @return {@code true} if appended, which makes Netty responsible for running {@code onRelease}; {@code false} if the
+     *         internals are unavailable or {@code target} is not gRPC's buffer chain, for example because compression is
+     *         enabled, in which case nothing changes and {@code onRelease} does not run
      */
     static boolean tryAppend(OutputStream target, List<ByteBuffer> segments, Runnable onRelease) {
         final Internals internals = INTERNALS;
@@ -73,9 +73,10 @@ final class ZeroCopyBufferChain {
         try {
             internals.append(target, buffer);
         } catch (ReflectiveOperationException | RuntimeException e) {
-            // Not armed yet, so this frees only the Netty wrappers and leaves the caller's memory to the copy fallback.
+            // The buffer is not armed yet, so releasing it frees only Netty's buffers. The copy fallback still reads the
+            // caller's memory.
             buffer.release();
-            logger.warn("Failed to append buffer to the gRPC message, copying instead", e);
+            logger.warn("failed to append a buffer to the gRPC message, copying instead", e);
             return false;
         }
         // gRPC hands the buffer to Netty only after drainTo returns, so arming here cannot miss the release.
@@ -103,7 +104,7 @@ final class ZeroCopyBufferChain {
                 writableBufferConstructor.setAccessible(true);
                 return new Internals(bufferChainClass, bufferList, current, writableBufferConstructor);
             } catch (ReflectiveOperationException | RuntimeException e) {
-                logger.warn("gRPC zero-copy writes are unavailable, streamed payloads will be copied", e);
+                logger.warn("gRPC zero-copy writes are unavailable; streamed payloads are copied", e);
                 return null;
             }
         }
@@ -112,24 +113,24 @@ final class ZeroCopyBufferChain {
         void append(OutputStream target, ByteBuf buffer) throws ReflectiveOperationException {
             final Object writableBuffer = writableBufferConstructor.newInstance(buffer);
             final List<Object> buffers = (List<Object>) bufferList.get(target);
-            // Making the new buffer current means later writes allocate a fresh buffer after it rather than writing into
-            // an earlier one, which keeps the bytes in order. The buffer is full, so nothing is written into it.
+            // Making the new buffer current makes later writes allocate a fresh buffer after it instead of writing into an
+            // earlier one, which keeps the bytes in order. The new buffer is full, so no write goes into it.
             current.set(target, writableBuffer);
             buffers.add(writableBuffer);
         }
     }
 
     /**
-     * The segments of a message as one buffer. Netty copies a buffer that is not entirely direct into direct memory before
-     * writing it, so runs of heap segments, such as small headers, are copied into pooled direct memory here instead, and
-     * the large direct segments are written as they are.
+     * The segments of a message as one buffer that runs a callback when Netty frees it. Netty copies a buffer that is not
+     * entirely direct into direct memory before writing it. This buffer therefore copies each run of heap segments, such as
+     * small headers, into pooled direct memory, and wraps the large direct segments as they are.
      */
     static final class ReleasingCompositeByteBuf extends CompositeByteBuf {
 
         private volatile Runnable onDeallocate;
 
         ReleasingCompositeByteBuf(List<ByteBuffer> segments) {
-            // No component limit: Netty appends the writes queued behind this buffer to it when it coalesces them, and it
+            // No component limit: when Netty coalesces the writes queued behind this buffer, it appends them to it. Netty
             // consolidates a composite over its limit, which copies.
             super(UnpooledByteBufAllocator.DEFAULT, true, Integer.MAX_VALUE);
             int i = 0;
@@ -159,6 +160,7 @@ final class ZeroCopyBufferChain {
             }
         }
 
+        /** Sets the callback that runs once Netty frees this buffer. */
         void arm(Runnable onDeallocate) {
             this.onDeallocate = onDeallocate;
         }

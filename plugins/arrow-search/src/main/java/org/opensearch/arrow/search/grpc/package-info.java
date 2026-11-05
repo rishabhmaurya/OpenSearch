@@ -7,6 +7,6 @@
  */
 
 /**
- * Encoding of Arrow searches into the gRPC ServerStreamSearch response stream.
+ * Serves Arrow searches over the gRPC {@code ServerStreamSearch} response stream.
  */
 package org.opensearch.arrow.search.grpc;

@@ -14,8 +14,8 @@ import org.opensearch.common.annotation.ExperimentalApi;
  * Serves {@code SearchService/ServerStreamSearch} calls whose {@value #FORMAT_HEADER} request header
  * matches {@link #format()}.
  * <p>
- * Implementations are discovered through {@code META-INF/services} by plugins that declare
- * {@code transport-grpc} in their {@code extended.plugins}.
+ * Plugins that list {@code transport-grpc} in their {@code extended.plugins} provide implementations through
+ * {@code META-INF/services}.
  */
 @ExperimentalApi
 public interface StreamSearchFormatHandler {
@@ -29,9 +29,8 @@ public interface StreamSearchFormatHandler {
     String format();
 
     /**
-     * Executes {@code request} and streams results into {@code channel}. Must not block the calling gRPC thread and must
-     * terminate the channel exactly once with {@link StreamSearchResponseChannel#complete} or
-     * {@link StreamSearchResponseChannel#fail}.
+     * Executes {@code request} and streams results into {@code channel}. Must not block the calling gRPC thread. Must end
+     * the channel exactly once, with {@link StreamSearchResponseChannel#complete} or {@link StreamSearchResponseChannel#fail}.
      *
      * @param request the search request converted from protobuf
      * @param channel the response channel of the call

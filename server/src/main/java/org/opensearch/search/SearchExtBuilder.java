@@ -71,9 +71,9 @@ public abstract class SearchExtBuilder implements NamedWriteable, ToXContentFrag
     public abstract boolean equals(Object obj);
 
     /**
-     * The executor that collects the segment slices of a search carrying this extension, in place of the index searcher pool.
-     * Such a search collects in slices whenever concurrent segment search is enabled for its index, with or without
-     * aggregations.
+     * Returns the executor that collects the segment slices of a search that carries this extension, in place of the index
+     * searcher pool. Such a search collects in slices whenever concurrent segment search is enabled for its index, with or
+     * without aggregations.
      *
      * @return the executor, or {@code null} for the index searcher pool and the usual concurrent search decision
      */

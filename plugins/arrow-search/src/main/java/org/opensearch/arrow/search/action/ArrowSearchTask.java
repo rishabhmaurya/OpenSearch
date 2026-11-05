@@ -17,12 +17,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 /**
- * The coordinating task of an Arrow search.
+ * The task of an Arrow search on the coordinator.
  * <p>
- * An export runs as long as its client keeps reading, so the task is not tracked for resource use: search backpressure
- * would otherwise cancel exports for their duration rather than their cost. Neither are the shard scans it starts, whose
- * CPU runs on virtual threads, which per-thread accounting does not measure, so search backpressure and workload management
- * do not see the search's CPU or heap; data nodes bound the scans by how many may be open and compute at once.
+ * An Arrow search runs as long as its client keeps reading, so the task is not tracked for resource use: search
+ * backpressure would otherwise cancel searches for their duration rather than their cost. The shard scans it starts are not
+ * tracked either, because their CPU runs on virtual threads, which per-thread accounting does not measure. So search
+ * backpressure and workload management do not see the search's CPU or heap. Data nodes bound the scans by how many may be
+ * open and computing at once.
  */
 public final class ArrowSearchTask extends SearchTask {
 
@@ -48,7 +49,7 @@ public final class ArrowSearchTask extends SearchTask {
     }
 
     /**
-     * @param callback run once when the task is cancelled; runs on this thread if it already was
+     * Sets the callback to run once when the task is cancelled. If the task is already cancelled, it runs on this thread.
      */
     void setOnCancel(Runnable callback) {
         final Runnable previous = onCancel.getAndUpdate(current -> current == FIRED ? FIRED : callback);

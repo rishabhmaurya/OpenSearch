@@ -328,7 +328,7 @@ public class ServerStreamSearchTests extends OpenSearchTestCase {
                 stuck,
                 MetadataUtils.newAttachHeadersInterceptor(formatHeaders())
             ).newCall(RAW_STREAM_METHOD, CallOptions.DEFAULT);
-            // The client requests no message, so it never reads the payload, but keeps its connection open.
+            // The client requests no messages, so it never reads the payload, but it keeps its connection open.
             clientCall.start(new ClientCall.Listener<>() {
             }, new Metadata());
             clientCall.sendMessage(request());

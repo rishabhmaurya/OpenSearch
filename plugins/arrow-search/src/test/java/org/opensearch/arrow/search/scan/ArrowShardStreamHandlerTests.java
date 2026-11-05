@@ -95,8 +95,8 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.lessThan;
 
 /**
- * Serves shard streams through the handler, as a data node does, and checks how each stream ends and that it releases what
- * it holds: its open scan slot, its registration, its compute slots and its batches.
+ * Serves shard streams through the handler, as a data node does. Checks how each stream ends, and that it releases what it
+ * holds: its open-scan slot, its registration, its compute slots and its batches.
  */
 public class ArrowShardStreamHandlerTests extends OpenSearchSingleNodeTestCase {
 
@@ -290,7 +290,7 @@ public class ArrowShardStreamHandlerTests extends OpenSearchSingleNodeTestCase {
         return channel;
     }
 
-    /** The scan let go of everything it held, so the node can run the next one. */
+    /** Asserts that the scan released everything it held, so the node can run the next one. */
     private void assertReleased() throws Exception {
         assertBusy(() -> {
             assertEquals(0, registry.runningScans());
@@ -377,7 +377,7 @@ public class ArrowShardStreamHandlerTests extends OpenSearchSingleNodeTestCase {
 
     public void testBatchMemoryLimitFailsTheShardAsARejection() throws Exception {
         createIndex(SLICES, 25);
-        // Below the memory each slice's first batch is presized with.
+        // Below the memory that each slice presizes its first batch with.
         limitBatchMemory(4 << 10);
         assertRejected();
     }
@@ -394,7 +394,7 @@ public class ArrowShardStreamHandlerTests extends OpenSearchSingleNodeTestCase {
         batchAllocator = allocator.newChildAllocator("batches", 0, limit);
     }
 
-    /** The shard fails as a rejection, which the coordinator retries on another copy, and releases what it holds. */
+    /** Asserts that the shard fails as a rejection, which the coordinator retries on another copy, and releases what it holds. */
     private void assertRejected() throws Exception {
         RecordingChannel channel = serve(request(shardId(), QueryBuilders.matchAllQuery(), spec(1 << 20), true), new RecordingChannel());
 
@@ -417,8 +417,8 @@ public class ArrowShardStreamHandlerTests extends OpenSearchSingleNodeTestCase {
 
     public void testShardThatCannotMatchEndsOnAVirtualThreadWithAnEmptyBatch() throws Exception {
         createIndex(1, 10);
-        // After the first shard response, the coordinator lets a shard that cannot match skip its query phase; the shard
-        // then answers on the thread that found out, here the test's.
+        // After the first shard response, the coordinator lets a shard that cannot match skip its query phase. The shard then
+        // answers on the thread that found out, here the test thread.
         ArrowShardStreamRequest request = request(
             shardId(),
             new SearchSourceBuilder().query(new MatchNoneQueryBuilder()),
@@ -466,13 +466,13 @@ public class ArrowShardStreamHandlerTests extends OpenSearchSingleNodeTestCase {
             }
         };
         ArrowShardStreamRequest request = request(shardId(), QueryBuilders.matchAllQuery(), spec(16 << 10), true);
-        // Registered, as the transport registers the tasks of the requests it serves, so the abort can cancel it.
+        // Register the task, as the transport does for the requests it serves, so the abort can cancel it.
         Task task = taskManager().register("transport", ArrowShardStreamHandler.ACTION, request);
         try {
             handler().messageReceived(request, channel, task);
             assertTrue("the scan paused in a send", paused.await(30, TimeUnit.SECONDS));
             assertEquals(1, registry.runningScans());
-            // As when the shard closes.
+            // Abort the shard's scans, as a closing shard does.
             registry.abortShard(shardId(), "the shard is closing");
             resume.countDown();
             assertTrue("the stream ended", channel.ended.await(30, TimeUnit.SECONDS));
@@ -500,7 +500,11 @@ public class ArrowShardStreamHandlerTests extends OpenSearchSingleNodeTestCase {
             this(0);
         }
 
-        /** @param failingBatch the batch, from 1, whose send fails, or 0 */
+        /**
+         * Creates a channel that may fail one send.
+         *
+         * @param failingBatch the 1-based number of the batch whose send fails, or 0 for none
+         */
         RecordingChannel(int failingBatch) {
             this.failingBatch = failingBatch;
         }

@@ -249,7 +249,7 @@ public class FlightTransportResponseTests extends OpenSearchTestCase {
         response.close();
     }
 
-    /** The same holds for a stream closed while it opened: closing drains it, which stores a header the server sent. */
+    /** The same holds for a stream closed while it opens: closing drains it, which stores any header the server sent. */
     public void testStreamClosedWhileOpeningLeavesNoHeader() throws Exception {
         HeaderContext headerContext = new HeaderContext();
         FlightStream stream = mock(FlightStream.class);

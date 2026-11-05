@@ -36,8 +36,8 @@ import io.grpc.stub.ServerCallStreamObserver;
 /**
  * {@link StreamSearchResponseChannel} over a server-streaming gRPC call whose responses are raw message streams.
  * <p>
- * {@link ServerCallStreamObserver} is not thread-safe, so sends are serialized with a lock. A {@link ReentrantLock} rather
- * than {@code synchronized} keeps virtual threads that wait for it unmounted on every supported JDK.
+ * A lock serializes sends because {@link ServerCallStreamObserver} is not thread-safe. A {@link ReentrantLock}, unlike
+ * {@code synchronized}, keeps the virtual threads that wait for it unmounted on every supported JDK.
  */
 public final class GrpcStreamSearchResponseChannel implements StreamSearchResponseChannel {
 
@@ -62,7 +62,8 @@ public final class GrpcStreamSearchResponseChannel implements StreamSearchRespon
     private boolean closed;
 
     /**
-     * Must be created while the gRPC service method runs, because gRPC only accepts call handlers until it returns.
+     * Creates a channel over {@code call}. Create it while the gRPC service method runs, because gRPC accepts call handlers
+     * only until the method returns.
      *
      * @param call              the call
      * @param resetStream       resets the call's stream, see {@link StreamReset}; without it, {@link #reset} only ends the
@@ -121,7 +122,7 @@ public final class GrpcStreamSearchResponseChannel implements StreamSearchRespon
                 payload.release();
                 return;
             }
-            // gRPC silently drops messages of a cancelled call; closing afterwards releases a payload it never consumed.
+            // gRPC drops the messages of a cancelled call without consuming them. Closing the message releases such a payload.
             try (PayloadInputStream message = new PayloadInputStream(payloadPrefix(payload), payload)) {
                 call.onNext(message);
             }
@@ -178,8 +179,10 @@ public final class GrpcStreamSearchResponseChannel implements StreamSearchRespon
     }
 
     /**
-     * Closing a call only queues its trailers behind the messages the client has not read, so a client that stopped reading
-     * would keep them, and their payloads, as long as its connection lives. Resetting the stream makes Netty release them.
+     * Ends the call with status {@code CANCELLED} if it has not ended yet, and resets its stream. Closing a call only queues
+     * its trailers behind the messages the client has not read, so a client that stopped reading would hold them, and their
+     * payloads, for as long as its connection lives. Resetting the stream makes Netty release them. Without a stream reset,
+     * this only ends the call.
      */
     @Override
     public void reset() {
@@ -216,7 +219,7 @@ public final class GrpcStreamSearchResponseChannel implements StreamSearchRespon
         }
     }
 
-    /** The summary keeps the total hits, but its hits are not part of a streamed response. */
+    /** Returns {@code proto} without its hits. The total hits stay, but hits are not part of a streamed response. */
     static org.opensearch.protobufs.SearchResponse withoutHits(org.opensearch.protobufs.SearchResponse proto) {
         if (proto.hasHits() == false || proto.getHits().getHitsCount() == 0) {
             return proto;
@@ -224,6 +227,7 @@ public final class GrpcStreamSearchResponseChannel implements StreamSearchRespon
         return proto.toBuilder().setHits(proto.getHits().toBuilder().clearHits()).build();
     }
 
+    /** Encodes the protobuf tag and length that precede {@code payload} in its message. */
     static ByteBuffer payloadPrefix(StreamPayload payload) {
         if (payload.length() > Integer.MAX_VALUE) {
             throw new IllegalArgumentException("payload of [" + payload.length() + "] bytes exceeds the maximum gRPC message size");

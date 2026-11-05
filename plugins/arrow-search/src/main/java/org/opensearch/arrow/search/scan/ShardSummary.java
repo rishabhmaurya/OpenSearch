@@ -20,14 +20,23 @@ import java.io.UncheckedIOException;
  * How a shard stream ended, sent as metadata of its last batch.
  *
  * @param rows            the rows the shard streamed
- * @param terminatedEarly whether the shard's row limit, from {@code size} or {@code terminate_after}, left matches out
- * @param timedOut        whether a batch hit the search timeout
+ * @param terminatedEarly whether the shard's row limit, from {@code size} or {@code terminate_after}, may have left
+ *                        matches out
+ * @param timedOut        whether a slice spent its compute budget, which the search {@code timeout} sets
  */
 public record ShardSummary(long rows, boolean terminatedEarly, boolean timedOut) {
 
     /**
-     * @return the summary as batch metadata
+     * Creates the summary of a shard stream.
+     *
+     * @param rows            the rows the shard streamed
+     * @param terminatedEarly whether the shard's row limit may have left matches out
+     * @param timedOut        whether a slice spent its compute budget
      */
+    public ShardSummary {
+    }
+
+    /** Encodes the summary as metadata of the shard's last batch. */
     public byte[] encode() {
         try (BytesStreamOutput out = new BytesStreamOutput()) {
             out.writeVLong(rows);
@@ -40,8 +49,9 @@ public record ShardSummary(long rows, boolean terminatedEarly, boolean timedOut)
     }
 
     /**
+     * Decodes a summary from the metadata of a shard's last batch.
+     *
      * @param metadata batch metadata written by {@link #encode()}
-     * @return the summary
      */
     public static ShardSummary decode(byte[] metadata) {
         try (StreamInput in = new BytesArray(metadata).streamInput()) {
@@ -49,5 +59,20 @@ public record ShardSummary(long rows, boolean terminatedEarly, boolean timedOut)
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /** Returns the rows the shard streamed. */
+    public long rows() {
+        return rows;
+    }
+
+    /** Returns whether the shard's row limit may have left matches out. */
+    public boolean terminatedEarly() {
+        return terminatedEarly;
+    }
+
+    /** Returns whether a slice spent its compute budget. */
+    public boolean timedOut() {
+        return timedOut;
     }
 }

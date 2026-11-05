@@ -114,8 +114,7 @@ public class ServerConfigTests extends OpenSearchTestCase {
     }
 
     /**
-     * A node that sets only the timeout, to 30s or more, was valid against the 2h default time before 3.10 and still starts:
-     * the time then defaults to 10s more than the timeout.
+     * A node that sets only a timeout of 30s or more still starts: the time then defaults to 10s more than the timeout.
      */
     public void testKeepAliveTimeoutAloneStillStarts() {
         ClusterSettings clusterSettings = new ClusterSettings(

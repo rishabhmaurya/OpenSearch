@@ -192,11 +192,11 @@ public class ServerConfig {
     private static final String FLIGHT_KEEPALIVE_TIMEOUT_KEY = "flight.keepalive.timeout";
     private static final TimeValue DEFAULT_KEEPALIVE_TIMEOUT = TimeValue.timeValueSeconds(20);
 
-    // gRPC server keepalive. The server pings a connection it has heard nothing from for this long and closes it if
-    // the ping is not acknowledged within the timeout, which cancels its streams and wakes their paused producers.
-    // Otherwise a peer that vanished without closing its connection (a host failure, a network partition) leaves them
-    // paused until their ready timeout, which a stream may raise far above the node's, as Arrow search does to wait as
-    // long as its client may. A ping is one small frame per idle connection. Before 3.10 the default was gRPC's own, 2h.
+    // gRPC server keepalive. The server pings a connection it has heard nothing from for this long, and closes it if the
+    // ping is not acknowledged within the timeout. Closing it cancels its streams and wakes their paused producers.
+    // Without the ping, a peer that vanishes without closing its connection (a host failure, a network partition) leaves
+    // them paused until their ready timeout, which a stream may raise far above the node's: Arrow search waits as long as
+    // its client may. A ping costs one small frame per idle connection.
     static final Setting<TimeValue> FLIGHT_KEEPALIVE_TIME = Setting.timeSetting(
         "flight.keepalive.time",
         ServerConfig::defaultKeepAliveTime,
@@ -215,8 +215,7 @@ public class ServerConfig {
     );
 
     /**
-     * 30s, or the timeout plus 10s if that is longer. A node that sets only the timeout, to 30s or more, was valid against
-     * the 2h default before 3.10 and must still start.
+     * Returns 30s, or the timeout plus 10s if that is longer, so a node that sets only a timeout of 30s or more still starts.
      */
     private static TimeValue defaultKeepAliveTime(final Settings settings) {
         // Parse the raw value: reading FLIGHT_KEEPALIVE_TIMEOUT would validate it against this default, which calls back here.

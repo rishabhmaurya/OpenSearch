@@ -21,14 +21,18 @@ import java.io.IOException;
 public final class ArrowScanBatchResponse extends ArrowBatchResponse {
 
     /**
-     * @param batch   the batch; ownership transfers to the transport when sent
-     * @param summary the encoded summary on the last batch, otherwise {@code null}
+     * Wraps a batch to send.
+     *
+     * @param batch   the batch; the transport owns it once it is sent
+     * @param summary the encoded {@link ShardSummary} on the last batch, otherwise {@code null}
      */
     public ArrowScanBatchResponse(VectorSchemaRoot batch, byte[] summary) {
         super(batch, summary);
     }
 
     /**
+     * Takes ownership of a received batch.
+     *
      * @param in the Arrow stream input of the transport
      * @throws IOException if reading fails
      */

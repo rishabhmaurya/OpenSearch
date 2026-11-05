@@ -50,13 +50,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 
 /**
- * Serves a shard stream as one query phase, like a streaming search: the scan's collectors send each batch from within
- * collection as soon as it is full, pausing while the consumer is not ready and resuming where they stopped.
+ * Serves a shard stream as one query phase, like a streaming search. The scan's collectors send each batch from within
+ * collection as soon as it is full. A send pauses its slice while the coordinator is not ready, and the slice resumes where
+ * it stopped.
  * <p>
- * The query phase and its slices, when concurrent segment search collects the shard in parallel, run on virtual threads,
- * so a pause holds no platform thread; how many slices compute at once is bounded separately. The stream ends with exactly
- * one terminal call on every path, after the rows not sent yet and with the shard's summary on success, on a virtual thread
- * too, since its sends wait for the consumer.
+ * The query phase runs on a virtual thread, and so does each slice when concurrent segment search collects the shard in
+ * parallel, so a pause holds no platform thread. Compute slots bound how many slices compute at once. Every path ends the
+ * stream with exactly one terminal call, on a virtual thread since its sends wait for the coordinator. Only a failure at
+ * node shutdown, which sends no batches, ends the stream on the calling thread. On success, the stream first sends the rows
+ * not sent yet, and its last batch carries the shard's summary.
  */
 public final class ArrowShardStreamHandler implements TransportRequestHandler<ArrowShardStreamRequest> {
 
@@ -75,11 +77,13 @@ public final class ArrowShardStreamHandler implements TransportRequestHandler<Ar
     private final Executor sliceExecutor;
 
     /**
+     * Creates the handler.
+     *
      * @param searchService  runs the query phase
      * @param indicesService resolves shards and the field-level security filter
      * @param taskManager    cancels scans of closing shards
      * @param clusterService provides the default search timeout
-     * @param registry       the scans of this node
+     * @param registry       the scans of this data node
      * @param settings       the plugin settings
      * @param allocator      allocates batches
      * @param sliceExecutor  the virtual-thread executor that collects the slices of a scan's query phase, and ends streams
@@ -114,7 +118,7 @@ public final class ArrowShardStreamHandler implements TransportRequestHandler<Ar
         try {
             final IndexShard shard = indicesService.indexServiceSafe(shardId.getIndex()).getShard(shardId.id());
             if (shard.isSystem() || shard.indexSettings().isSearchThrottled()) {
-                // Their search pools are small and shared, and a scan may wait for its consumer as long as it reads.
+                // Their search pools are small and shared, and a scan stays open as long as the client reads.
                 throw new IllegalArgumentException("Arrow search does not support system or search-throttled indices");
             }
             end.slot = registry.acquireScanSlot(settings.admissionWait());
@@ -134,14 +138,18 @@ public final class ArrowShardStreamHandler implements TransportRequestHandler<Ar
             end.registration = registry.register(shardId, reason -> taskManager.cancel(scanTask, reason, () -> {}));
             searchService.executeQueryPhase(scanRequest, false, scanTask, onVirtualThread(end), ArrowSearchPlugin.EXECUTOR);
         } catch (Exception e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             end.onFailure(e);
         }
     }
 
     /**
-     * The query phase completes on the virtual thread it ran on, except when the shard turns out unable to match, or the
-     * request fails before the phase starts: the listener then runs on the thread that found out, such as a refresh or
-     * transport thread, which must not wait for the consumer.
+     * Ends the stream on a virtual thread, since its sends wait for the coordinator. The query phase usually completes on
+     * the virtual thread it ran on. When the shard cannot match, or the request fails before the phase starts, the listener
+     * runs on the thread that found out, such as a refresh or transport thread. At node shutdown the executor rejects the
+     * hand-off, and the failure ends the stream on that thread; it sends no batches.
      */
     private ActionListener<SearchPhaseResult> onVirtualThread(StreamEnd end) {
         return new ActionListener<>() {
@@ -165,14 +173,14 @@ public final class ArrowShardStreamHandler implements TransportRequestHandler<Ar
         try {
             sliceExecutor.execute(action);
         } catch (RejectedExecutionException e) {
-            // The node is shutting down.
+            // The executor rejects only once the node shuts down.
             end.onFailure(e);
         }
     }
 
     /**
-     * The search timeout bounds the time the shard spends computing, not the time it waits for a slow consumer, so the
-     * scan enforces it instead of the query phase.
+     * Returns the compute budget of each slice in nanoseconds, or -1 for none. The search timeout bounds the time a slice
+     * computes, not the time it waits for the coordinator, so the scan enforces it instead of the query phase.
      */
     private long computeBudgetNanos(@Nullable SearchSourceBuilder source) {
         TimeValue timeout = source == null ? null : source.timeout();
@@ -183,8 +191,8 @@ public final class ArrowShardStreamHandler implements TransportRequestHandler<Ar
     }
 
     /**
-     * The coordinator's shard request, run by the scan's collector. The request cache stays off, since a cached result would
-     * skip the collector.
+     * Builds the shard request the query phase runs: the coordinator's shard request, marked for the scan's collectors.
+     * The request cache stays off, since a cached result would skip the collectors.
      */
     static ShardSearchRequest scanRequest(ShardSearchRequest request, ScanState state) {
         final SearchRequest searchRequest = new SearchRequest().source(scanSource(request.source(), state))
@@ -206,6 +214,11 @@ public final class ArrowShardStreamHandler implements TransportRequestHandler<Ar
         return scan;
     }
 
+    /**
+     * Builds the source the query phase runs, marked with the scan's {@link ArrowScanExt}. The scan applies {@code size} and
+     * {@code terminate_after} as its row limit and {@code timeout} as its compute budget, so the query phase gets none of
+     * them.
+     */
     private static SearchSourceBuilder scanSource(@Nullable SearchSourceBuilder source, ScanState state) {
         final SearchSourceBuilder scan = source == null ? new SearchSourceBuilder() : source.shallowCopy();
         return scan.ext(List.of(new ArrowScanExt(state)))
@@ -217,8 +230,8 @@ public final class ArrowShardStreamHandler implements TransportRequestHandler<Ar
     }
 
     /**
-     * Ends the stream once the query phase is over: the remaining rows and the summary on success, the failure otherwise.
-     * Only the first outcome is sent.
+     * Ends the stream once the query phase is over. On success, it sends the rows not sent yet and the shard's summary;
+     * otherwise, the failure. Only the first outcome is sent.
      */
     private final class StreamEnd implements ActionListener<SearchPhaseResult> {
         private final TransportChannel channel;
@@ -241,12 +254,13 @@ public final class ArrowShardStreamHandler implements TransportRequestHandler<Ar
                 return;
             }
             final ScanState scan = state;
-            // Every slice may leave a batch of rows not sent yet; the last of them carries the summary.
+            // Each slice may hold a batch of rows not sent yet; the last batch sent carries the summary.
             final List<VectorSchemaRoot> remaining = new ArrayList<>();
             int sent = 0;
             try {
                 if (scan.collected == false && cannotMatch(result) == false) {
-                    // Rows would be missing: another plugin's collector or query phase searcher took the phase, e.g. for its query.
+                    // Another plugin's collector or query phase searcher ran the phase instead of the scan's collectors, so
+                    // rows would be missing.
                     throw new IllegalArgumentException(
                         "Arrow search cannot run this query on shard " + shardId + ": another plugin collected its query phase"
                     );
@@ -306,7 +320,7 @@ public final class ArrowShardStreamHandler implements TransportRequestHandler<Ar
             try {
                 channel.sendResponse(wire);
             } catch (Exception e) {
-                // The consumer closed the stream, so there is nobody left to tell.
+                // The coordinator closed the stream, so nobody is left to tell.
                 logger.debug("could not send the failure of the arrow scan of shard {}: {}", shardId, e.getMessage());
             }
         }
@@ -320,7 +334,7 @@ public final class ArrowShardStreamHandler implements TransportRequestHandler<Ar
     private static VectorSchemaRoot emptyBatch(ScanState scan) {
         final VectorSchemaRoot root = VectorSchemaRoot.create(scan.schema, scan.allocator);
         try {
-            // Without rows the batch needs no capacity, rather than Arrow's default of thousands of values per column.
+            // An empty batch needs no capacity; Arrow's default reserves thousands of values per column.
             for (FieldVector vector : root.getFieldVectors()) {
                 vector.setInitialCapacity(0);
             }

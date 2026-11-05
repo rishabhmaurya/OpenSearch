@@ -12,9 +12,9 @@ import org.opensearch.index.shard.SearchOperationListener;
 import org.opensearch.search.internal.SearchContext;
 
 /**
- * Stops an arrow scan when one of its slices fails inside the searcher, e.g. a query that throws while it is scored, where
- * the scan's collector does not see the failure: the slice frees its compute slot and the other slices stop, rather than
- * waiting for slots the failed slice would only give back once the whole query phase ended.
+ * Stops a shard scan when one of its slices fails inside the searcher but outside the scan's collector, e.g. when the query
+ * throws while it scores. The failed slice frees its compute slot at once and the other slices stop. Otherwise they would
+ * wait for a slot that the failed slice holds until the whole query phase ends.
  */
 public final class ArrowScanSliceListener implements SearchOperationListener {
 
@@ -23,7 +23,7 @@ public final class ArrowScanSliceListener implements SearchOperationListener {
 
     @Override
     public void onFailedSliceExecution(SearchContext searchContext) {
-        // Runs on the thread of the failed slice.
+        // Runs on the failed slice's thread, which identifies the slice's collector.
         if (searchContext.getSearchExt(ArrowScanExt.NAME) instanceof ArrowScanExt ext) {
             ArrowScanCollector.sliceFailed(ext.state());
         }
