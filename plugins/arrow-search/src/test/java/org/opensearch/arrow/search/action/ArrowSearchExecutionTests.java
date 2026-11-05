@@ -281,6 +281,7 @@ public class ArrowSearchExecutionTests extends OpenSearchTestCase {
             reservation,
             BATCH_MEMORY,
             maxOpenStreams,
+            () -> maxOpenStreams,
             rowLimit,
             allowPartial,
             (reason, opening) -> {

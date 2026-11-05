@@ -208,6 +208,30 @@ public class TransportArrowSearchActionTests extends OpenSearchTestCase {
         );
     }
 
+    private static long maxOpenStreams(
+        ClusterState state,
+        IndexNameExpressionResolver resolver,
+        OperationRouting routing,
+        SearchRequest request
+    ) {
+        return TransportArrowSearchAction.ShardTargets.of(state, resolver, routing, request)
+            .maxOpenStreams(request.getMaxConcurrentShardRequests());
+    }
+
+    public void testStreamLimitFollowsTheConcurrentShardRequestsTheSearchRunsWith() {
+        ClusterState state = ClusterStateCreationUtils.state(1, new String[] { "idx" }, 20);
+        IndexNameExpressionResolver resolver = new IndexNameExpressionResolver(new ThreadContext(Settings.EMPTY));
+        OperationRouting routing = new OperationRouting(
+            Settings.EMPTY,
+            new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS)
+        );
+        SearchRequest request = new SearchRequest("idx");
+        TransportArrowSearchAction.ShardTargets targets = TransportArrowSearchAction.ShardTargets.of(state, resolver, routing, request);
+        // A workload group may raise the value once the search starts, after its targets resolved.
+        request.setMaxConcurrentShardRequests(20);
+        assertEquals(20, targets.maxOpenStreams(request.getMaxConcurrentShardRequests()));
+    }
+
     public void testSearchOpensAtMostOneStreamPerRoutedShardAndConcurrentShardRequest() {
         // Twenty shards over three nodes.
         ClusterState state = ClusterStateCreationUtils.state(3, new String[] { "idx" }, 20);
@@ -216,27 +240,20 @@ public class TransportArrowSearchActionTests extends OpenSearchTestCase {
             Settings.EMPTY,
             new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS)
         );
-        assertEquals(
-            "five shard requests at once on each node",
-            15,
-            TransportArrowSearchAction.maxOpenStreams(state, resolver, routing, new SearchRequest("idx"))
-        );
-        assertEquals(1, TransportArrowSearchAction.maxOpenStreams(state, resolver, routing, new SearchRequest("idx").routing("tenant")));
-        assertEquals(
-            2,
-            TransportArrowSearchAction.maxOpenStreams(state, resolver, routing, new SearchRequest("idx").preference("_shards:0,1"))
-        );
+        assertEquals("five shard requests at once on each node", 15, maxOpenStreams(state, resolver, routing, new SearchRequest("idx")));
+        assertEquals(1, maxOpenStreams(state, resolver, routing, new SearchRequest("idx").routing("tenant")));
+        assertEquals(2, maxOpenStreams(state, resolver, routing, new SearchRequest("idx").preference("_shards:0,1")));
         SearchRequest throttled = new SearchRequest("idx");
         throttled.setMaxConcurrentShardRequests(1);
-        assertEquals(3, TransportArrowSearchAction.maxOpenStreams(state, resolver, routing, throttled));
+        assertEquals(3, maxOpenStreams(state, resolver, routing, throttled));
         assertEquals(
             "a search that cannot resolve its shards fails",
             1,
-            TransportArrowSearchAction.maxOpenStreams(state, resolver, routing, new SearchRequest("missing"))
+            maxOpenStreams(state, resolver, routing, new SearchRequest("missing"))
         );
 
-        assertEquals(2, TransportArrowSearchAction.maxOpenStreams(2, 5, 2));
-        assertEquals(1, TransportArrowSearchAction.maxOpenStreams(0, 5, 0));
+        assertEquals(2, new TransportArrowSearchAction.ShardTargets(2, 2).maxOpenStreams(5));
+        assertEquals(1, new TransportArrowSearchAction.ShardTargets(0, 0).maxOpenStreams(5));
     }
 
     public void testStoppedSearchCancelsAgainWhileStreamsAreOpening() {
