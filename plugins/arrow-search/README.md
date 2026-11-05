@@ -199,9 +199,10 @@ How many slices a scan collects in parallel follows the concurrent segment searc
 - A paused scan keeps its shard's reader open, like a scroll. A closing shard aborts the scan when the scan resumes or
   when its wait for the coordinator times out.
 - A coordinator that vanishes without closing its connections (a host failure, a network partition) cannot release its
-  scans. A paused scan keeps its open-scan slot, its reader and its batches until the data node's Flight keepalive finds
-  the connection dead: at most `flight.keepalive.time` plus `flight.keepalive.timeout` (50s by default) after the
-  coordinator's last frame.
+  scans. A paused scan keeps its open-scan slot, its reader and its batches until its wait for the coordinator times out,
+  after `search.arrow.client_idle_timeout` × (open streams + 1): 11 minutes for a search with ten open streams and the
+  default 60s idle timeout. The Flight keepalive (`flight.keepalive.time` plus `flight.keepalive.timeout`) ends the wait
+  earlier if it is shorter.
 - Arrow search tasks are not tracked for resource use. Their lifetime follows the client, and their CPU runs on virtual
   threads, which per-thread accounting does not measure. Search backpressure does not cancel them. Workload management
   does not count their CPU and heap toward their workload group's usage, on which its rejections are based, and does not

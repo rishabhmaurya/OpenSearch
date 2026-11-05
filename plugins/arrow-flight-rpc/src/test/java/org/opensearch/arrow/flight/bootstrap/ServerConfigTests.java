@@ -18,7 +18,6 @@ import org.opensearch.threadpool.ScalingExecutorBuilder;
 import java.util.Set;
 
 import static org.opensearch.arrow.flight.bootstrap.ServerConfig.SETTING_FLIGHT_PUBLISH_PORT;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
 
 public class ServerConfigTests extends OpenSearchTestCase {
 
@@ -101,54 +100,9 @@ public class ServerConfigTests extends OpenSearchTestCase {
         assertEquals(16L * 1024 * 1024, ServerConfig.FLIGHT_OUTBOUND_BUFFER_THRESHOLD.get(overridden).getBytes());
     }
 
-    /**
-     * A peer that vanished without closing its connection is found dead within the node's own ready timeout, so a stream
-     * that raised its ready timeout does not keep its producer paused for that peer.
-     */
-    public void testKeepAliveFindsADeadPeerWithinTheReadyTimeout() {
-        TimeValue time = ServerConfig.FLIGHT_KEEPALIVE_TIME.get(Settings.EMPTY);
-        TimeValue timeout = ServerConfig.FLIGHT_KEEPALIVE_TIMEOUT.get(Settings.EMPTY);
-        assertEquals(TimeValue.timeValueSeconds(30), time);
-        assertEquals(TimeValue.timeValueSeconds(20), timeout);
-        assertThat(time.millis() + timeout.millis(), lessThanOrEqualTo(ServerConfig.FLIGHT_READY_TIMEOUT.get(Settings.EMPTY).millis()));
-    }
-
-    /**
-     * A node that sets only a timeout of 30s or more still starts: the time then defaults to 10s more than the timeout.
-     */
-    public void testKeepAliveTimeoutAloneStillStarts() {
-        ClusterSettings clusterSettings = new ClusterSettings(
-            Settings.EMPTY,
-            Set.of(ServerConfig.FLIGHT_KEEPALIVE_TIME, ServerConfig.FLIGHT_KEEPALIVE_TIMEOUT)
-        );
-        Settings timeoutOnly = Settings.builder()
-            .put(ServerConfig.FLIGHT_KEEPALIVE_TIMEOUT.getKey(), TimeValue.timeValueSeconds(60))
-            .build();
-        clusterSettings.validate(timeoutOnly, true);
-        try {
-            ServerConfig.init(timeoutOnly);
-            assertEquals(TimeValue.timeValueSeconds(70), ServerConfig.getGrpcKeepAliveTime());
-            assertEquals(TimeValue.timeValueSeconds(60), ServerConfig.getGrpcKeepAliveTimeout());
-        } finally {
-            ServerConfig.init(Settings.EMPTY);
-        }
-
-        Settings atDefaultTime = Settings.builder()
-            .put(ServerConfig.FLIGHT_KEEPALIVE_TIMEOUT.getKey(), TimeValue.timeValueSeconds(30))
-            .build();
-        clusterSettings.validate(atDefaultTime, true);
-        assertEquals(TimeValue.timeValueSeconds(40), ServerConfig.FLIGHT_KEEPALIVE_TIME.get(atDefaultTime));
-
-        // A shorter timeout keeps the 30s default rather than pinging more often.
-        Settings shorter = Settings.builder().put(ServerConfig.FLIGHT_KEEPALIVE_TIMEOUT.getKey(), TimeValue.timeValueSeconds(5)).build();
-        assertEquals(TimeValue.timeValueSeconds(30), ServerConfig.FLIGHT_KEEPALIVE_TIME.get(shorter));
-
-        // An explicit time is still checked against the timeout.
-        Settings explicitTime = Settings.builder()
-            .put(ServerConfig.FLIGHT_KEEPALIVE_TIME.getKey(), TimeValue.timeValueSeconds(30))
-            .put(ServerConfig.FLIGHT_KEEPALIVE_TIMEOUT.getKey(), TimeValue.timeValueSeconds(60))
-            .build();
-        expectThrows(IllegalArgumentException.class, () -> clusterSettings.validate(explicitTime, true));
+    public void testKeepAliveDefaultsMatchGrpc() {
+        assertEquals(TimeValue.timeValueHours(2), ServerConfig.FLIGHT_KEEPALIVE_TIME.get(Settings.EMPTY));
+        assertEquals(TimeValue.timeValueSeconds(20), ServerConfig.FLIGHT_KEEPALIVE_TIMEOUT.get(Settings.EMPTY));
     }
 
     public void testKeepAliveTimeoutMustBeLessThanTime() {
